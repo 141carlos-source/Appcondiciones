@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Sincronización Drive · APP Avisos</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f5f9;color:#16233b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}main{max-width:560px;margin:0 auto;padding:16px}.card{background:#fff;border:1px solid #dbe4ef;border-radius:18px;padding:16px;margin:12px 0}h1{font-size:21px;margin:0 0 6px}h2{font-size:16px}.small{font-size:11px;color:#6f7d91;line-height:1.5}.status{border-radius:12px;padding:11px;font-weight:800;font-size:12px;line-height:1.45;background:#fff8db;border:1px solid #e4ce75;color:#6e5900}.status.ok{background:#ebf9f0;border-color:#9bd0ad;color:#176b35}.status.err{background:#fff0f0;border-color:#e4a5a5;color:#922}.btn{width:100%;border:0;border-radius:13px;padding:14px;margin-top:9px;font-weight:900;font-size:15px;cursor:pointer}.primary{background:#0b5ed7;color:white}.secondary{background:#fff;border:1px solid #c8d3e1;color:#26364f}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.info{border:1px solid #dbe4ef;border-radius:11px;padding:10px}.info span{display:block;font-size:9px;color:#7a8798;font-weight:800}.info strong{display:block;font-size:11px;margin-top:4px;overflow-wrap:anywhere}@media(max-width:480px){.grid{grid-template-columns:1fr}}
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body><main>
+<div class="card"><h1>APP Avisos · Google Drive</h1><p class="small">PUENTE HTTPS DE SINCRONIZACIÓN. ESTE PUENTE SOLO RECIBE LA COPIA YA CIFRADA DE LA APP Y MANTIENE EL TOKEN DE GOOGLE EN ESTA SESIÓN.</p></div>
+<div id="status" class="status">CARGANDO…</div>
+<div class="card">
+<div class="grid">
+<div class="info"><span>CARPETA</span><strong id="folderLabel">—</strong></div>
+<div class="info"><span>CUENTA</span><strong id="accountLabel">NO AUTORIZADA</strong></div>
+<div class="info"><span>REVISIÓN DRIVE</span><strong id="revisionLabel">0</strong></div>
+<div class="info"><span>ESTADO</span><strong id="stateLabel">ESPERANDO</strong></div>
+</div>
+<button id="authBtn" class="btn primary">AUTORIZAR GOOGLE DRIVE</button>
+<button id="closeBtn" class="btn secondary">CERRAR Y VOLVER A LA APP</button>
+<p class="small">Permiso solicitado: <strong>drive.file</strong>. La APP solo puede gestionar los archivos de Drive creados o utilizados por esta aplicación.</p>
+</div>
+</main>
+<script>
+const P=new URLSearchParams(location.search),CLIENT_ID=P.get('client_id')||'',FOLDER_NAME=P.get('folder')||'AVISOS APP',INITIAL_FOLDER_ID=P.get('folder_id')||'',CHANNEL=P.get('channel')||'';
+const SCOPE='https://www.googleapis.com/auth/drive.file',MASTER='AVISOS_APP_MASTER.avisos';
+let token='',tokenUntil=0,folderId=INITIAL_FOLDER_ID,account='',authorized=false,oauthClient=null,pending=[];
+const statusEl=document.getElementById('status'),authBtn=document.getElementById('authBtn'),closeBtn=document.getElementById('closeBtn');
+function status(t,kind=''){statusEl.textContent=t;statusEl.className='status '+kind;document.getElementById('stateLabel').textContent=t}
+function send(m){if(!window.opener)return;window.opener.postMessage({...m,channel:CHANNEL},'*')}
+function readyMessage(cloud=null){send({type:'APP_AVISOS_SYNC_READY',folderId,accountLabel:account,cloud})}
+function escQ(v){return String(v||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+async function api(url,opt={}){if(!token||Date.now()>tokenUntil-30000)throw Error('SESIÓN GOOGLE NO AUTORIZADA');const h=new Headers(opt.headers||{});h.set('Authorization','Bearer '+token);const r=await fetch(url,{...opt,headers:h});if(!r.ok){let tx='';try{tx=await r.text()}catch(_){};throw Error('DRIVE '+r.status+(tx?' · '+tx.slice(0,160):''))}return r}
+async function list(q,fields='files(id,name,modifiedTime,createdTime,appProperties)'){const u='https://www.googleapis.com/drive/v3/files?spaces=drive&pageSize=100&fields='+encodeURIComponent(fields)+'&q='+encodeURIComponent(q);return (await (await api(u)).json()).files||[]}
+async function createMeta(meta){return (await (await api('https://www.googleapis.com/drive/v3/files?fields=id,name,modifiedTime,appProperties',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(meta)})).json())}
+async function ensureFolder(){
+ if(folderId){try{const f=await (await api('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(folderId)+'?fields=id,name,mimeType,trashed')).json();if(f.mimeType==='application/vnd.google-apps.folder'&&!f.trashed){document.getElementById('folderLabel').textContent=f.name;return f}}catch(_){folderId=''}}
+ const q=`name = '${escQ(FOLDER_NAME)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;let f=(await list(q,'files(id,name,mimeType,modifiedTime)'))[0];if(!f)f=await createMeta({name:FOLDER_NAME,mimeType:'application/vnd.google-apps.folder',appProperties:{appAvisosFolder:'1'}});folderId=f.id;document.getElementById('folderLabel').textContent=f.name||FOLDER_NAME;return f
+}
+async function masterFile(){await ensureFolder();const q=`'${escQ(folderId)}' in parents and trashed = false and appProperties has { key='appAvisosKind' and value='master' }`;const fs=await list(q);return fs.sort((a,b)=>String(b.modifiedTime||'').localeCompare(String(a.modifiedTime||'')))[0]||null}
+function rev(f){return Number(f?.appProperties?.revision||0)||0}
+function cloudMeta(f){return f?{revision:rev(f),modifiedTime:f.modifiedTime||'',deviceName:f.appProperties?.deviceName||'',appVersion:f.appProperties?.appVersion||'',masterFileId:f.id}:{revision:0,modifiedTime:'',deviceName:'',appVersion:'',masterFileId:''}}
+async function uploadMultipart(text,meta,fileId=''){const boundary='----APPAVISOS'+Date.now()+Math.random().toString(36).slice(2),body=new Blob([`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`,JSON.stringify(meta),`\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n`,text,`\r\n--${boundary}--`]);const base=fileId?'https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(fileId):'https://www.googleapis.com/upload/drive/v3/files';return (await (await api(base+'?uploadType=multipart&fields=id,name,modifiedTime,appProperties',{method:fileId?'PATCH':'POST',headers:{'Content-Type':'multipart/related; boundary='+boundary},body})).json())}
+function weekKey(d){const x=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())),day=x.getUTCDay()||7;x.setUTCDate(x.getUTCDate()+4-day);const y=new Date(Date.UTC(x.getUTCFullYear(),0,1));return x.getUTCFullYear()+'-W'+String(Math.ceil((((x-y)/86400000)+1)/7)).padStart(2,'0')}
+async function prune(keepDaily,keepWeekly){const q=`'${escQ(folderId)}' in parents and trashed = false and appProperties has { key='appAvisosKind' and value='history' }`,fs=(await list(q)).sort((a,b)=>String(b.createdTime||b.modifiedTime||'').localeCompare(String(a.createdTime||a.modifiedTime||''))),keep=new Set(),days=new Set(),weeks=new Set();for(const f of fs){const d=new Date(f.createdTime||f.modifiedTime||0);if(!Number.isFinite(d.getTime()))continue;const day=d.toISOString().slice(0,10),wk=weekKey(d);if(days.size<keepDaily&&!days.has(day)){days.add(day);keep.add(f.id);continue}if(weeks.size<keepWeekly&&!weeks.has(wk)){weeks.add(wk);keep.add(f.id)}}for(const f of fs){if(keep.has(f.id))continue;try{await api('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(f.id),{method:'DELETE'})}catch(_){}}}
+async function doCheck(){const m=await masterFile(),c=cloudMeta(m);document.getElementById('revisionLabel').textContent=String(c.revision);readyMessage(c);return {folderId,accountLabel:account,cloud:c}}
+async function doUpload(p){
+ const envelope=String(p.envelope||'');if(!envelope.includes('APP_AVISOS_COPIA_CIFRADA_V1'))throw Error('COPIA CIFRADA NO VÁLIDA');
+ const m=await masterFile(),cloud=cloudMeta(m),known=Number(p.knownRevision||0)||0;if(m&&cloud.revision>known&&!p.force){const er=Error('DRIVE TIENE UNA REVISIÓN MÁS NUEVA');er.code='CONFLICT';er.data={folderId,accountLabel:account,cloud};throw er}
+ const now=new Date(),nr=Math.max(cloud.revision,known)+1,props={appAvisosKind:'master',revision:String(nr),deviceName:String(p.deviceName||'DISPOSITIVO').slice(0,100),appVersion:String(p.appVersion||44),modifiedAt:String(p.modifiedAt||now.toISOString()).slice(0,124)},meta={name:MASTER,mimeType:'application/json',appProperties:props};if(!m)meta.parents=[folderId];const saved=await uploadMultipart(envelope,meta,m?.id||'');
+ const hn=`COPIA_AVISOS_${now.toISOString().slice(0,10)}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}_R${nr}.avisos`;await uploadMultipart(envelope,{name:hn,mimeType:'application/json',parents:[folderId],appProperties:{appAvisosKind:'history',revision:String(nr),deviceName:props.deviceName,appVersion:props.appVersion}},'');try{await prune(Math.max(1,Number(p.keepDaily||7)),Math.max(1,Number(p.keepWeekly||4)))}catch(_){ }
+ const r={folderId,masterFileId:saved.id,revision:nr,modifiedTime:saved.modifiedTime||now.toISOString(),deviceName:props.deviceName,accountLabel:account};document.getElementById('revisionLabel').textContent=String(nr);status('SINCRONIZACIÓN COMPLETADA','ok');readyMessage({...r});return r
+}
+async function doDownload(){const m=await masterFile();if(!m)return {folderId,accountLabel:account,revision:0,envelope:''};const r=await api('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(m.id)+'?alt=media'),envelope=await r.text(),c=cloudMeta(m);return {folderId,accountLabel:account,masterFileId:m.id,revision:c.revision,modifiedTime:c.modifiedTime,deviceName:c.deviceName,envelope}}
+async function process(req){const {requestId,action,payload={}}=req;try{let data;if(action==='check')data=await doCheck();else if(action==='upload')data=await doUpload(payload);else if(action==='download')data=await doDownload();else throw Error('OPERACIÓN NO VÁLIDA');send({type:'APP_AVISOS_SYNC_RESPONSE',requestId,ok:true,data})}catch(err){send({type:'APP_AVISOS_SYNC_RESPONSE',requestId,ok:false,error:err.message||String(err),code:err.code||'',data:err.data||null});status(err.message||'ERROR','err')}}
+async function processPending(){while(authorized&&pending.length){const r=pending.shift();await process(r)}}
+window.addEventListener('message',ev=>{if(ev.source!==window.opener)return;const m=ev.data||{};if(m.channel!==CHANNEL||m.type!=='APP_AVISOS_SYNC_REQUEST')return;if(!authorized){pending.push(m);status('PULSA AUTORIZAR GOOGLE DRIVE PARA CONTINUAR');return}process(m)});
+function initOauth(){if(!CLIENT_ID){status('FALTA EL OAUTH CLIENT ID DE GOOGLE','err');authBtn.disabled=true;return}if(!window.google?.accounts?.oauth2){setTimeout(initOauth,250);return}oauthClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPE,callback:async r=>{if(r?.error){status(r.error_description||r.error,'err');return}token=r.access_token||'';tokenUntil=Date.now()+Math.max(60,Number(r.expires_in||3600))*1000;authorized=!!token;try{await ensureFolder();try{const a=await (await api('https://www.googleapis.com/drive/v3/about?fields=user(displayName,emailAddress)')).json();account=a.user?.emailAddress||a.user?.displayName||'AUTORIZADA'}catch(_){account='AUTORIZADA'}document.getElementById('accountLabel').textContent=account;status('DRIVE AUTORIZADO · PROCESANDO…','ok');const c=cloudMeta(await masterFile());document.getElementById('revisionLabel').textContent=String(c.revision);readyMessage(c);await processPending();if(!pending.length)status('DRIVE LISTO','ok')}catch(e){status(e.message||String(e),'err')}}});status('LISTO PARA AUTORIZAR GOOGLE DRIVE')}
+authBtn.onclick=()=>{if(!oauthClient){status('GOOGLE IDENTITY TODAVÍA ESTÁ CARGANDO');return}oauthClient.requestAccessToken({prompt:''})};closeBtn.onclick=()=>window.close();
+document.getElementById('folderLabel').textContent=FOLDER_NAME;send({type:'APP_AVISOS_SYNC_BRIDGE_LOADED'});initOauth();
+</script></body></html>
