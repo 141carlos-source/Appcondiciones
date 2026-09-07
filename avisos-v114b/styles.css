@@ -1,0 +1,25 @@
+:root{--azul:#0b5ed7;--fondo:#f4f7fb;--card:#fff;--texto:#182033;--muted:#6f7b8f;--linea:#dbe3ee;--rojo:#b42318;--verde:#15803d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;padding:0;background:var(--fondo);color:var(--texto);font-family:Arial,Helvetica,sans-serif}body{min-height:100vh}
+header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--linea);padding:12px 15px;display:flex;align-items:center;gap:10px}
+#headerLogo{width:52px;height:40px;object-fit:contain;border-radius:7px;border:1px solid var(--linea);background:#fff;padding:3px;display:none}
+.headerText{min-width:0;flex:1}.headerText strong{font-size:18px}.headerText small{display:block;color:var(--muted);margin-top:3px}
+#bootState{margin-top:5px;font-size:11px;font-weight:800;color:#8a5a00}#bootState.ok{color:var(--verde)}#bootState.err{color:var(--rojo)}
+main{padding:14px 14px 92px;max-width:900px;margin:0 auto}.screen{display:none}.screen.active{display:block}
+.card{background:var(--card);border:1px solid var(--linea);border-radius:16px;padding:14px;margin-bottom:12px}
+h2{margin:0 0 10px;font-size:20px}h3{margin:0 0 10px;font-size:16px}p{line-height:1.45}
+.sectionTitle{margin:3px 0 11px;padding-bottom:7px;border-bottom:1px solid var(--linea);font-size:13px;font-weight:900;color:#24466e;text-transform:uppercase}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:10px 0}
+input,textarea{width:100%;margin-top:6px;padding:12px;border:1px solid #cbd5e1;border-radius:11px;font-size:16px;background:#fff;color:var(--texto)}
+textarea{min-height:90px;resize:vertical}input[type=file]{padding:9px}
+button{font:inherit;border:1px solid var(--azul);border-radius:12px;padding:12px 14px;font-weight:800;background:#fff;color:var(--azul);cursor:pointer}
+button.primary{background:var(--azul);color:#fff}.full{width:100%}.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}
+.notice{border:1px solid var(--linea);border-radius:13px;padding:11px;margin:8px 0;background:#fff}.notice strong{display:block}.notice small{display:block;color:var(--muted);margin-top:4px}
+.bottom{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid var(--linea);display:grid;grid-template-columns:repeat(3,1fr);padding:6px 5px calc(6px + env(safe-area-inset-bottom))}
+.bottom button{border:0;background:transparent;color:#667085;padding:9px 3px;font-size:13px;border-radius:10px}.bottom button.active{color:var(--azul);background:#eef5ff}
+.status{font-size:12px;color:var(--verde);font-weight:800;margin-top:8px;min-height:16px}.muted{color:var(--muted);font-size:12px}.empty{padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--linea);border-radius:12px}
+.logoBox{border:1px dashed #b7c5d7;border-radius:13px;padding:10px;background:#fafcff;margin-bottom:10px}.logoPreview{min-height:90px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--linea);border-radius:11px;overflow:hidden}.logoPreview img{display:none;max-width:100%;max-height:130px;object-fit:contain}.logoPreview span{color:var(--muted);font-size:12px}
+.grid2{display:grid;grid-template-columns:1fr;gap:0 12px}
+select{width:100%;margin-top:6px;padding:12px;border:1px solid #cbd5e1;border-radius:11px;font-size:16px;background:#fff;color:var(--texto)}
+.toolbar{display:grid;grid-template-columns:1fr;gap:8px;margin-top:10px}.toolbar .row{align-items:end}.toolbar label{margin:0}
+.avisoCard{border:1px solid var(--linea);border-radius:14px;padding:12px;margin:9px 0;background:#fff}.avisoTop{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.avisoTop strong{font-size:16px}.badge{display:inline-block;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:900;background:#eef5ff;color:#174ea6;white-space:nowrap}.badge.en_curso{background:#fff7db;color:#8a5a00}.badge.finalizado{background:#eaf8ee;color:#166534}.avisoMeta{font-size:12px;color:var(--muted);margin-top:5px}.avisoConcepto{margin:9px 0 0;white-space:pre-wrap}.actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.actions button{padding:9px 8px;font-size:13px}.counter{font-size:12px;color:var(--muted);margin:8px 0 0}
+@media(min-width:700px){main{padding:20px 20px 100px}.grid2{grid-template-columns:1fr 1fr}.wide{grid-column:1/-1}}
