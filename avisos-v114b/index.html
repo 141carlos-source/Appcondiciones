@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b5ed7">
+<title>APP Avisos V1.14B</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<header>
+<img id="headerLogo" alt="Logo empresa">
+<div class="headerText"><strong>APP Avisos</strong><small>V1.14B PRUEBA · Cliente y suministro</small><div id="bootState">INICIANDO APP…</div></div>
+</header>
+<main>
+<section id="inicio" class="screen active">
+  <div class="card">
+    <h2>Inicio</h2>
+    <p class="muted">Base web estable. Los datos se conservan en esta dirección web.</p>
+    <div id="resumenInicio"></div>
+  </div>
+</section>
+
+<section id="avisos" class="screen">
+  <div class="card">
+    <h2>Avisos</h2>
+    <div class="toolbar">
+      <label>Crear aviso
+        <select id="crearAvisoModo" onchange="App.crearAvisoModo()">
+          <option value="">Seleccionar…</option>
+          <option value="nuevo">Nuevo aviso</option>
+          <option value="duplicar">Duplicar aviso existente</option>
+        </select>
+      </label>
+      <div id="duplicarBox" style="display:none">
+        <label>Aviso a duplicar<select id="duplicarAvisoId"></select></label>
+        <button type="button" class="primary full" onclick="App.duplicarSeleccionado()">Duplicar y editar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="formAviso" class="card" style="display:none">
+    <h3 id="formAvisoTitulo">Nuevo aviso</h3>
+    <input id="avId" type="hidden">
+    <div class="grid2">
+      <label>Fecha<input id="avFecha" type="date"></label>
+      <label>Estado
+        <select id="avEstado">
+          <option value="pendiente">Pendiente</option>
+          <option value="en_curso">En curso</option>
+          <option value="finalizado">Finalizado</option>
+        </select>
+      </label>
+      <div class="sectionTitle wide">Cliente y suministro</div>
+      <label>Cliente / Razón social<input id="avCliente" autocomplete="off"></label>
+      <label>Nombre persona de contacto<input id="avContacto" autocomplete="off"></label>
+      <label>DNI / NIF / CIF<input id="avNif" autocomplete="off"></label>
+      <label>Teléfono<input id="avTelefono" inputmode="tel" autocomplete="off"></label>
+      <label>Correo electrónico<input id="avEmail" type="email" autocomplete="email"></label>
+      <label>Referencia catastral<input id="avRefCatastral" autocomplete="off"></label>
+      <label class="wide">Dirección del suministro<input id="avDireccion" autocomplete="street-address"></label>
+      <label>CP<input id="avCp" inputmode="numeric" autocomplete="postal-code"></label>
+      <label>Población / Localidad<input id="avLocalidad" autocomplete="address-level2"></label>
+      <label class="wide">Provincia<input id="avProvincia" autocomplete="address-level1"></label>
+      <label>CUPS Electricidad<input id="avCupsE" placeholder="ES..." autocomplete="off"></label>
+      <label>CUPS Gas<input id="avCupsG" placeholder="ES..." autocomplete="off"></label>
+      <div class="muted wide" style="margin:0 0 8px">CUPS + dirección identifican el punto de suministro. No reutilices un CUPS en otra dirección.</div>
+      <div class="sectionTitle wide">Datos del aviso</div>
+      <label class="wide">Concepto aclarador<input id="avConcepto" list="conceptosPrevios" autocomplete="off"></label>
+      <datalist id="conceptosPrevios"></datalist>
+      <label class="wide">Observaciones<textarea id="avObservaciones"></textarea></label>
+    </div>
+    <div class="row"><button type="button" onclick="App.cancelarAviso()">Cancelar</button><button type="button" class="primary" onclick="App.guardarAviso()">Guardar aviso</button></div>
+    <div id="estadoAviso" class="status"></div>
+  </div>
+
+  <div class="card">
+    <h3>Listado de avisos</h3>
+    <div class="grid2">
+      <label>Buscar<input id="avBuscar" type="search" placeholder="Cliente, dirección o concepto" oninput="App.filtrarAvisos()"></label>
+      <label>Estado
+        <select id="avFiltroEstado" onchange="App.filtrarAvisos()">
+          <option value="">Todos</option>
+          <option value="pendiente">Pendientes</option>
+          <option value="en_curso">En curso</option>
+          <option value="finalizado">Finalizados</option>
+        </select>
+      </label>
+    </div>
+    <div id="contadorAvisos" class="counter"></div>
+    <div id="listaAvisos"></div>
+  </div>
+</section>
+
+<section id="config" class="screen">
+  <div class="card">
+    <h2>Configuración</h2>
+    <div class="sectionTitle">Empresa</div>
+
+    <div class="logoBox">
+      <div class="logoPreview"><img id="empresaLogoPreview" alt="Logo"><span id="empresaLogoEmpty">SIN LOGO</span></div>
+      <label>Logo de empresa<input id="empresaLogoFile" type="file" accept="image/*"></label>
+      <button type="button" class="full" onclick="App.quitarLogo()">Quitar logo</button>
+      <p class="muted">El logo queda guardado en este navegador y se usará más adelante en memorias, sello y cabecera.</p>
+    </div>
+
+    <div class="grid2">
+      <label>Razón social / nombre de empresa<input id="empresaNombre" autocomplete="organization"></label>
+      <label>Nombre comercial<input id="empresaNombreComercial" autocomplete="organization"></label>
+      <label>NIF / CIF<input id="empresaNif" autocomplete="off"></label>
+      <label>Teléfono<input id="empresaTelefono" inputmode="tel"></label>
+      <label>Correo electrónico<input id="empresaEmail" type="email" autocomplete="email"></label>
+      <label>Página web<input id="empresaWeb" inputmode="url" autocomplete="url"></label>
+      <label class="wide">Dirección<input id="empresaDireccion" autocomplete="street-address"></label>
+      <label>Código postal<input id="empresaCp" inputmode="numeric"></label>
+      <label>Localidad<input id="empresaLocalidad"></label>
+      <label class="wide">Provincia<input id="empresaProvincia"></label>
+    </div>
+
+    <div class="sectionTitle">Técnico / instalador</div>
+    <div class="grid2">
+      <label>Nombre y apellidos<input id="tecnicoNombre"></label>
+      <label>NIF<input id="tecnicoNif"></label>
+      <label>Teléfono<input id="tecnicoTelefono" inputmode="tel"></label>
+      <label>Correo electrónico<input id="tecnicoEmail" type="email"></label>
+      <label>Nº instalador / habilitación<input id="tecnicoNumero"></label>
+      <label>Nº colegiado (si procede)<input id="tecnicoColegiado"></label>
+    </div>
+
+    <div class="sectionTitle">Solicitante predeterminado</div>
+    <p class="muted">Estos datos solo se configuran aquí. Más adelante se utilizarán al crear documentos y formularios.</p>
+    <div class="grid2">
+      <label>Nombre / razón social<input id="solNombre"></label>
+      <label>NIF / CIF<input id="solNif"></label>
+      <label>Teléfono<input id="solTelefono" inputmode="tel"></label>
+      <label>Correo electrónico<input id="solEmail" type="email"></label>
+      <label class="wide">Dirección<input id="solDireccion"></label>
+      <label>Código postal<input id="solCp" inputmode="numeric"></label>
+      <label>Localidad<input id="solLocalidad"></label>
+      <label class="wide">Provincia<input id="solProvincia"></label>
+    </div>
+
+    <button type="button" class="primary full" onclick="App.guardarEmpresa()">Guardar configuración de empresa</button>
+    <div id="estadoEmpresa" class="status"></div>
+  </div>
+</section>
+</main>
+
+<nav class="bottom" aria-label="Navegación principal">
+<button type="button" id="navInicio" class="active" onclick="App.show('inicio')">⌂<br>Inicio</button>
+<button type="button" id="navAvisos" onclick="App.show('avisos')">☰<br>Avisos</button>
+<button type="button" id="navConfig" onclick="App.show('config')">⚙<br>Empresa</button>
+</nav>
+
+<script src="./core.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>
