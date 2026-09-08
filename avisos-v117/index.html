@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b5ed7">
+<title>APP Avisos V1.17 · CartoCiudad</title>
+<style>
+:root{--azul:#0b5ed7;--fondo:#f4f7fb;--card:#fff;--texto:#182033;--muted:#6f7b8f;--linea:#dbe3ee;--rojo:#b42318;--verde:#15803d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;padding:0;background:var(--fondo);color:var(--texto);font-family:Arial,Helvetica,sans-serif}body{min-height:100vh}
+header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--linea);padding:12px 15px;display:flex;align-items:center;gap:10px}
+#headerLogo{width:52px;height:40px;object-fit:contain;border-radius:7px;border:1px solid var(--linea);background:#fff;padding:3px;display:none}
+.headerText{min-width:0;flex:1}.headerText strong{font-size:18px}.headerText small{display:block;color:var(--muted);margin-top:3px}
+#bootState{margin-top:5px;font-size:11px;font-weight:800;color:#8a5a00}#bootState.ok{color:var(--verde)}#bootState.err{color:var(--rojo)}
+main{padding:14px 14px 92px;max-width:900px;margin:0 auto}.screen{display:none}.screen.active{display:block}
+.card{background:var(--card);border:1px solid var(--linea);border-radius:16px;padding:14px;margin-bottom:12px}
+h2{margin:0 0 10px;font-size:20px}h3{margin:0 0 10px;font-size:16px}p{line-height:1.45}
+.sectionTitle{margin:3px 0 11px;padding-bottom:7px;border-bottom:1px solid var(--linea);font-size:13px;font-weight:900;color:#24466e;text-transform:uppercase}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:10px 0}
+input,textarea{width:100%;margin-top:6px;padding:12px;border:1px solid #cbd5e1;border-radius:11px;font-size:16px;background:#fff;color:var(--texto)}
+textarea{min-height:90px;resize:vertical}input[type=file]{padding:9px}
+button{font:inherit;border:1px solid var(--azul);border-radius:12px;padding:12px 14px;font-weight:800;background:#fff;color:var(--azul);cursor:pointer}
+button.primary{background:var(--azul);color:#fff}.full{width:100%}.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}
+.notice{border:1px solid var(--linea);border-radius:13px;padding:11px;margin:8px 0;background:#fff}.notice strong{display:block}.notice small{display:block;color:var(--muted);margin-top:4px}
+.bottom{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid var(--linea);display:grid;grid-template-columns:repeat(3,1fr);padding:6px 5px calc(6px + env(safe-area-inset-bottom))}
+.bottom button{border:0;background:transparent;color:#667085;padding:9px 3px;font-size:13px;border-radius:10px}.bottom button.active{color:var(--azul);background:#eef5ff}
+.status{font-size:12px;color:var(--verde);font-weight:800;margin-top:8px;min-height:16px}.muted{color:var(--muted);font-size:12px}.empty{padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--linea);border-radius:12px}
+.logoBox{border:1px dashed #b7c5d7;border-radius:13px;padding:10px;background:#fafcff;margin-bottom:10px}.logoPreview{min-height:90px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--linea);border-radius:11px;overflow:hidden}.logoPreview img{display:none;max-width:100%;max-height:130px;object-fit:contain}.logoPreview span{color:var(--muted);font-size:12px}
+.grid2{display:grid;grid-template-columns:1fr;gap:0 12px}
+select{width:100%;margin-top:6px;padding:12px;border:1px solid #cbd5e1;border-radius:11px;font-size:16px;background:#fff;color:var(--texto)}
+.toolbar{display:grid;grid-template-columns:1fr;gap:8px;margin-top:10px}.toolbar .row{align-items:end}.toolbar label{margin:0}
+.avisoCard{border:1px solid var(--linea);border-radius:14px;padding:12px;margin:9px 0;background:#fff}.avisoTop{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.avisoTop strong{font-size:16px}.badge{display:inline-block;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:900;background:#eef5ff;color:#174ea6;white-space:nowrap}.badge.en_curso{background:#fff7db;color:#8a5a00}.badge.finalizado{background:#eaf8ee;color:#166534}.avisoMeta{font-size:12px;color:var(--muted);margin-top:5px}.avisoConcepto{margin:9px 0 0;white-space:pre-wrap}.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}.actions button{padding:9px 8px;font-size:13px}.actions .danger,.danger{border-color:var(--rojo);color:var(--rojo)}.counter{font-size:12px;color:var(--muted);margin:8px 0 0}.trashCard{border-color:#efc6c2;background:#fffafa}.trashMeta{font-size:11px;color:var(--rojo);margin-top:6px}.cartoBox{border:1px solid #bfd2eb;border-radius:13px;padding:10px;background:#f8fbff;margin:6px 0 10px}.cartoResult{display:block;width:100%;text-align:left;margin:7px 0;border-color:#b7cbe5;color:#24466e;background:#fff}.cartoResult small{display:block;color:var(--muted);font-weight:400;margin-top:3px}.coordBox{display:grid;grid-template-columns:1fr 1fr;gap:8px}.coordActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+@media(min-width:700px){main{padding:20px 20px 100px}.grid2{grid-template-columns:1fr 1fr}.wide{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<header>
+<img id="headerLogo" alt="Logo empresa">
+<div class="headerText"><strong>APP Avisos</strong><small>V1.17 PRUEBA · Papelera + CartoCiudad</small><div id="bootState">INICIANDO APP…</div></div>
+</header>
+<main>
+<section id="inicio" class="screen active">
+  <div class="card">
+    <h2>Inicio</h2>
+    <p class="muted">V1.17 mantiene los datos persistentes de V1.16 y añade papelera, referencia catastral visible y geolocalización CartoCiudad.</p>
+    <div id="resumenInicio"></div>
+  </div>
+</section>
+
+<section id="avisos" class="screen">
+  <div class="card">
+    <h2>Avisos</h2>
+    <div class="toolbar">
+      <label>Crear aviso
+        <select id="crearAvisoModo" onchange="App.crearAvisoModo()">
+          <option value="">Seleccionar…</option>
+          <option value="nuevo">Nuevo aviso</option>
+          <option value="duplicar">Duplicar aviso existente</option>
+        </select>
+      </label>
+      <div id="duplicarBox" style="display:none">
+        <label>Aviso a duplicar<select id="duplicarAvisoId"></select></label>
+        <button type="button" class="primary full" onclick="App.duplicarSeleccionado()">Duplicar y editar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="formAviso" class="card" style="display:none">
+    <h3 id="formAvisoTitulo">Nuevo aviso</h3>
+    <input id="avId" type="hidden">
+    <div class="grid2">
+      <label>Fecha<input id="avFecha" type="date"></label>
+      <label>Estado
+        <select id="avEstado">
+          <option value="pendiente">Pendiente</option>
+          <option value="en_curso">En curso</option>
+          <option value="finalizado">Finalizado</option>
+        </select>
+      </label>
+      <div class="sectionTitle wide">Cliente y suministro</div>
+      <label>Cliente / Razón social<input id="avCliente" autocomplete="off"></label>
+      <label>Nombre persona de contacto<input id="avContacto" autocomplete="off"></label>
+      <label>DNI / NIF / CIF<input id="avNif" autocomplete="off"></label>
+      <label>Teléfono<input id="avTelefono" inputmode="tel" autocomplete="off"></label>
+      <label>Correo electrónico<input id="avEmail" type="email" autocomplete="email"></label>
+      <label>Referencia catastral<input id="avRefCatastral" autocomplete="off"></label>
+      <label class="wide">Dirección del suministro<input id="avDireccion" autocomplete="street-address"></label>
+      <label>CP<input id="avCp" inputmode="numeric" autocomplete="postal-code"></label>
+      <label>Población / Localidad<input id="avLocalidad" autocomplete="address-level2"></label>
+      <label class="wide">Provincia<input id="avProvincia" autocomplete="address-level1"></label>
+      <div class="cartoBox wide">
+        <strong style="font-size:13px">CartoCiudad · plano y coordenadas</strong>
+        <p class="muted" style="margin:6px 0">Busca por la dirección del suministro o por la referencia catastral. Las coordenadas se guardan con el aviso en WGS84.</p>
+        <div class="grid2">
+          <button type="button" onclick="App.buscarCartoDireccion()">Buscar dirección</button>
+          <button type="button" onclick="App.buscarCartoRef()">Buscar ref. catastral</button>
+        </div>
+        <div id="cartoEstado" class="status"></div>
+        <div id="cartoResultados"></div>
+        <div class="coordBox">
+          <label>Latitud<input id="avLatitud" inputmode="decimal" placeholder="Ej.: 41.6488"></label>
+          <label>Longitud<input id="avLongitud" inputmode="decimal" placeholder="Ej.: -0.8891"></label>
+        </div>
+        <div class="coordActions">
+          <button type="button" onclick="App.copiarCoordenadas()">Copiar coordenadas</button>
+          <button type="button" class="primary" onclick="App.verPlanoCarto()">Ver plano CartoCiudad</button>
+        </div>
+      </div>
+      <label>CUPS Electricidad<input id="avCupsE" placeholder="ES..." autocomplete="off"></label>
+      <label>CUPS Gas<input id="avCupsG" placeholder="ES..." autocomplete="off"></label>
+      <div class="muted wide" style="margin:0 0 8px">CUPS + dirección identifican el punto de suministro. No reutilices un CUPS en otra dirección.</div>
+      <div class="sectionTitle wide">Datos eléctricos del suministro</div>
+      <label>Tensión
+        <select id="avTension" onchange="App.recalcularPotencia()">
+          <option value="230 V MONOFÁSICA">230 V MONOFÁSICA</option>
+          <option value="400 V TRIFÁSICA">400 V TRIFÁSICA</option>
+        </select>
+      </label>
+      <label>IGA (A)<input id="avIga" type="number" min="0" step="1" inputmode="decimal" oninput="App.recalcularPotencia()" placeholder="Ej.: 25"></label>
+      <label>Potencia instalación calculada (kW)<input id="avPotenciaCalculada" type="text" readonly></label>
+      <label>Potencia para condiciones de suministro (kW)<input id="avPotenciaSolicitada" type="number" min="0" step="0.1" inputmode="decimal" oninput="App.recalcularPotencia()" placeholder="Potencia solicitada"></label>
+      <div id="potenciaAviso" class="muted wide" style="margin:0 0 8px"></div>
+      <div class="sectionTitle wide">Datos del aviso</div>
+      <label class="wide">Concepto aclarador<input id="avConcepto" list="conceptosPrevios" autocomplete="off"></label>
+      <datalist id="conceptosPrevios"></datalist>
+      <label class="wide">Observaciones<textarea id="avObservaciones"></textarea></label>
+    </div>
+    <div class="row"><button type="button" onclick="App.cancelarAviso()">Cancelar</button><button type="button" class="primary" onclick="App.guardarAviso()">Guardar aviso</button></div>
+    <div id="estadoAviso" class="status"></div>
+  </div>
+
+  <div class="card">
+    <h3>Listado de avisos</h3>
+    <div class="grid2">
+      <label>Buscar<input id="avBuscar" type="search" placeholder="Cliente, dirección o concepto" oninput="App.filtrarAvisos()"></label>
+      <label>Estado
+        <select id="avFiltroEstado" onchange="App.filtrarAvisos()">
+          <option value="">Todos</option>
+          <option value="pendiente">Pendientes</option>
+          <option value="en_curso">En curso</option>
+          <option value="finalizado">Finalizados</option>
+        </select>
+      </label>
+    </div>
+    <div id="contadorAvisos" class="counter"></div>
+    <div id="listaAvisos"></div>
+  </div>
+
+  <div class="card">
+    <button type="button" class="full" onclick="App.togglePapelera()">🗑 Papelera (<span id="contadorPapelera">0</span>)</button>
+    <div id="papeleraBox" style="display:none;margin-top:12px">
+      <h3>Papelera</h3>
+      <p class="muted">Los avisos eliminados pueden restaurarse o borrarse definitivamente.</p>
+      <div id="listaPapelera"></div>
+    </div>
+  </div>
+</section>
+
+<section id="config" class="screen">
+  <div class="card">
+    <h2>Configuración</h2>
+    <div class="sectionTitle">Empresa</div>
+
+    <div class="logoBox">
+      <div class="logoPreview"><img id="empresaLogoPreview" alt="Logo"><span id="empresaLogoEmpty">SIN LOGO</span></div>
+      <label>Logo de empresa<input id="empresaLogoFile" type="file" accept="image/*"></label>
+      <button type="button" class="full" onclick="App.quitarLogo()">Quitar logo</button>
+      <p class="muted">El logo queda guardado en este navegador y se usará más adelante en memorias, sello y cabecera.</p>
+    </div>
+
+    <div class="grid2">
+      <label>Razón social / nombre de empresa<input id="empresaNombre" autocomplete="organization"></label>
+      <label>Nombre comercial<input id="empresaNombreComercial" autocomplete="organization"></label>
+      <label>NIF / CIF<input id="empresaNif" autocomplete="off"></label>
+      <label>Teléfono<input id="empresaTelefono" inputmode="tel"></label>
+      <label>Correo electrónico<input id="empresaEmail" type="email" autocomplete="email"></label>
+      <label>Página web<input id="empresaWeb" inputmode="url" autocomplete="url"></label>
+      <label class="wide">Dirección<input id="empresaDireccion" autocomplete="street-address"></label>
+      <label>Código postal<input id="empresaCp" inputmode="numeric"></label>
+      <label>Localidad<input id="empresaLocalidad"></label>
+      <label class="wide">Provincia<input id="empresaProvincia"></label>
+    </div>
+
+    <div class="sectionTitle">Técnico / instalador</div>
+    <div class="grid2">
+      <label>Nombre y apellidos<input id="tecnicoNombre"></label>
+      <label>NIF<input id="tecnicoNif"></label>
+      <label>Teléfono<input id="tecnicoTelefono" inputmode="tel"></label>
+      <label>Correo electrónico<input id="tecnicoEmail" type="email"></label>
+      <label>Nº instalador / habilitación<input id="tecnicoNumero"></label>
+      <label>Nº colegiado (si procede)<input id="tecnicoColegiado"></label>
+    </div>
+
+    <div class="sectionTitle">Solicitante predeterminado</div>
+    <p class="muted">Estos datos solo se configuran aquí. Más adelante se utilizarán al crear documentos y formularios.</p>
+    <div class="grid2">
+      <label>Nombre / razón social<input id="solNombre"></label>
+      <label>NIF / CIF<input id="solNif"></label>
+      <label>Teléfono<input id="solTelefono" inputmode="tel"></label>
+      <label>Correo electrónico<input id="solEmail" type="email"></label>
+      <label class="wide">Dirección<input id="solDireccion"></label>
+      <label>Código postal<input id="solCp" inputmode="numeric"></label>
+      <label>Localidad<input id="solLocalidad"></label>
+      <label class="wide">Provincia<input id="solProvincia"></label>
+    </div>
+
+    <button type="button" class="primary full" onclick="App.guardarEmpresa()">Guardar configuración de empresa</button>
+    <div id="estadoEmpresa" class="status"></div>
+  </div>
+</section>
+</main>
+
+<nav class="bottom" aria-label="Navegación principal">
+<button type="button" id="navInicio" class="active" onclick="App.show('inicio')">⌂<br>Inicio</button>
+<button type="button" id="navAvisos" onclick="App.show('avisos')">☰<br>Avisos</button>
+<button type="button" id="navConfig" onclick="App.show('config')">⚙<br>Empresa</button>
+</nav>
+
+<script>
+(function(){
+'use strict';
+var KEY='APP_AVISOS_WEB_DATOS_V116_PERSISTENTE';
+var SOURCE_KEY='APP_AVISOS_WEB_DATOS_V115_ELECTRICO';
+var DRAFT_KEY='APP_AVISOS_WEB_BORRADOR_V116';
+var DB_NAME='APP_AVISOS_PERSISTENCIA';
+var DB_STORE='estado';
+var logoPendiente='';
+var data={schema:4,empresa:{},tecnico:{},solicitante:{},avisos:[],papelera:[]};
+var cartoCandidates=[];
+
+function el(id){return document.getElementById(id);}
+function text(v){return v==null?'':String(v);}
+function esc(v){return text(v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
+function obj(defaults,src){var out={};src=src||{};Object.keys(defaults).forEach(function(k){out[k]=text(src[k]);});return out;}
+function blankEmpresa(){return {nombre:'',nombreComercial:'',nif:'',telefono:'',email:'',web:'',direccion:'',cp:'',localidad:'',provincia:'',logoData:''};}
+function blankTecnico(){return {nombre:'',nif:'',telefono:'',email:'',numero:'',colegiado:''};}
+function blankSolicitante(){return {nombre:'',nif:'',telefono:'',email:'',direccion:'',cp:'',localidad:'',provincia:''};}
+
+function normalizarAviso(a){
+  a=a||{};
+  return {
+    id:Number(a.id)||Date.now(),
+    creado:text(a.creado)||new Date().toISOString(),
+    actualizado:text(a.actualizado)||text(a.creado)||new Date().toISOString(),
+    fecha:text(a.fecha)||text(a.creado).slice(0,10)||hoyISO(),
+    estado:['pendiente','en_curso','finalizado'].indexOf(a.estado)>=0?a.estado:'pendiente',
+    cliente:text(a.cliente),contacto:text(a.contacto),nif:text(a.nif),telefono:text(a.telefono),email:text(a.email),
+    refCatastral:text(a.refCatastral),direccion:text(a.direccion),cp:text(a.cp),localidad:text(a.localidad),provincia:text(a.provincia),
+    cupsE:text(a.cupsE),cupsG:text(a.cupsG),latitud:text(a.latitud),longitud:text(a.longitud),cartoDireccion:text(a.cartoDireccion),tension:String(a.tension||'').includes('400')?'400 V TRIFÁSICA':'230 V MONOFÁSICA',iga:text(a.iga),potenciaCalculada:text(a.potenciaCalculada),potenciaSolicitada:text(a.potenciaSolicitada),concepto:text(a.concepto),observaciones:text(a.observaciones),eliminadoEn:text(a.eliminadoEn)
+  };
+}
+
+function load(){
+  try{
+    var raw=window.localStorage.getItem(KEY);
+    var origen='V1.16';
+    if(!raw){raw=window.localStorage.getItem(SOURCE_KEY);origen='V1.15';}
+    if(raw){
+      var p=JSON.parse(raw);
+      if(p&&typeof p==='object'){
+        data.schema=4;
+        data.empresa=obj(blankEmpresa(),p.empresa);
+        data.tecnico=obj(blankTecnico(),p.tecnico);
+        data.solicitante=obj(blankSolicitante(),p.solicitante);
+        data.avisos=(Array.isArray(p.avisos)?p.avisos:[]).map(normalizarAviso);
+        data.papelera=(Array.isArray(p.papelera)?p.papelera:[]).map(normalizarAviso);
+      }
+    }else{
+      data.empresa=blankEmpresa();data.tecnico=blankTecnico();data.solicitante=blankSolicitante();data.avisos=[];data.papelera=[];
+    }
+    logoPendiente=data.empresa.logoData||'';
+    if(origen!=='V1.16')save();
+  }catch(err){console.error('LOAD',err);data.empresa=blankEmpresa();data.tecnico=blankTecnico();data.solicitante=blankSolicitante();data.avisos=[];data.papelera=[];}
+}
+
+function abrirDb(){return new Promise(function(resolve,reject){if(!('indexedDB' in window)){reject(new Error('IndexedDB no disponible'));return;}var req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=function(){var db=req.result;if(!db.objectStoreNames.contains(DB_STORE))db.createObjectStore(DB_STORE);};req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error||new Error('No se pudo abrir IndexedDB'));};});}
+function idbPut(k,v){return abrirDb().then(function(db){return new Promise(function(resolve,reject){var tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(v,k);tx.oncomplete=function(){db.close();resolve(true);};tx.onerror=function(){var e=tx.error;db.close();reject(e);};});});}
+function idbGet(k){return abrirDb().then(function(db){return new Promise(function(resolve,reject){var tx=db.transaction(DB_STORE,'readonly'),r=tx.objectStore(DB_STORE).get(k);r.onsuccess=function(){var v=r.result;db.close();resolve(v);};r.onerror=function(){var e=r.error;db.close();reject(e);};});});}
+function idbDelete(k){return abrirDb().then(function(db){return new Promise(function(resolve,reject){var tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).delete(k);tx.oncomplete=function(){db.close();resolve(true);};tx.onerror=function(){var e=tx.error;db.close();reject(e);};});});}
+
+function save(){
+  try{
+    var raw=JSON.stringify(data);
+    window.localStorage.setItem(KEY,raw);
+    idbPut(KEY,raw).catch(function(err){console.warn('IDB SAVE',err);});
+    return true;
+  }catch(err){console.error('SAVE',err);return false;}
+}
+function recuperarDatosIdb(){if(window.localStorage.getItem(KEY)||window.localStorage.getItem(SOURCE_KEY))return Promise.resolve(false);return idbGet(KEY).then(function(raw){if(raw){window.localStorage.setItem(KEY,raw);return true;}return false;}).catch(function(){return false;});}
+
+function setValue(id,v){var n=el(id);if(n)n.value=text(v);}
+function getValue(id){var n=el(id);return n?n.value.trim():'';}
+function hoyISO(){var d=new Date(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return d.getFullYear()+'-'+m+'-'+day;}
+function estadoTexto(v){return v==='en_curso'?'EN CURSO':v==='finalizado'?'FINALIZADO':'PENDIENTE';}
+function fechaES(v){if(!v)return '';var p=v.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:v;}
+function byId(id){id=Number(id);return data.avisos.find(function(a){return Number(a.id)===id;})||null;}
+
+function numero(v){var n=parseFloat(String(v==null?'':v).replace(',','.'));return Number.isFinite(n)?n:null;}
+function potenciaInstalacion(tension,iga){
+  var i=numero(iga);if(i===null||i<=0)return null;
+  var w=String(tension||'').includes('400')?Math.sqrt(3)*400*i:230*i;
+  return w/1000;
+}
+function formatoKw(v){if(v===null||!Number.isFinite(v))return '';return (Math.round(v*1000)/1000).toFixed(3).replace(/\.?0+$/,'');}
+function actualizarPotenciaFormulario(){
+  var t=getValue('avTension')||'230 V MONOFÁSICA',i=getValue('avIga'),calc=potenciaInstalacion(t,i),sol=numero(getValue('avPotenciaSolicitada'));
+  setValue('avPotenciaCalculada',formatoKw(calc));
+  var box=el('potenciaAviso');if(!box)return;
+  if(calc===null){box.textContent='Introduce el IGA para calcular automáticamente la potencia de la instalación.';box.style.color='';return;}
+  var txt='Potencia calculada: '+formatoKw(calc)+' kW.';
+  if(sol!==null&&sol>0){
+    if(sol<=calc){txt+=' La potencia para condiciones de suministro debe ser superior a la potencia calculada.';box.style.color='#b42318';}
+    else{txt+=' Potencia solicitada superior a la calculada.';box.style.color='#15803d';}
+  }else{txt+=' Introduce aparte la potencia que se solicitará en condiciones de suministro.';box.style.color='';}
+  box.textContent=txt;
+}
+
+function renderLogo(){
+  var img=el('empresaLogoPreview'),empty=el('empresaLogoEmpty'),head=el('headerLogo');
+  var src=logoPendiente||data.empresa.logoData||'';
+  if(src){img.src=src;img.style.display='block';empty.style.display='none';head.src=src;head.style.display='block';}
+  else{img.removeAttribute('src');img.style.display='none';empty.style.display='inline';head.removeAttribute('src');head.style.display='none';}
+}
+
+function renderInicio(){
+  var nom=data.empresa.nombreComercial||data.empresa.nombre||'Empresa no configurada';
+  el('resumenInicio').innerHTML='<div class="notice"><strong>'+esc(nom)+'</strong><small>'+data.avisos.length+' aviso(s) activo(s) · '+data.papelera.length+' en papelera</small></div>';
+  renderLogo();
+}
+
+function renderEmpresa(){
+  var e=data.empresa,t=data.tecnico,s=data.solicitante;
+  setValue('empresaNombre',e.nombre);setValue('empresaNombreComercial',e.nombreComercial);setValue('empresaNif',e.nif);
+  setValue('empresaTelefono',e.telefono);setValue('empresaEmail',e.email);setValue('empresaWeb',e.web);
+  setValue('empresaDireccion',e.direccion);setValue('empresaCp',e.cp);setValue('empresaLocalidad',e.localidad);setValue('empresaProvincia',e.provincia);
+  setValue('tecnicoNombre',t.nombre);setValue('tecnicoNif',t.nif);setValue('tecnicoTelefono',t.telefono);setValue('tecnicoEmail',t.email);setValue('tecnicoNumero',t.numero);setValue('tecnicoColegiado',t.colegiado);
+  setValue('solNombre',s.nombre);setValue('solNif',s.nif);setValue('solTelefono',s.telefono);setValue('solEmail',s.email);
+  setValue('solDireccion',s.direccion);setValue('solCp',s.cp);setValue('solLocalidad',s.localidad);setValue('solProvincia',s.provincia);
+  logoPendiente=e.logoData||logoPendiente||'';renderLogo();
+}
+
+function renderConceptos(){
+  var seen={},vals=[];data.avisos.forEach(function(a){var c=text(a.concepto).trim();if(c&&!seen[c.toLowerCase()]){seen[c.toLowerCase()]=1;vals.push(c);}});
+  vals.sort(function(a,b){return a.localeCompare(b,'es');});
+  el('conceptosPrevios').innerHTML=vals.map(function(c){return '<option value="'+esc(c)+'"></option>';}).join('');
+}
+
+function renderDuplicables(){
+  var sel=el('duplicarAvisoId');if(!sel)return;
+  var arr=data.avisos.slice().sort(function(a,b){return text(b.fecha).localeCompare(text(a.fecha))||Number(b.id)-Number(a.id);});
+  sel.innerHTML=arr.length?arr.map(function(a){return '<option value="'+a.id+'">'+esc(fechaES(a.fecha)+' · '+(a.cliente||'SIN CLIENTE')+' · '+(a.concepto||''))+'</option>';}).join(''):'<option value="">No hay avisos para duplicar</option>';
+}
+
+function renderAvisos(){
+  renderConceptos();renderDuplicables();
+  var box=el('listaAvisos'),q=text(el('avBuscar')&&el('avBuscar').value).toLowerCase().trim(),f=text(el('avFiltroEstado')&&el('avFiltroEstado').value);
+  var arr=data.avisos.slice().filter(function(a){
+    if(f&&a.estado!==f)return false;
+    if(!q)return true;
+    return [a.cliente,a.contacto,a.nif,a.telefono,a.email,a.refCatastral,a.direccion,a.cp,a.localidad,a.provincia,a.cupsE,a.cupsG,a.latitud,a.longitud,a.refCatastral,a.tension,a.iga,a.potenciaCalculada,a.potenciaSolicitada,a.concepto,a.observaciones].join(' ').toLowerCase().indexOf(q)>=0;
+  }).sort(function(a,b){return text(b.fecha).localeCompare(text(a.fecha))||Number(b.id)-Number(a.id);});
+  el('contadorAvisos').textContent=arr.length+' de '+data.avisos.length+' aviso(s)';
+  if(!arr.length){box.innerHTML='<div class="empty">No hay avisos que coincidan.</div>';return;}
+  box.innerHTML=arr.map(function(a){
+    var contacto=[a.contacto,a.telefono,a.email].filter(Boolean).join(' · ');
+    var ubicacion=[a.cp,a.localidad,a.provincia].filter(Boolean).join(' · ');
+    var cups=[a.cupsE&&('CUPS E: '+a.cupsE),a.cupsG&&('CUPS G: '+a.cupsG)].filter(Boolean).join(' · ');
+    var electrico=[a.tension,a.iga&&('IGA '+a.iga+' A'),a.potenciaCalculada&&('P calc. '+a.potenciaCalculada+' kW'),a.potenciaSolicitada&&('P condiciones '+a.potenciaSolicitada+' kW')].filter(Boolean).join(' · ');
+    return '<div class="avisoCard">'+
+      '<div class="avisoTop"><strong>'+esc(a.cliente||'SIN CLIENTE')+'</strong><span class="badge '+esc(a.estado)+'">'+estadoTexto(a.estado)+'</span></div>'+
+      '<div class="avisoMeta">'+esc(fechaES(a.fecha))+(a.direccion?' · '+esc(a.direccion):'')+(ubicacion?' · '+esc(ubicacion):'')+'</div>'+
+      (contacto?'<div class="avisoMeta">'+esc(contacto)+'</div>':'')+
+      (a.nif?'<div class="avisoMeta">NIF/CIF: '+esc(a.nif)+'</div>':'')+
+      (a.refCatastral?'<div class="avisoMeta"><strong>Ref. catastral:</strong> '+esc(a.refCatastral)+'</div>':'')+
+      ((a.latitud&&a.longitud)?'<div class="avisoMeta"><strong>Coordenadas:</strong> '+esc(a.latitud+', '+a.longitud)+'</div>':'')+
+      (cups?'<div class="avisoMeta">'+esc(cups)+'</div>':'')+
+      (electrico?'<div class="avisoMeta">'+esc(electrico)+'</div>':'')+
+      (a.concepto?'<div class="avisoConcepto"><b>'+esc(a.concepto)+'</b></div>':'')+
+      (a.observaciones?'<div class="avisoConcepto">'+esc(a.observaciones)+'</div>':'')+
+      '<div class="actions"><button type="button" onclick="App.editarAviso('+a.id+')">Editar</button><button type="button" onclick="App.duplicarAviso('+a.id+')">Duplicar</button><button type="button" class="danger" onclick="App.eliminarAviso('+a.id+')">Eliminar</button></div>'+
+      '</div>';
+  }).join('');
+}
+
+function renderPapelera(){
+  var cnt=el('contadorPapelera'),box=el('listaPapelera');
+  if(cnt)cnt.textContent=String(data.papelera.length);
+  if(!box)return;
+  var arr=data.papelera.slice().sort(function(a,b){return text(b.eliminadoEn).localeCompare(text(a.eliminadoEn))||Number(b.id)-Number(a.id);});
+  if(!arr.length){box.innerHTML='<div class="empty">La papelera está vacía.</div>';return;}
+  box.innerHTML=arr.map(function(a){
+    var ubicacion=[a.direccion,a.cp,a.localidad,a.provincia].filter(Boolean).join(' · ');
+    return '<div class="avisoCard trashCard">'+
+      '<div class="avisoTop"><strong>'+esc(a.cliente||'SIN CLIENTE')+'</strong><span class="badge '+esc(a.estado)+'">'+estadoTexto(a.estado)+'</span></div>'+
+      '<div class="avisoMeta">'+esc(fechaES(a.fecha))+(ubicacion?' · '+esc(ubicacion):'')+'</div>'+
+      (a.refCatastral?'<div class="avisoMeta"><strong>Ref. catastral:</strong> '+esc(a.refCatastral)+'</div>':'')+
+      ((a.latitud&&a.longitud)?'<div class="avisoMeta"><strong>Coordenadas:</strong> '+esc(a.latitud+', '+a.longitud)+'</div>':'')+
+      (a.concepto?'<div class="avisoConcepto"><b>'+esc(a.concepto)+'</b></div>':'')+
+      '<div class="trashMeta">Eliminado: '+esc(a.eliminadoEn?new Date(a.eliminadoEn).toLocaleString('es-ES'):'')+'</div>'+
+      '<div class="actions" style="grid-template-columns:1fr 1fr"><button type="button" onclick="App.restaurarAviso('+a.id+')">Restaurar</button><button type="button" class="danger" onclick="App.borrarDefinitivo('+a.id+')">Borrar definitivamente</button></div>'+
+      '</div>';
+  }).join('');
+}
+
+function resetAviso(){
+  ['avId','avCliente','avContacto','avNif','avTelefono','avEmail','avRefCatastral','avDireccion','avCp','avLocalidad','avProvincia','avCupsE','avCupsG','avLatitud','avLongitud','avIga','avPotenciaCalculada','avPotenciaSolicitada','avConcepto','avObservaciones'].forEach(function(id){setValue(id,'');});
+  setValue('avFecha',hoyISO());setValue('avEstado','pendiente');setValue('avTension','230 V MONOFÁSICA');el('estadoAviso').textContent='';el('formAvisoTitulo').textContent='Nuevo aviso';if(el('cartoResultados'))el('cartoResultados').innerHTML='';if(el('cartoEstado'))el('cartoEstado').textContent='';cartoCandidates=[];actualizarPotenciaFormulario();
+}
+
+function cargarAvisoEnFormulario(a,duplicando){
+  resetAviso();
+  setValue('avId',duplicando?'':a.id);setValue('avFecha',duplicando?hoyISO():a.fecha);setValue('avEstado',duplicando?'pendiente':a.estado);
+  setValue('avCliente',a.cliente);setValue('avContacto',a.contacto);setValue('avNif',a.nif);setValue('avTelefono',a.telefono);setValue('avEmail',a.email);
+  setValue('avRefCatastral',a.refCatastral);setValue('avDireccion',a.direccion);setValue('avCp',a.cp);setValue('avLocalidad',a.localidad);setValue('avProvincia',a.provincia);
+  setValue('avCupsE',a.cupsE);setValue('avCupsG',a.cupsG);setValue('avLatitud',a.latitud);setValue('avLongitud',a.longitud);setValue('avTension',a.tension||'230 V MONOFÁSICA');setValue('avIga',a.iga);setValue('avPotenciaCalculada',a.potenciaCalculada);setValue('avPotenciaSolicitada',a.potenciaSolicitada);setValue('avConcepto',a.concepto);setValue('avObservaciones',a.observaciones);actualizarPotenciaFormulario();
+  el('formAvisoTitulo').textContent=duplicando?'Duplicar aviso':'Editar aviso';el('formAviso').style.display='block';window.scrollTo(0,Math.max(0,el('formAviso').offsetTop-70));
+}
+
+var draftTimer=null;
+var DRAFT_FIELDS=['avId','avFecha','avEstado','avCliente','avContacto','avNif','avTelefono','avEmail','avRefCatastral','avDireccion','avCp','avLocalidad','avProvincia','avCupsE','avCupsG','avLatitud','avLongitud','avTension','avIga','avPotenciaCalculada','avPotenciaSolicitada','avConcepto','avObservaciones'];
+function leerFormularioBorrador(){var v={};DRAFT_FIELDS.forEach(function(id){v[id]=getValue(id);});return {at:new Date().toISOString(),titulo:el('formAvisoTitulo').textContent||'Aviso',values:v};}
+function formularioTieneDatos(){return ['avCliente','avContacto','avNif','avTelefono','avEmail','avRefCatastral','avDireccion','avCp','avLocalidad','avProvincia','avCupsE','avCupsG','avLatitud','avLongitud','avIga','avPotenciaSolicitada','avConcepto','avObservaciones'].some(function(id){return !!getValue(id);});}
+function guardarBorrador(){if(!el('formAviso')||el('formAviso').style.display==='none'||!formularioTieneDatos())return;try{var raw=JSON.stringify(leerFormularioBorrador());localStorage.setItem(DRAFT_KEY,raw);idbPut(DRAFT_KEY,raw).catch(function(){});}catch(e){console.warn('DRAFT SAVE',e);}}
+function programarBorrador(){clearTimeout(draftTimer);draftTimer=setTimeout(guardarBorrador,250);}
+function limpiarBorrador(){clearTimeout(draftTimer);try{localStorage.removeItem(DRAFT_KEY);}catch(e){}idbDelete(DRAFT_KEY).catch(function(){});}
+function aplicarBorrador(raw){try{var d=typeof raw==='string'?JSON.parse(raw):raw;if(!d||!d.values)return false;Object.keys(d.values).forEach(function(id){setValue(id,d.values[id]);});el('formAviso').style.display='block';el('formAvisoTitulo').textContent='Borrador recuperado';actualizarPotenciaFormulario();el('estadoAviso').textContent='Borrador recuperado automáticamente tras el cierre.';App.show('avisos');window.scrollTo(0,Math.max(0,el('formAviso').offsetTop-70));return true;}catch(e){console.warn('DRAFT LOAD',e);return false;}}
+function recuperarBorrador(){var raw='';try{raw=localStorage.getItem(DRAFT_KEY)||'';}catch(e){}if(raw)return Promise.resolve(aplicarBorrador(raw));return idbGet(DRAFT_KEY).then(function(v){if(v){try{localStorage.setItem(DRAFT_KEY,v);}catch(e){}return aplicarBorrador(v);}return false;}).catch(function(){return false;});}
+
+function cartoEstado(msg,error){var n=el('cartoEstado');if(!n)return;n.textContent=msg||'';n.style.color=error?'#b42318':'#15803d';}
+function cartoQueryDireccion(){return [getValue('avDireccion'),getValue('avCp'),getValue('avLocalidad'),getValue('avProvincia')].filter(Boolean).join(', ');}
+function cartoNormalizarRespuesta(r){if(Array.isArray(r))return r;if(r&&Array.isArray(r.results))return r.results;if(r&&Array.isArray(r.result))return r.result;if(r&&typeof r==='object')return [r];return [];}
+function cartoFetch(url){return fetch(url,{method:'GET',mode:'cors',credentials:'omit',cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
+function cartoMostrarResultados(xs){cartoCandidates=xs||[];var box=el('cartoResultados');if(!box)return;if(!cartoCandidates.length){box.innerHTML='<div class="empty" style="margin-top:8px">Sin resultados de CartoCiudad.</div>';return;}box.innerHTML=cartoCandidates.slice(0,6).map(function(c,i){var sub=[c.type,c.portalNumber,c.postalCode,c.muni||c.poblacion,c.province,c.refCatastral].filter(Boolean).join(' · ');return '<button type="button" class="cartoResult" onclick="App.elegirCarto('+i+')"><strong>'+esc(c.address||c.nombre||c.name||'Resultado CartoCiudad')+'</strong><small>'+esc(sub)+'</small></button>';}).join('');}
+function cartoAplicar(c){if(!c)return false;var lat=c.lat!=null?c.lat:(c.latitude!=null?c.latitude:c.y),lon=c.lng!=null?c.lng:(c.lon!=null?c.lon:(c.longitude!=null?c.longitude:c.x));if(lat==null||lon==null)return false;setValue('avLatitud',String(lat));setValue('avLongitud',String(lon));if(c.refCatastral&&!getValue('avRefCatastral'))setValue('avRefCatastral',c.refCatastral);if(c.postalCode&&!getValue('avCp'))setValue('avCp',c.postalCode);if((c.muni||c.poblacion)&&!getValue('avLocalidad'))setValue('avLocalidad',c.muni||c.poblacion);if(c.province&&!getValue('avProvincia'))setValue('avProvincia',c.province);cartoEstado('Coordenadas obtenidas: '+lat+', '+lon,false);programarBorrador();return true;}
+function cartoBuscar(q){if(!q){cartoEstado('Completa la dirección o la referencia catastral.',true);return;}cartoEstado('Consultando CartoCiudad…',false);el('cartoResultados').innerHTML='';var url='https://www.cartociudad.es/geocoder/api/geocoder/candidates?q='+encodeURIComponent(q)+'&limit=6';cartoFetch(url).then(function(r){var xs=cartoNormalizarRespuesta(r);cartoMostrarResultados(xs);cartoEstado(xs.length?'Selecciona el resultado correcto.':'Sin coincidencias.',!xs.length);}).catch(function(err){console.warn('CartoCiudad candidates',err);cartoEstado('No se pudo consultar CartoCiudad desde esta conexión. Puedes abrir el visor oficial con “Ver plano CartoCiudad”.',true);});}
+function cartoResolver(c){if(cartoAplicar(c))return Promise.resolve(true);var params=[];if(c.id!=null)params.push('id='+encodeURIComponent(c.id));if(c.type)params.push('type='+encodeURIComponent(c.type));if(c.portalNumber)params.push('portal='+encodeURIComponent(c.portalNumber));if(!params.length&&c.address)params.push('q='+encodeURIComponent(c.address));if(!params.length)return Promise.reject(new Error('Resultado sin identificador'));cartoEstado('Obteniendo coordenadas…',false);return cartoFetch('https://www.cartociudad.es/geocoder/api/geocoder/find?'+params.join('&')).then(function(r){var xs=cartoNormalizarRespuesta(r),x=xs[0]||r;if(!cartoAplicar(x))throw new Error('CartoCiudad no devolvió coordenadas');return true;});}
+function resizeLogo(file){
+  return new Promise(function(resolve,reject){
+    var r=new FileReader();
+    r.onerror=function(){reject(new Error('No se pudo leer el logo'));};
+    r.onload=function(){
+      var im=new Image();
+      im.onerror=function(){reject(new Error('Imagen no válida'));};
+      im.onload=function(){
+        var maxW=900,maxH=360,scale=Math.min(1,maxW/im.width,maxH/im.height);
+        var c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*scale));c.height=Math.max(1,Math.round(im.height*scale));
+        var ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(im,0,0,c.width,c.height);
+        resolve(c.toDataURL('image/png'));
+      };
+      im.src=r.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+
+window.App={
+  show:function(id){
+    try{
+      ['inicio','avisos','config'].forEach(function(s){el(s).className='screen'+(s===id?' active':'');});
+      el('navInicio').className=id==='inicio'?'active':'';
+      el('navAvisos').className=id==='avisos'?'active':'';
+      el('navConfig').className=id==='config'?'active':'';
+      if(id==='inicio')renderInicio();
+      if(id==='avisos')renderAvisos();
+      if(id==='config')renderEmpresa();
+      window.scrollTo(0,0);
+    }catch(err){el('bootState').textContent='ERROR DE NAVEGACIÓN: '+err.message;el('bootState').className='err';}
+  },
+  guardarEmpresa:function(){
+    data.empresa={
+      nombre:getValue('empresaNombre'),nombreComercial:getValue('empresaNombreComercial'),nif:getValue('empresaNif'),
+      telefono:getValue('empresaTelefono'),email:getValue('empresaEmail'),web:getValue('empresaWeb'),
+      direccion:getValue('empresaDireccion'),cp:getValue('empresaCp'),localidad:getValue('empresaLocalidad'),provincia:getValue('empresaProvincia'),
+      logoData:logoPendiente||''
+    };
+    data.tecnico={nombre:getValue('tecnicoNombre'),nif:getValue('tecnicoNif'),telefono:getValue('tecnicoTelefono'),email:getValue('tecnicoEmail'),numero:getValue('tecnicoNumero'),colegiado:getValue('tecnicoColegiado')};
+    data.solicitante={nombre:getValue('solNombre'),nif:getValue('solNif'),telefono:getValue('solTelefono'),email:getValue('solEmail'),direccion:getValue('solDireccion'),cp:getValue('solCp'),localidad:getValue('solLocalidad'),provincia:getValue('solProvincia')};
+    el('estadoEmpresa').textContent=save()?'Configuración guardada.':'No se pudo guardar.';
+    renderInicio();
+  },
+  quitarLogo:function(){logoPendiente='';renderLogo();el('estadoEmpresa').textContent='Logo quitado. Pulsa Guardar configuración para confirmar.';},
+  crearAvisoModo:function(){
+    var modo=getValue('crearAvisoModo');
+    el('duplicarBox').style.display=modo==='duplicar'?'block':'none';
+    if(modo==='nuevo'){App.nuevoAviso();setValue('crearAvisoModo','');}
+  },
+  nuevoAviso:function(){limpiarBorrador();resetAviso();el('formAviso').style.display='block';window.scrollTo(0,Math.max(0,el('formAviso').offsetTop-70));setTimeout(function(){try{el('avCliente').focus();}catch(e){}},50);},
+  cancelarAviso:function(){limpiarBorrador();el('formAviso').style.display='none';resetAviso();},
+  editarAviso:function(id){var a=byId(id);if(a)cargarAvisoEnFormulario(a,false);},
+  duplicarAviso:function(id){var a=byId(id);if(a)cargarAvisoEnFormulario(a,true);},
+  duplicarSeleccionado:function(){var id=getValue('duplicarAvisoId');if(!id)return;App.duplicarAviso(Number(id));setValue('crearAvisoModo','');el('duplicarBox').style.display='none';},
+  filtrarAvisos:function(){renderAvisos();},
+  recalcularPotencia:function(){actualizarPotenciaFormulario();programarBorrador();},
+  buscarCartoDireccion:function(){cartoBuscar(cartoQueryDireccion());},
+  buscarCartoRef:function(){var rc=getValue('avRefCatastral').replace(/\s+/g,'').toUpperCase();if(rc.length>14)rc=rc.slice(0,14);cartoBuscar(rc);},
+  elegirCarto:function(i){var c=cartoCandidates[Number(i)];if(!c)return;cartoResolver(c).catch(function(err){console.warn('CartoCiudad find',err);cartoEstado('No se pudieron obtener coordenadas para ese resultado.',true);});},
+  copiarCoordenadas:function(){var lat=getValue('avLatitud'),lon=getValue('avLongitud');if(!lat||!lon){cartoEstado('Primero obtén o escribe las coordenadas.',true);return;}var t=lat+', '+lon;if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){cartoEstado('Coordenadas copiadas: '+t,false);}).catch(function(){cartoEstado('Coordenadas: '+t,false);});}else{cartoEstado('Coordenadas: '+t,false);}},
+  verPlanoCarto:function(){var lat=getValue('avLatitud'),lon=getValue('avLongitud');if(lat&&lon&&navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(lat+', '+lon).catch(function(){});window.open('https://www.cartociudad.es/visor/','_blank','noopener');cartoEstado(lat&&lon?'Visor CartoCiudad abierto. Coordenadas preparadas: '+lat+', '+lon:'Visor CartoCiudad abierto.',false);},
+  togglePapelera:function(){var b=el('papeleraBox');if(!b)return;b.style.display=b.style.display==='none'?'block':'none';renderPapelera();},
+  eliminarAviso:function(id){
+    var a=byId(id);if(!a)return;
+    if(!confirm('¿Mover este aviso a la papelera?'))return;
+    var pos=data.avisos.indexOf(a);if(pos<0)return;
+    data.avisos.splice(pos,1);a.eliminadoEn=new Date().toISOString();data.papelera.push(a);
+    if(Number(getValue('avId'))===Number(id)){limpiarBorrador();el('formAviso').style.display='none';resetAviso();}
+    if(save()){renderAvisos();renderPapelera();renderInicio();}
+  },
+  restaurarAviso:function(id){
+    var pos=data.papelera.findIndex(function(a){return Number(a.id)===Number(id);});if(pos<0)return;
+    var a=data.papelera.splice(pos,1)[0];a.eliminadoEn='';
+    if(!data.avisos.some(function(x){return Number(x.id)===Number(a.id);}))data.avisos.push(a);
+    if(save()){renderAvisos();renderPapelera();renderInicio();}
+  },
+  borrarDefinitivo:function(id){
+    if(!confirm('¿Borrar definitivamente este aviso? Esta acción no se puede deshacer.'))return;
+    data.papelera=data.papelera.filter(function(a){return Number(a.id)!==Number(id);});
+    if(save()){renderPapelera();renderInicio();}
+  },
+  guardarAviso:function(){
+    var id=Number(getValue('avId'))||0,ahora=new Date().toISOString();
+    var aviso={id:id||Date.now(),creado:ahora,actualizado:ahora,fecha:getValue('avFecha')||hoyISO(),estado:getValue('avEstado')||'pendiente',
+      cliente:getValue('avCliente'),contacto:getValue('avContacto'),nif:getValue('avNif'),telefono:getValue('avTelefono'),email:getValue('avEmail'),
+      refCatastral:getValue('avRefCatastral'),direccion:getValue('avDireccion'),cp:getValue('avCp'),localidad:getValue('avLocalidad'),provincia:getValue('avProvincia'),
+      cupsE:getValue('avCupsE'),cupsG:getValue('avCupsG'),latitud:getValue('avLatitud'),longitud:getValue('avLongitud'),cartoDireccion:cartoQueryDireccion(),tension:getValue('avTension')||'230 V MONOFÁSICA',iga:getValue('avIga'),potenciaCalculada:formatoKw(potenciaInstalacion(getValue('avTension'),getValue('avIga'))),potenciaSolicitada:getValue('avPotenciaSolicitada'),concepto:getValue('avConcepto'),observaciones:getValue('avObservaciones')};
+    if(!aviso.cliente&&!aviso.direccion&&!aviso.concepto){el('estadoAviso').textContent='Escribe al menos cliente, dirección o concepto.';return;}
+    if(id){var existente=byId(id);if(existente){aviso.creado=existente.creado||ahora;var pos=data.avisos.indexOf(existente);data.avisos[pos]=aviso;}}else{data.avisos.push(aviso);}
+    if(save()){limpiarBorrador();el('formAviso').style.display='none';resetAviso();renderAvisos();renderPapelera();renderInicio();}
+    else{el('estadoAviso').textContent='No se pudo guardar.';}
+  }
+};
+
+el('empresaLogoFile').addEventListener('change',function(ev){
+  var f=ev.target.files&&ev.target.files[0];if(!f)return;
+  resizeLogo(f).then(function(src){logoPendiente=src;renderLogo();el('estadoEmpresa').textContent='Logo cargado. Pulsa Guardar configuración para confirmar.';})
+  .catch(function(err){el('estadoEmpresa').textContent=err.message;});
+  ev.target.value='';
+});
+
+document.addEventListener('input',function(ev){if(ev.target&&ev.target.closest&&ev.target.closest('#formAviso'))programarBorrador();});
+document.addEventListener('change',function(ev){if(ev.target&&ev.target.closest&&ev.target.closest('#formAviso'))programarBorrador();});
+window.addEventListener('pagehide',guardarBorrador);
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')guardarBorrador();});
+if(navigator.storage&&navigator.storage.persist){navigator.storage.persist().catch(function(){});}
+recuperarDatosIdb().then(function(){
+  try{
+    load();renderInicio();renderEmpresa();renderAvisos();renderPapelera();
+    el('bootState').textContent='APP LISTA · DATOS PROTEGIDOS';el('bootState').className='ok';
+    return recuperarBorrador();
+  }catch(err){el('bootState').textContent='ERROR AL INICIAR: '+err.message;el('bootState').className='err';}
+}).catch(function(err){el('bootState').textContent='ERROR AL INICIAR: '+err.message;el('bootState').className='err';});
+})();
+</script>
+</body>
+</html>
