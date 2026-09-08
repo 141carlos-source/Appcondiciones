@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b5ed7">
+<title>APP Avisos V1.19 · Memoria Técnica</title>
+<style>
+:root{--azul:#0b5ed7;--fondo:#f4f7fb;--texto:#182033;--muted:#6f7b8f;--linea:#dbe3ee}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:var(--fondo);font-family:Arial,Helvetica,sans-serif;color:var(--texto)}
+body{height:100dvh;display:grid;grid-template-rows:1fr auto;overflow:hidden}
+#appView,#memView{min-height:0}#appView{display:block}#memView{display:none;overflow:auto;padding:14px 14px 96px}
+iframe{border:0;width:100%;height:100%;display:block;background:var(--fondo)}
+.card{background:#fff;border:1px solid var(--linea);border-radius:16px;padding:14px;margin:0 auto 12px;max-width:900px}
+h2{margin:0 0 10px;font-size:20px}p{line-height:1.45}.muted{color:var(--muted);font-size:12px}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:10px 0}select{width:100%;margin-top:6px;padding:12px;border:1px solid #cbd5e1;border-radius:11px;font-size:16px;background:#fff;color:var(--texto)}
+button{font:inherit;border:1px solid var(--azul);border-radius:12px;padding:11px 12px;font-weight:800;background:#fff;color:var(--azul)}.full{width:100%}
+.bottom{background:#fff;border-top:1px solid var(--linea);display:grid;grid-template-columns:1fr 1fr;padding:6px 5px calc(6px + env(safe-area-inset-bottom));z-index:20}
+.bottom button{border:0;background:transparent;color:#667085;padding:8px}.bottom button.active{color:var(--azul);background:#eef5ff}
+.doc{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:16px;line-height:1.42}.head{display:flex;gap:12px;align-items:center;border-bottom:2px solid var(--linea);padding-bottom:12px}
+.head img{width:96px;height:64px;object-fit:contain;border:1px solid var(--linea);border-radius:8px}.head h3{margin:0 0 4px;font-size:20px}.head small{display:block;color:var(--muted);font-size:12px}
+.sec{margin:16px 0}.sec h4{margin:0 0 8px;padding-bottom:5px;border-bottom:1px solid var(--linea);font-size:13px;color:#24466e;text-transform:uppercase}.grid{display:grid;grid-template-columns:1fr;gap:5px 14px}.dato{font-size:13px}.dato b{color:#344054}
+.plano{border:1px solid var(--linea);border-radius:10px;padding:8px;background:#fafcff}.plano img{display:block;width:100%;height:auto;border-radius:7px}.vacio{padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--linea);border-radius:10px}.nota{font-size:11px;color:var(--muted);margin-top:10px}
+@media(min-width:700px){.grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div id="appView"><iframe title="APP Avisos V1.18" src="../avisos-v118/"></iframe></div>
+<div id="memView">
+  <div class="card"><h2>Memoria Técnica · V1.19</h2><p class="muted">Vista previa de trabajo con los datos guardados del aviso y su plano de situación.</p><label>Aviso<select id="memSel"></select></label><button type="button" class="full" onclick="renderMemoria()">Actualizar vista previa</button></div>
+  <div id="memBox" class="card"><div class="vacio">Selecciona un aviso.</div></div>
+</div>
+<nav class="bottom"><button id="navApp" class="active" onclick="showView('app')">☰<br>APP</button><button id="navMem" onclick="showView('mem')">▤<br>Memoria</button></nav>
+<script>
+(function(){'use strict';
+var DATA_KEY='APP_AVISOS_WEB_DATOS_V116_PERSISTENTE',DB='APP_AVISOS_PERSISTENCIA',STORE='planos',DBV=2,planUrl='';
+function el(id){return document.getElementById(id)}function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
+function fecha(v){if(!v)return '';var p=String(v).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:String(v)}function estado(v){return v==='en_curso'?'EN CURSO':v==='finalizado'?'FINALIZADO':'PENDIENTE'}
+function dato(k,v){v=String(v==null?'':v).trim();return v?'<div class="dato"><b>'+esc(k)+':</b> '+esc(v)+'</div>':''}
+function data(){try{return JSON.parse(localStorage.getItem(DATA_KEY)||'{}')}catch(e){return{}}}
+function openDb(){return new Promise(function(resolve,reject){var r=indexedDB.open(DB,DBV);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains('estado'))d.createObjectStore('estado');if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE)};r.onsuccess=function(){resolve(r.result)};r.onerror=function(){reject(r.error)}})}
+function getPlan(k){return openDb().then(function(d){return new Promise(function(resolve,reject){var tx=d.transaction(STORE,'readonly'),r=tx.objectStore(STORE).get(String(k));r.onsuccess=function(){var v=r.result;d.close();resolve(v||null)};r.onerror=function(){var e=r.error;d.close();reject(e)}})})}
+function revoke(){if(planUrl){try{URL.revokeObjectURL(planUrl)}catch(e){}planUrl=''}}
+function fillOptions(){var p=data(),a=Array.isArray(p.avisos)?p.avisos.slice():[],s=el('memSel'),old=s.value;a.sort(function(x,y){return String(y.fecha||'').localeCompare(String(x.fecha||''))||Number(y.id)-Number(x.id)});s.innerHTML=a.length?a.map(function(x){return '<option value="'+Number(x.id)+'">'+esc(fecha(x.fecha)+' · '+(x.cliente||'SIN CLIENTE')+' · '+(x.direccion||x.concepto||''))+'</option>'}).join(''):'<option value="">No hay avisos</option>';if(old&&a.some(function(x){return String(x.id)===String(old)}))s.value=old}
+window.renderMemoria=function(){fillOptions();var p=data(),a=Array.isArray(p.avisos)?p.avisos:[],id=Number(el('memSel').value)||0,x=a.find(function(v){return Number(v.id)===id}),b=el('memBox');if(!x){revoke();b.innerHTML='<div class="vacio">No hay un aviso seleccionado.</div>';return}var e=p.empresa||{},t=p.tecnico||{},so=p.solicitante||{},logo=e.logoData?'<img src="'+e.logoData+'" alt="Logo empresa">':'',empresa=[e.nombreComercial||e.nombre,e.nif,e.telefono,e.email].filter(Boolean).join(' · '),dir=[x.direccion,x.cp,x.localidad,x.provincia].filter(Boolean).join(' · ');
+b.innerHTML='<div class="doc"><div class="head">'+logo+'<div><h3>MEMORIA TÉCNICA · VISTA PREVIA</h3><small>'+esc(empresa||'Empresa no configurada')+'</small><small>Aviso '+esc(fecha(x.fecha))+' · '+esc(estado(x.estado))+'</small></div></div>'+ '<div class="sec"><h4>Empresa instaladora y técnico</h4><div class="grid">'+dato('Empresa',e.nombre||e.nombreComercial)+dato('NIF/CIF',e.nif)+dato('Dirección',[e.direccion,e.cp,e.localidad,e.provincia].filter(Boolean).join(' · '))+dato('Teléfono',e.telefono)+dato('Correo',e.email)+dato('Técnico',t.nombre)+dato('NIF técnico',t.nif)+dato('Nº instalador / habilitación',t.numero)+dato('Nº colegiado',t.colegiado)+'</div></div>'+ '<div class="sec"><h4>Solicitante</h4><div class="grid">'+dato('Nombre / razón social',so.nombre)+dato('NIF/CIF',so.nif)+dato('Teléfono',so.telefono)+dato('Correo',so.email)+dato('Dirección',[so.direccion,so.cp,so.localidad,so.provincia].filter(Boolean).join(' · '))+'</div></div>'+ '<div class="sec"><h4>Cliente y suministro</h4><div class="grid">'+dato('Cliente / razón social',x.cliente)+dato('Contacto',x.contacto)+dato('DNI/NIF/CIF',x.nif)+dato('Teléfono',x.telefono)+dato('Correo',x.email)+dato('Dirección del suministro',dir)+dato('Referencia catastral',x.refCatastral)+dato('CUPS electricidad',x.cupsE)+dato('CUPS gas',x.cupsG)+dato('Coordenadas WGS84',(x.latitud&&x.longitud)?x.latitud+', '+x.longitud:'')+'</div></div>'+ '<div class="sec"><h4>Datos eléctricos</h4><div class="grid">'+dato('Tensión',x.tension)+dato('IGA',x.iga?x.iga+' A':'')+dato('Potencia calculada instalación',x.potenciaCalculada?x.potenciaCalculada+' kW':'')+dato('Potencia solicitada para condiciones de suministro',x.potenciaSolicitada?x.potenciaSolicitada+' kW':'')+'</div></div>'+ '<div class="sec"><h4>Objeto / observaciones</h4><div class="grid">'+dato('Concepto',x.concepto)+dato('Observaciones',x.observaciones)+'</div></div>'+ '<div class="sec"><h4>Plano de situación</h4><div id="memPlano" class="vacio">Cargando plano guardado…</div></div><div class="nota">Vista previa de trabajo. Firma, sello y exportación se incorporarán después de validar estos datos.</div></div>';
+revoke();getPlan(String(x.id)).then(function(r){var c=el('memPlano');if(!c)return;if(!r||!r.blob){c.textContent='Este aviso no tiene plano guardado en la ficha.';return}planUrl=URL.createObjectURL(r.blob);c.className='plano';c.innerHTML='<img src="'+planUrl+'" alt="Plano de situación"><div class="nota">'+esc(r.nombre||'Plano guardado')+(r.generadoEn?' · '+esc(new Date(r.generadoEn).toLocaleString('es-ES')):'')+'</div>'}).catch(function(){var c=el('memPlano');if(c)c.textContent='No se pudo leer el plano guardado.'})}
+window.showView=function(v){var app=v==='app';el('appView').style.display=app?'block':'none';el('memView').style.display=app?'none':'block';el('navApp').className=app?'active':'';el('navMem').className=app?'':'active';if(!app)renderMemoria()}
+el('memSel').addEventListener('change',renderMemoria);fillOptions();
+})();
+</script>
+</body></html>
