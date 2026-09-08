@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b5ed7">
+<title>APP Avisos V1.21 · Actualización cliente</title>
+<style>
+:root{--azul:#0b5ed7;--fondo:#f4f7fb;--texto:#182033;--muted:#667085;--linea:#dbe3ee}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:var(--fondo);font-family:Arial,Helvetica,sans-serif;color:var(--texto)}
+body{height:100dvh;display:grid;grid-template-rows:1fr auto;overflow:hidden}#baseView,#clientView{min-height:0}#clientView{display:none;overflow:auto;padding:14px 14px 96px}iframe{border:0;width:100%;height:100%;display:block;background:var(--fondo)}
+.card{background:#fff;border:1px solid var(--linea);border-radius:16px;padding:14px;margin:0 auto 12px;max-width:900px}h2{margin:0 0 10px;font-size:20px}h3{margin:0 0 8px}.muted{font-size:12px;color:var(--muted);line-height:1.45}label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:10px 0}select,input[type=file]{width:100%;margin-top:6px;padding:11px;border:1px solid #cbd5e1;border-radius:11px;background:#fff;font-size:15px}button{font:inherit;border:1px solid var(--azul);border-radius:11px;padding:11px 12px;font-weight:800;background:#fff;color:var(--azul)}.full{width:100%}.stack{display:grid;gap:8px}.summary{font-size:13px;line-height:1.5}.summary b{color:#344054}.ok{border:1px solid #b7dfc3;background:#f2fbf5;border-radius:12px;padding:10px;color:#166534;font-size:12px}.warn{border:1px solid #f0d59c;background:#fffaf0;border-radius:12px;padding:10px;color:#8a5a00;font-size:12px}.empty{padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--linea);border-radius:10px}.compare{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}.compare th,.compare td{border-bottom:1px solid var(--linea);padding:8px 6px;text-align:left;vertical-align:top}.compare th{color:#475467}.changed{background:#fff8e6}.bottom{background:#fff;border-top:1px solid var(--linea);display:grid;grid-template-columns:repeat(3,1fr);padding:6px 5px calc(6px + env(safe-area-inset-bottom));z-index:20}.bottom button{border:0;background:transparent;color:#667085;padding:8px 4px}.bottom button.active{color:var(--azul);background:#eef5ff}
+</style>
+</head>
+<body>
+<div id="baseView"><iframe id="base120" title="APP Avisos V1.20" src="../avisos-v120/"></iframe></div>
+<div id="clientView">
+ <div class="card"><h2>Actualización de datos del cliente · V1.21</h2><p class="muted">Genera un formulario individual, envíalo al cliente y después importa su respuesta. Antes de actualizar verás los cambios comparados.</p><label>Aviso / cliente<select id="cliSel"></select></label><div id="cliActual" class="summary"></div><div class="stack"><button class="full" onclick="generarFormularioCliente(true)">Compartir formulario con cliente</button><button class="full" onclick="generarFormularioCliente(false)">Descargar formulario HTML</button></div><label>Respuesta recibida del cliente<input id="cliImport" type="file" accept="application/json,.json"></label><div id="cliEstado" class="muted"></div></div>
+ <div id="cliComparacion" class="card"><div class="empty">Todavía no hay una respuesta importada.</div></div>
+</div>
+<nav class="bottom"><button id="navApp" class="active" onclick="showTop('app')">☰<br>APP</button><button id="navMem" onclick="showTop('mem')">▤<br>Memoria</button><button id="navClient" onclick="showTop('client')">👤<br>Cliente</button></nav>
+<script src="./client.js"></script>
+</body>
+</html>
