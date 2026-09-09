@@ -1,0 +1,15 @@
+{
+  "id":"./",
+  "name":"SOLTEC Avisos V1.31",
+  "short_name":"SOLTEC Avisos",
+  "description":"Aplicación de trabajo y pruebas de avisos SOLTEC",
+  "lang":"es",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "background_color":"#f4f7fb",
+  "theme_color":"#e7281c",
+  "icons":[
+    {"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
