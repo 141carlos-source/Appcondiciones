@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="104" fill="#ffffff"/>
+  <path d="M274 74a170 170 0 0 1 136 81l-72 42a87 87 0 0 0-70-40z" fill="#171717"/>
+  <path d="M411 178a170 170 0 0 1-126 195c-75 19-154-16-190-84l74-39c18 34 58 52 96 42 47-12 76-60 64-107z" fill="#171717"/>
+  <path d="M92 269a170 170 0 0 1 58-169l54 64a86 86 0 0 0-29 86z" fill="#171717"/>
+  <path d="M244 125l-54 104 44-12-31 73 90-111-48 14 45-68z" fill="#e7281c"/>
+  <text x="256" y="438" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="66" font-weight="800" letter-spacing="3" fill="#171717">SOLTEC</text>
+  <rect x="114" y="454" width="284" height="12" rx="6" fill="#e7281c"/>
+</svg>
