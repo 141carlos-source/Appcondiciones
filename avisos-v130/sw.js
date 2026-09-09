@@ -1,4 +1,4 @@
-const CACHE='APP-AVISOS-V130-SHELL-1';
+const CACHE='APP-AVISOS-V130-SHELL-2';
 const SHELL=['./','./index.html','./manifest.webmanifest','./install.js','./expediente.js','../avisos-v129/icon.svg'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE&&k.startsWith('APP-AVISOS-V130-')).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
