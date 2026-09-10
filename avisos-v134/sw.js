@@ -1,4 +1,4 @@
-const CACHE='APP-AVISOS-V134-SHELL-7';
+const CACHE='APP-AVISOS-V134-SHELL-8';
 const SHELL=['./','./index.html','./core-template.html','./app133.js','./patch133.js','./plan133.js','./photos133.js','./photos133fix.js','./cnmc133.js','./print133fix.js','./stabilize133.js','./sync134.js','./sync134receivefix.js','./sync134centralfix.js','./sync134auto.js','./nav134fix.js','./print.html','./printpage133.js','./manifest.webmanifest','./icon.svg','./install.js'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE&&k.startsWith('APP-AVISOS-V134-')).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
