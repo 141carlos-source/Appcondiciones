@@ -1,8 +1,8 @@
 {
   "id":"./",
-  "name":"SOLTEC Avisos V1.33",
+  "name":"SOLTEC Avisos V1.34 SYNC",
   "short_name":"SOLTEC Avisos",
-  "description":"Aplicación estable SOLTEC Avisos con fotografías y memoria RES-CNMC",
+  "description":"SOLTEC Avisos offline con fotografías, plano, memoria RES-CNMC y sincronización con PC de casa",
   "lang":"es",
   "start_url":"./",
   "scope":"./",
