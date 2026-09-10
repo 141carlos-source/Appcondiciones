@@ -1,0 +1,3 @@
+(function(){'use strict';
+window.Soltec133PrintFix={init:function(w){try{const d=w.document,bt=d.getElementById('s132MemPrint'),sel=d.getElementById('s132MemSel');if(!bt||!sel)return;bt.textContent='ABRIR / IMPRIMIR MEMORIA RES-CNMC';bt.onclick=function(){const id=Number(sel.value)||0;if(!id){w.alert('SELECCIONA PRIMERO UN AVISO.');return}const box=d.getElementById('s132MemBox');if(!box||!box.querySelector('.cnmc-page')){w.alert('ESPERA A QUE SE GENERE LA MEMORIA Y VUELVE A PULSAR.');return}window.location.href='./print.html?id='+encodeURIComponent(id)}}catch(e){console.error('V1.33 PRINT VIEW',e)}}};
+})();
