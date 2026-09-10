@@ -1,0 +1,74 @@
+SOLTEC SYNC V1.34 · PC DE CASA
+================================
+
+OBJETIVO
+--------
+Trabajar normalmente sin Internet en PC, móvil o tablet y sincronizar
+manualmente con el PC de casa al terminar, sin usar Drive como sistema de trabajo.
+Drive puede quedar únicamente como copia de seguridad.
+
+REQUISITOS DEL PC DE CASA
+-------------------------
+1. Python 3.
+2. Tailscale instalado y conectado.
+3. El móvil/tablet debe estar conectado a la misma red privada Tailscale.
+
+PUESTA EN MARCHA
+----------------
+1. Guarda esta carpeta en el PC de casa.
+2. Haz doble clic en INICIAR_SOLTEC_SYNC.bat.
+3. Se abrirá una ventana llamada "SOLTEC SYNC - NO CERRAR".
+4. La primera vez se crea automáticamente soltec-sync-config.json con una
+   CLAVE DE SINCRONIZACIÓN única.
+5. Tailscale Serve mostrará una dirección HTTPS similar a:
+
+   https://pc-casa.xxxxx.ts.net
+
+6. En SOLTEC Avisos V1.34 abre:
+
+   Configuración > SINCRONIZACIÓN CON PC DE CASA
+
+   e introduce:
+   - Nombre del dispositivo: por ejemplo MOVIL, TABLET o PC CASA.
+   - Dirección segura del PC: la dirección HTTPS de Tailscale.
+   - Clave: la creada por el servidor.
+
+7. Pulsa PROBAR CONEXIÓN.
+8. Si aparece PC SOLTEC CONECTADO, pulsa SINCRONIZAR AHORA.
+
+FORMA DE TRABAJO RECOMENDADA
+----------------------------
+- Antes de empezar a trabajar en otro dispositivo: SINCRONIZAR AHORA.
+- Trabaja durante el día aunque no tengas Internet.
+- Al terminar o al llegar a casa: SINCRONIZAR AHORA.
+
+La V1.34 detecta si han cambiado los dos lados desde la última sincronización.
+En ese caso NO sobrescribe nada automáticamente y te pide elegir qué copia conservar.
+
+COPIAS DE SEGURIDAD
+-------------------
+El PC crea una copia de la versión central anterior antes de cada actualización.
+Se guardan en:
+
+   backups\
+
+La copia central actual se guarda en:
+
+   datos\soltec-central.json
+
+Puedes incluir la carpeta "backups" en Drive si quieres una segunda copia externa.
+Drive no interviene en la sincronización de trabajo.
+
+SEGURIDAD
+---------
+- El servidor escucha solamente en 127.0.0.1:8765 del PC.
+- Tailscale Serve lo publica por HTTPS únicamente dentro de tu red privada Tailscale.
+- La API requiere además la CLAVE DE SINCRONIZACIÓN.
+- No abras ni redirijas el puerto 8765 en el router.
+
+DETENER
+-------
+Cierra la ventana "SOLTEC SYNC - NO CERRAR" para detener el servidor local.
+Si también quieres retirar el acceso de Tailscale Serve, ejecuta:
+
+   tailscale serve off
