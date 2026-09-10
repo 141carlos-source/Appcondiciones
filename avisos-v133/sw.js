@@ -1,5 +1,5 @@
-const CACHE='APP-AVISOS-V133-SHELL-2';
-const SHELL=['./','./index.html','./core-template.html','./app133.js','./patch133.js','./photos133.js','./cnmc133.js','./manifest.webmanifest','./icon.svg','./install.js'];
+const CACHE='APP-AVISOS-V133-SHELL-3';
+const SHELL=['./','./index.html','./core-template.html','./app133.js','./patch133.js','./plan133.js','./photos133.js','./cnmc133.js','./manifest.webmanifest','./icon.svg','./install.js'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE&&k.startsWith('APP-AVISOS-V133-')).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;const u=new URL(event.request.url);if(u.origin!==location.origin)return;event.respondWith(fetch(event.request).then(r=>{if(r&&r.ok){const c=r.clone();caches.open(CACHE).then(x=>x.put(event.request,c)).catch(()=>{})}return r}).catch(()=>caches.match(event.request).then(r=>r||caches.match('./index.html'))))});
