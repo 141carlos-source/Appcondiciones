@@ -1,0 +1,7 @@
+(function(){'use strict';
+function ensure(w){try{const d=w.document;if(!d||!d.body)return;let nav=d.querySelector('nav.bottom');if(!nav){nav=d.createElement('nav');nav.className='bottom';nav.setAttribute('aria-label','Navegación principal');nav.innerHTML='<button type="button" id="navInicio" onclick="App.show(\'inicio\')">⌂<br>Inicio</button><button type="button" id="navAvisos" onclick="App.show(\'avisos\')">☰<br>Avisos</button><button type="button" id="navConfig" onclick="App.show(\'config\')">⚙<br>Empresa</button>';d.body.appendChild(nav)}
+nav.style.position='fixed';nav.style.left='0';nav.style.right='0';nav.style.bottom='0';nav.style.zIndex='9999';nav.style.display='grid';nav.style.gridTemplateColumns='repeat(3,1fr)';nav.style.visibility='visible';nav.style.opacity='1';nav.style.background='#fff';nav.style.borderTop='1px solid #dbe3ee';nav.style.padding='6px 5px calc(6px + env(safe-area-inset-bottom))';
+const defs=[['navInicio','⌂<br>Inicio','inicio'],['navAvisos','☰<br>Avisos','avisos'],['navConfig','⚙<br>Empresa','config']];for(const [id,label,screen] of defs){let b=d.getElementById(id);if(!b){b=d.createElement('button');b.type='button';b.id=id;nav.appendChild(b)}b.innerHTML=label;b.style.display='block';b.style.visibility='visible';b.style.opacity='1';b.onclick=function(){if(w.App&&typeof w.App.show==='function')w.App.show(screen)}}
+}catch(x){console.error('V1.34 NAV FIX',x)}}
+window.Soltec134NavFix={init:function(w){ensure(w);setTimeout(()=>ensure(w),300);setTimeout(()=>ensure(w),1200);setTimeout(()=>ensure(w),3000)}};
+})();
