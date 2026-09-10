@@ -52,9 +52,7 @@ def load_state():
         return empty_state()
     try:
         x = json.loads(STATE_FILE.read_text(encoding="utf-8"))
-        if not isinstance(x, dict):
-            return empty_state()
-        return x
+        return x if isinstance(x, dict) else empty_state()
     except Exception:
         return empty_state()
 
@@ -74,6 +72,26 @@ def backup_current(state):
     shutil.copy2(STATE_FILE, BACKUPS / name)
 
 
+def save_conflict_backup(payload):
+    snap = payload.get("snapshot") if isinstance(payload, dict) else None
+    if not isinstance(snap, dict) or snap.get("schema") != "SOLTEC_SYNC_SNAPSHOT_V134":
+        raise ValueError("Formato de copia SOLTEC V1.34 no válido.")
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in str(payload.get("deviceName") or "dispositivo"))[:40]
+    path = BACKUPS / f"conflicto_{safe_name}_{stamp}.json"
+    record = {
+        "type": "SOLTEC_CONFLICT_BACKUP_V134",
+        "createdAt": now_iso(),
+        "deviceId": str(payload.get("deviceId") or ""),
+        "deviceName": str(payload.get("deviceName") or "DISPOSITIVO SOLTEC"),
+        "snapshot": snap,
+    }
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(record, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    os.replace(tmp, path)
+    return path.name
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "SOLTECSync/1.34"
 
@@ -84,6 +102,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Soltec-Key")
+        self.send_header("Access-Control-Allow-Private-Network", "true")
         self.send_header("Access-Control-Max-Age", "86400")
         self.send_header("Cache-Control", "no-store")
 
@@ -140,7 +159,7 @@ class Handler(BaseHTTPRequestHandler):
                 "version": 134,
                 "revision": int(state.get("revision") or 0),
                 "hasSnapshot": bool(state.get("snapshot")),
-                "updatedAt": state.get("updatedAt")
+                "updatedAt": state.get("updatedAt"),
             })
             return
         self.json_response(200, {
@@ -149,31 +168,49 @@ class Handler(BaseHTTPRequestHandler):
             "updatedAt": state.get("updatedAt"),
             "deviceId": state.get("deviceId"),
             "deviceName": state.get("deviceName"),
-            "snapshot": state.get("snapshot")
+            "snapshot": state.get("snapshot"),
         })
 
-    def do_POST(self):
-        path = self.path.split("?", 1)[0].rstrip("/")
-        if path != "/api/snapshot":
-            self.json_response(404, {"ok": False, "error": "Ruta no encontrada."})
-            return
-        if not self.require_auth():
-            return
+    def read_json(self):
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
             length = 0
         if length <= 0:
-            self.json_response(400, {"ok": False, "error": "Petición vacía."})
-            return
+            raise ValueError("Petición vacía.")
         if length > MAX_BODY:
-            self.json_response(413, {"ok": False, "error": "La copia supera el límite de 400 MB de esta versión."})
+            raise OverflowError("La copia supera el límite de 400 MB de esta versión.")
+        try:
+            return json.loads(self.rfile.read(length).decode("utf-8"))
+        except json.JSONDecodeError:
+            raise ValueError("JSON de sincronización no válido.")
+
+    def do_POST(self):
+        path = self.path.split("?", 1)[0].rstrip("/")
+        if path not in ("/api/snapshot", "/api/backup"):
+            self.json_response(404, {"ok": False, "error": "Ruta no encontrada."})
+            return
+        if not self.require_auth():
             return
         try:
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
-        except Exception:
-            self.json_response(400, {"ok": False, "error": "JSON de sincronización no válido."})
+            payload = self.read_json()
+        except OverflowError as exc:
+            self.json_response(413, {"ok": False, "error": str(exc)})
             return
+        except ValueError as exc:
+            self.json_response(400, {"ok": False, "error": str(exc)})
+            return
+
+        if path == "/api/backup":
+            try:
+                with LOCK:
+                    filename = save_conflict_backup(payload)
+            except Exception as exc:
+                self.json_response(500, {"ok": False, "error": "No se pudo guardar la copia de conflicto: " + str(exc)})
+                return
+            self.json_response(200, {"ok": True, "backup": filename})
+            return
+
         snap = payload.get("snapshot") if isinstance(payload, dict) else None
         if not isinstance(snap, dict) or snap.get("schema") != "SOLTEC_SYNC_SNAPSHOT_V134":
             self.json_response(400, {"ok": False, "error": "Formato de copia SOLTEC V1.34 no válido."})
@@ -189,7 +226,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.json_response(409, {
                     "ok": False,
                     "error": "La copia del PC cambió durante la sincronización. Vuelve a pulsar SINCRONIZAR.",
-                    "revision": current_rev
+                    "revision": current_rev,
                 })
                 return
             try:
@@ -199,7 +236,7 @@ class Handler(BaseHTTPRequestHandler):
                     "updatedAt": now_iso(),
                     "deviceId": str(payload.get("deviceId") or ""),
                     "deviceName": str(payload.get("deviceName") or "DISPOSITIVO SOLTEC"),
-                    "snapshot": snap
+                    "snapshot": snap,
                 }
                 atomic_save(new_state)
             except Exception as exc:
@@ -209,7 +246,7 @@ class Handler(BaseHTTPRequestHandler):
             "ok": True,
             "revision": new_state["revision"],
             "updatedAt": new_state["updatedAt"],
-            "backupCreated": current_rev > 0
+            "backupCreated": current_rev > 0,
         })
 
 
@@ -220,7 +257,7 @@ if __name__ == "__main__":
     print(f" Servidor local: http://{HOST}:{PORT}")
     print(f" CLAVE DE SINCRONIZACIÓN: {SYNC_KEY}")
     print(f" Datos: {STATE_FILE}")
-    print(f" Copias previas: {BACKUPS}")
+    print(f" Copias previas y conflictos: {BACKUPS}")
     print("\n Mantén esta ventana abierta mientras sincronizas.")
     print(" Para acceso seguro desde móvil/tablet, usa Tailscale Serve.")
     print("=" * 62)
