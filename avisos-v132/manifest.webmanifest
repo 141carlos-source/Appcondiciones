@@ -1,0 +1,13 @@
+{
+  "id":"./",
+  "name":"SOLTEC Avisos V1.32",
+  "short_name":"SOLTEC Avisos",
+  "description":"Versión estable autónoma de SOLTEC Avisos",
+  "lang":"es",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "background_color":"#f4f7fb",
+  "theme_color":"#e7281c",
+  "icons":[{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
