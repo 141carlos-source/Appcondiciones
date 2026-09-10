@@ -1,0 +1,13 @@
+{
+  "id":"./",
+  "name":"SOLTEC Avisos V1.33",
+  "short_name":"SOLTEC Avisos",
+  "description":"Aplicación estable SOLTEC Avisos con fotografías y memoria RES-CNMC",
+  "lang":"es",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "background_color":"#f4f7fb",
+  "theme_color":"#e7281c",
+  "icons":[{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
