@@ -1,1 +1,15 @@
-(function(){'use strict';window.Soltec135Beta2Ready='V1.35-BETA2-20260913';function test(){return ['cliente','direccion','telefono','email','firma','nif','localStorage'].join('|')}})();
+(function(){'use strict';
+const B='V1.35-BETA2-20260913',K='APP_AVISOS_PARTES_V134',M='APP_AVISOS_WEB_DATOS_V116_PERSISTENTE',P='SOLTEC_SYNC_PENDING_V134',L='APP_AVISOS_VERSIONLOG_V135';let cur=null;
+const S=v=>v==null?'':String(v),J=(v,d)=>{try{return JSON.parse(v||'')||d}catch(e){return d}},E=v=>S(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])),N=()=>new Date().toISOString(),DY=()=>N().slice(0,10);
+function D(id){return window.P2.w&&window.P2.w.document.getElementById(id)}
+function main(){let w=window.P2.w;return J(w.localStorage.getItem(M),{empresa:{},tecnico:{},avisos:[]})}
+function av(){return (main().avisos||[]).slice().sort((a,b)=>S(b.fecha||b.actualizado).localeCompare(S(a.fecha||a.actualizado)))}
+function nf(f){f=f||{};['antes','durante','despues'].forEach(k=>f[k]=Array.isArray(f[k])?f[k]:[]);return f}
+function norm(p){p=p||{};let st=p.status==='signed'||p.status==='sent'?p.status:'draft';return{id:S(p.id)||('PT'+Date.now()+Math.random().toString(36).slice(2,5)),partNo:S(p.partNo)||next(),avisoId:S(p.avisoId||p.avisoNo),avisoNo:S(p.avisoNo||p.avisoId),cliente:S(p.cliente),direccion:S(p.direccion),contacto:S(p.contacto),telefono:S(p.telefono),email:S(p.email),fecha:S(p.fecha)||DY(),tecnico:S(p.tecnico),trabajos:S(p.trabajos),material:S(p.material||p.materialesTexto),resultado:S(p.resultado),notasInternas:S(p.notasInternas),fotos:nf(p.fotos),conformidad:!!p.conformidad,firmante:S(p.firmante||p.signerName),nif:S(p.nif||p.signerNif),firma:S(p.firma||p.signatureData),firmaTec:S(p.firmaTec||p.techSignatureData),status:st,locked:st!=='draft'||!!p.locked,createdAt:S(p.createdAt)||N(),updatedAt:S(p.updatedAt)||N(),build:S(p.build)||B,schema:'PARTES_V2'}}
+function parts(){let w=window.P2.w,a=J(w.localStorage.getItem(K),[]);return (Array.isArray(a)?a:[]).map(norm)}
+function next(){let y=new Date().getFullYear(),m=0;parts().forEach(p=>{let r=S(p.partNo).match(/^PT-(\d{4})-(\d+)/);if(r&&+r[1]===y)m=Math.max(m,+r[2]||0)});return 'PT-'+y+'-'+String(m+1).padStart(5,'0')}
+function mark(){let w=window.P2.w;try{w.localStorage.setItem(P,'1');let a=J(w.localStorage.getItem(L),[]);if(!Array.isArray(a))a=[];if(!a.some(x=>x&&x.build===B))a.unshift({build:B,module:'Partes de Trabajo',dataSchema:'PARTES_V2',at:N(),note:'Beta 2: fotos, firmas y PDF'});w.localStorage.setItem(L,JSON.stringify(a.slice(0,50)))}catch(e){}}
+function put(p){let w=window.P2.w,a=parts(),i=a.findIndex(x=>x.id===p.id);p=norm(p);p.updatedAt=N();p.build=B;i<0?a.unshift(p):a[i]=p;w.localStorage.setItem(K,JSON.stringify(a.map(norm)));mark();return p}
+function make(id){let a=av().find(x=>S(x.id)===S(id));if(!a)return;let ex=parts().find(p=>p.avisoId===S(id)&&p.status==='draft'),te=S(main().tecnico&&main().tecnico.nombre);cur=ex||put({avisoId:S(a.id),avisoNo:S(a.id),cliente:S(a.cliente),direccion:S(a.direccion),contacto:S(a.contacto),telefono:S(a.telefono),email:S(a.email),fecha:DY(),tecnico:te,status:'draft'});window.P2UI&&window.P2UI.show&&window.P2UI.show()}
+window.P2={B,w:null,S,J,E,D,N,DY,main,av,parts,norm,put,make,get:()=>cur,set:p=>{cur=p}};
+})();
