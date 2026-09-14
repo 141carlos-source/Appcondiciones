@@ -1,5 +1,5 @@
 (function(){'use strict';
-const BUILD='V135-SALIDA1';
+const BUILD='V135-SALIDA2';
 let checking=false,lastCheck=0;
 function loadSafe(){try{if(!document.getElementById('s135SafeExit')){let s=document.createElement('script');s.id='s135SafeExit';s.src='./safeexit135.js?build='+encodeURIComponent(BUILD)+'&t='+Date.now();document.head.appendChild(s)}else if(window.Soltec135SafeExit&&window.Soltec135SafeExit.init){window.Soltec135SafeExit.init()}}catch(e){}}
 function loadAvisosCliente(){try{if(!document.getElementById('s135AvisosCliente')){let s=document.createElement('script');s.id='s135AvisosCliente';s.src='./avisos135cliente.js?build='+encodeURIComponent(BUILD)+'&t='+Date.now();document.head.appendChild(s)}else if(window.Soltec135AvisosCliente&&window.Soltec135AvisosCliente.init){window.Soltec135AvisosCliente.init()}loadSafe()}catch(e){}}
