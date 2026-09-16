@@ -1,8 +1,8 @@
 {
   "id":"./",
-  "name":"SOLTEC Avisos V1.34 SYNC",
-  "short_name":"SOLTEC Avisos",
-  "description":"SOLTEC Avisos offline con fotografías, plano, memoria RES-CNMC y sincronización con PC de casa",
+  "name":"SOLTEC V1.35 · Avisos y Partes",
+  "short_name":"SOLTEC",
+  "description":"SOLTEC Avisos y Partes de trabajo con firma, PDF adjunto y sincronización central",
   "lang":"es",
   "start_url":"./",
   "scope":"./",

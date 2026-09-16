@@ -1,13 +1,48 @@
-(function(){'use strict';
-const PARTS_BUILD='V135-FINAL2';
-function loadEnvioFix(){try{if(!document.getElementById('s135EnvioFix')){let s=document.createElement('script');s.id='s135EnvioFix';s.src='./parts135b3fix.js?build='+encodeURIComponent(PARTS_BUILD)+'&t='+Date.now();document.head.appendChild(s)}if(!document.getElementById('s135Stable')){let s2=document.createElement('script');s2.id='s135Stable';s2.src='./parts135stable.js?build='+encodeURIComponent(PARTS_BUILD)+'&t='+Date.now();document.head.appendChild(s2)}if(!document.getElementById('s135Home')){let s3=document.createElement('script');s3.id='s135Home';s3.src='./parts135home.js?build='+encodeURIComponent(PARTS_BUILD)+'&t='+Date.now();document.head.appendChild(s3)}}catch(e){}}
-function fixB2(){try{loadEnvioFix();if(window.P2&&window.P2UI){window.P2.auto=window.P2UI.auto;window.P2.form=window.P2UI.form;window.P2.hist=window.P2UI.hist}if(window.Soltec135Stable&&window.Soltec135Stable.init)window.Soltec135Stable.init();if(window.Soltec135Home&&window.Soltec135Home.init)window.Soltec135Home.init()}catch(e){}}
-function layout(w,nav){const d=w.document,buttons=Array.from(nav.querySelectorAll(':scope > button')),n=buttons.length;nav.style.columnGap='8px';nav.style.rowGap='5px';buttons.forEach(b=>{b.style.minHeight='52px';b.style.padding='9px 6px';b.style.fontSize='13px';b.style.lineHeight='1.25';b.style.borderRadius='10px';b.style.gridColumn='';});if(n>=4){nav.style.gridTemplateColumns='repeat(6,minmax(0,1fr))';buttons.forEach(b=>b.style.gridColumn='span 2');if(n===5){buttons[3].style.gridColumn='2 / span 2';buttons[4].style.gridColumn='4 / span 2'}else if(n===4){buttons[3].style.gridColumn='3 / span 2'}}else{nav.style.gridTemplateColumns='repeat('+Math.max(1,n)+',minmax(0,1fr))'}const m=d.querySelector('main');if(m)m.style.paddingBottom=n>=4?'150px':'92px'}
-function activateParts(w){try{const d=w.document,p=d.getElementById('partes');if(!p)return false;d.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));p.classList.add('active');d.querySelectorAll('nav.bottom button').forEach(x=>x.classList.remove('active'));const b=d.getElementById('navPartes');if(b)b.classList.add('active');try{w.scrollTo(0,0)}catch(e){}patchPartsEntry(w);fixB2();return true}catch(e){console.error('V1.35 ACTIVATE PARTES',e);return false}}
-function patchPartsEntry(w){try{fixB2();const d=w.document,p=d.getElementById('partes');if(!p)return;let st=d.getElementById('ptCrearConsultarStyle');if(!st){st=d.createElement('style');st.id='ptCrearConsultarStyle';st.textContent='#ptCrearConsultarBar{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 14px}#ptCrearConsultarBar button{min-height:74px;border-radius:16px;text-align:left;padding:13px;background:#fff;border:1px solid #dbe3ee;color:#182033}#ptCrearConsultarBar button strong{display:block;font-size:18px}#ptCrearConsultarBar button span{display:block;font-size:12px;color:#667085;margin-top:5px}#ptCrearConsultarBar button.primary{border-color:#0b5ed7;background:#eef5ff;color:#0b5ed7}@media(max-width:520px){#ptCrearConsultarBar{grid-template-columns:1fr}}';d.head.appendChild(st)}let bar=d.getElementById('ptCrearConsultarBar');if(!bar){bar=d.createElement('div');bar.id='ptCrearConsultarBar';bar.innerHTML='<button type="button" id="ptBtnCrearDirect" class="primary"><strong>➕ Crear parte</strong><span>Nuevo parte desde un aviso</span></button><button type="button" id="ptBtnConsultarDirect"><strong>🔎 Consultar partes</strong><span>Buscar, abrir y continuar partes</span></button>';const card=p.querySelector('.card')||p;const ref=card.querySelector('.ptTabs')||card.children[1]||null;card.insertBefore(bar,ref)}const tn=d.getElementById('ptTabNuevo')||d.getElementById('pCrear'),th=d.getElementById('ptTabHist')||d.getElementById('pConsultar');if(tn)tn.textContent='➕ Crear';if(th)th.textContent='🔎 Consultar';const crear=d.getElementById('ptBtnCrearDirect'),consultar=d.getElementById('ptBtnConsultarDirect');if(crear)crear.onclick=function(){try{const close=d.getElementById('ptClosePart');if(close)close.click();else if(tn)tn.click();if(window.Soltec134Parts&&typeof window.Soltec134Parts.show==='function')window.Soltec134Parts.show(w);setTimeout(()=>{const t=d.getElementById('ptTabNuevo')||d.getElementById('pCrear');if(t)t.click();patchPartsEntry(w)},80)}catch(e){}};if(consultar)consultar.onclick=function(){try{const back=d.getElementById('ptBackList');if(back)back.click();else if(th)th.click();setTimeout(()=>{const t=d.getElementById('ptTabHist')||d.getElementById('pConsultar');if(t)t.click();patchPartsEntry(w)},80)}catch(e){}}}catch(e){console.error('V1.35 PARTES CREAR CONSULTAR',e)}}
-function openParts(w){try{fixB2();if(window.Soltec134PartsPdf&&typeof window.Soltec134PartsPdf.init==='function')try{window.Soltec134PartsPdf.init(w)}catch(e){}if(window.Soltec134Parts&&typeof window.Soltec134Parts.init==='function'){window.Soltec134Parts.init(w);fixB2();if(typeof window.Soltec134Parts.show==='function'){window.Soltec134Parts.show(w);patchPartsEntry(w);return}if(activateParts(w))return}let s=document.getElementById('s134PartsRecovery');if(s){if(activateParts(w))return;return}s=document.createElement('script');s.id='s134PartsRecovery';s.src='./parts134.js?build='+encodeURIComponent(PARTS_BUILD)+'&t='+Date.now();s.onload=function(){try{if(window.Soltec134Parts&&typeof window.Soltec134Parts.init==='function'){window.Soltec134Parts.init(w);fixB2();if(typeof window.Soltec134Parts.show==='function'){window.Soltec134Parts.show(w);patchPartsEntry(w);return}if(activateParts(w))return}w.alert('No se pudo iniciar Partes de trabajo.')}catch(e){console.error('V1.35 PARTES RECOVERY',e)}};s.onerror=function(){try{w.alert('No se pudo cargar Partes de trabajo. Cierra SOLTEC y vuelve a abrirlo con conexión.')}catch(e){}};document.head.appendChild(s)}catch(e){console.error('V1.35 OPEN PARTES',e)}}
-function ensure(w){try{fixB2();const d=w.document;if(!d||!d.body)return;let nav=d.querySelector('nav.bottom');if(!nav){nav=d.createElement('nav');nav.className='bottom';nav.setAttribute('aria-label','Navegación principal');d.body.appendChild(nav)}nav.style.position='fixed';nav.style.left='0';nav.style.right='0';nav.style.bottom='0';nav.style.zIndex='9999';nav.style.display='grid';nav.style.visibility='visible';nav.style.opacity='1';nav.style.background='#fff';nav.style.borderTop='1px solid #dbe3ee';nav.style.padding='7px 8px calc(7px + env(safe-area-inset-bottom))';
-const defs=[['navInicio','⌂<br>Inicio','inicio'],['navAvisos','☰<br>Avisos','avisos'],['navConfig','⚙<br>Empresa','config'],['navPartes','🧾<br>Partes','partes']];for(const [id,label,screen] of defs){let b=d.getElementById(id);if(!b){b=d.createElement('button');b.type='button';const fin=d.getElementById('navFinalizar');if(screen==='partes'&&fin)nav.insertBefore(b,fin);else nav.appendChild(b);b.id=id}b.innerHTML=label;b.style.display='block';b.style.visibility='visible';b.style.opacity='1';b.onclick=screen==='partes'?function(){openParts(w)}:function(){if(w.App&&typeof w.App.show==='function')w.App.show(screen)}}
-let f=d.getElementById('navFinalizar');if(!f){f=d.createElement('button');f.type='button';f.id='navFinalizar';nav.appendChild(f)}f.innerHTML='✅<br>Finalizar';f.style.display='block';f.style.visibility='visible';f.style.opacity='1';f.onclick=function(){if(window.Soltec134Engine&&typeof window.Soltec134Engine.finalizar==='function')window.Soltec134Engine.finalizar(w)};if(window.Soltec134Parts&&typeof window.Soltec134Parts.init==='function')try{window.Soltec134Parts.init(w);fixB2();patchPartsEntry(w)}catch(e){}const pb=d.getElementById('navPartes');if(pb)pb.onclick=function(){openParts(w)};layout(w,nav)}catch(x){console.error('V1.35 NAV',x)}}
-window.Soltec134NavFix={init:function(w){ensure(w);fixB2();setTimeout(()=>ensure(w),120);setTimeout(()=>ensure(w),350);setTimeout(()=>ensure(w),1200);setTimeout(()=>ensure(w),3000);setInterval(fixB2,500)}};
+(function () {
+  'use strict';
+
+  function layout(document, nav) {
+    const buttons = Array.from(nav.querySelectorAll(':scope > button'));
+    nav.style.gridTemplateColumns = 'repeat(' + Math.max(1, buttons.length) + ',minmax(0,1fr))';
+    nav.style.columnGap = '4px';
+    buttons.forEach(button => {
+      button.style.minHeight = '52px'; button.style.padding = '8px 3px'; button.style.fontSize = '12px';
+    });
+    const main = document.querySelector('main');
+    if (main) main.style.paddingBottom = '105px';
+  }
+
+  function ensure(app) {
+    try {
+      const document = app.document;
+      let nav = document.querySelector('nav.bottom');
+      if (!nav) {
+        nav = document.createElement('nav'); nav.className = 'bottom'; nav.setAttribute('aria-label', 'Navegación principal'); document.body.appendChild(nav);
+      }
+      const definitions = [
+        ['navInicio', '⌂<br>Inicio', () => app.App && app.App.show('inicio')],
+        ['navAvisos', '☰<br>Avisos', () => app.App && app.App.show('avisos')],
+        ['navPartes', '🧾<br>Partes', () => window.SoltecPartes135 && window.SoltecPartes135.show()],
+        ['navConfig', '⚙<br>Empresa', () => app.App && app.App.show('config')]
+      ];
+      definitions.forEach(([id, label, action]) => {
+        let button = document.getElementById(id);
+        if (!button) { button = document.createElement('button'); button.type = 'button'; button.id = id; nav.appendChild(button); }
+        button.innerHTML = label; button.onclick = action;
+      });
+      let finish = document.getElementById('navFinalizar');
+      if (!finish) { finish = document.createElement('button'); finish.type = 'button'; finish.id = 'navFinalizar'; nav.appendChild(finish); }
+      finish.innerHTML = '✅<br>Finalizar';
+      finish.onclick = () => window.Soltec134Engine && window.Soltec134Engine.finalizar(app);
+      layout(document, nav);
+    } catch (error) {
+      console.error('V1.35 NAV', error);
+    }
+  }
+
+  window.Soltec134NavFix = {
+    init(app) {
+      ensure(app); setTimeout(() => ensure(app), 200); setTimeout(() => ensure(app), 1000);
+    }
+  };
 })();
