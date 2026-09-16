@@ -40,6 +40,7 @@
   <script src="./sync134engine.js"></script>
   <script src="./sync134audit.js"></script>
   <script src="./nav134fix.js"></script>
+  <script src="./compact135.js"></script>
   <script>
     (async function () {
       try {
@@ -53,7 +54,8 @@
         html = html
           .replace('function normalizarAviso(a)', "function normalizarTension(v){var x=String(v||'').toUpperCase();if(x.indexOf('3X230 V')>=0&&x.indexOf('400')<0)return '3X230 V';if(x.indexOf('400')>=0)return '3X230/400V';return '230 V MONOFÁSICA';}function normalizarAviso(a)")
           .replace("tension:String(a.tension||'').includes('400')?'400 V TRIFÁSICA':'230 V MONOFÁSICA'", 'tension:normalizarTension(a.tension)')
-          .replace("var w=String(tension||'').includes('400')?Math.sqrt(3)*400*i:230*i;", "var tv=String(tension||'').toUpperCase(),tri=tv.indexOf('3X')>=0,u=tv.indexOf('400')>=0?400:230,w=tri?Math.sqrt(3)*u*i:230*i;");
+          .replace("var w=String(tension||'').includes('400')?Math.sqrt(3)*400*i:230*i;", "var tv=String(tension||'').toUpperCase(),tri=tv.indexOf('3X')>=0,u=tv.indexOf('400')>=0?400:230,w=tri?Math.sqrt(3)*u*i:230*i;")
+          .replace("[dir,getValue('avLocalidad')].filter(Boolean).join(', ')", "[dir,getValue('avLocalidad'),getValue('avProvincia')].filter(Boolean).join(', ')");
         if (!html.includes('function cartoBuscar(q)')) {
           html = html.replace('function resizeLogo(file)', 'function cartoBuscar(q){if(!q){cartoEstado("Completa la referencia catastral.",true);return;}cartoEstado("Consultando CartoCiudad…",false);cartoFetch(cartoUrlCandidates(q)).then(function(r){cartoCandidates=cartoNormalizarRespuesta(r);document.getElementById("cartoResultados").innerHTML=cartoCandidates.slice(0,6).map(function(c,i){return "<button type=\\"button\\" class=\\"cartoResult\\" onclick=\\"App.elegirCarto("+i+")\\">"+esc(c.address||c.name||"Resultado")+"</button>";}).join("");cartoEstado(cartoCandidates.length?"Selecciona el resultado correcto.":"Sin coincidencias.",!cartoCandidates.length);}).catch(function(){cartoEstado("No se pudo consultar CartoCiudad.",true);});}\nfunction resizeLogo(file)');
         }
@@ -75,6 +77,7 @@
           window.Soltec134Engine && window.Soltec134Engine.init(app);
           window.Soltec134Audit && window.Soltec134Audit.init(app);
           window.Soltec134NavFix && window.Soltec134NavFix.init(app);
+          window.SoltecCompact135 && window.SoltecCompact135.init(app);
           try {
             const d = app.document, header = d.querySelector('header .headerText');
             if (header) {
