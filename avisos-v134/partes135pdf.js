@@ -3,7 +3,7 @@
 
   const PAGE_W = 1240;
   const PAGE_H = 1754;
-  const MARGIN = 72;
+  const MARGIN = 48;
   const RED = '#e7281c';
   const INK = '#182033';
   const MUTED = '#667085';
@@ -13,9 +13,9 @@
   const db = () => window.SoltecDB135;
   const appWindow = () => db().window();
 
-  function canvasPage() {
+  function canvasPage(height) {
     const canvas = appWindow().document.createElement('canvas');
-    canvas.width = PAGE_W; canvas.height = PAGE_H;
+    canvas.width = PAGE_W; canvas.height = height || PAGE_H;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, PAGE_W, PAGE_H);
     ctx.fillStyle = INK; ctx.textBaseline = 'top';
@@ -29,7 +29,7 @@
 
   function line(page, color) {
     page.ctx.strokeStyle = color || LINE; page.ctx.lineWidth = 2;
-    page.ctx.beginPath(); page.ctx.moveTo(MARGIN, page.y); page.ctx.lineTo(PAGE_W - MARGIN, page.y); page.ctx.stroke(); page.y += 20;
+    page.ctx.beginPath(); page.ctx.moveTo(MARGIN, page.y); page.ctx.lineTo(PAGE_W - MARGIN, page.y); page.ctx.stroke(); page.y += 12;
   }
 
   function wrapped(ctx, value, x, y, maxWidth, lineHeight, maxLines) {
@@ -49,14 +49,14 @@
   }
 
   function heading(page, value) {
-    page.y += 14; font(page.ctx, 29, true); page.ctx.fillStyle = RED; page.ctx.fillText(value, MARGIN, page.y); page.y += 44;
+    page.y += 6; font(page.ctx, 20, true); page.ctx.fillStyle = RED; page.ctx.fillText(value, MARGIN, page.y); page.y += 29;
   }
 
   function labelValue(page, label, value, x, width) {
-    font(page.ctx, 17, true); page.ctx.fillStyle = MUTED; page.ctx.fillText(label.toUpperCase(), x, page.y);
-    font(page.ctx, 23, false); page.ctx.fillStyle = INK;
-    const height = wrapped(page.ctx, value || '—', x, page.y + 24, width, 29, 3);
-    return height + 32;
+    font(page.ctx, 12, true); page.ctx.fillStyle = MUTED; page.ctx.fillText(label.toUpperCase(), x, page.y);
+    font(page.ctx, 17, false); page.ctx.fillStyle = INK;
+    const height = wrapped(page.ctx, value || '—', x, page.y + 17, width, 21, 3);
+    return height + 21;
   }
 
   function loadImage(src) {
@@ -73,74 +73,78 @@
     ctx.drawImage(image, x + (width - w) / 2, y + (height - h) / 2, w, h);
   }
 
-  async function firstPage(part, company) {
-    const page = canvasPage(), ctx = page.ctx;
+  async function singlePage(part, company) {
+    const page = canvasPage(4200), ctx = page.ctx;
     const logo = await loadImage(company.logoData);
-    if (logo) fitImage(ctx, logo, MARGIN, page.y, 220, 105);
-    const companyX = logo ? 320 : MARGIN;
-    font(ctx, 31, true); ctx.fillText(company.nombre || company.nombreComercial || 'M. A. SOLTEC SL', companyX, page.y);
-    font(ctx, 18, false); ctx.fillStyle = MUTED;
+    if (logo) fitImage(ctx, logo, MARGIN, page.y, 165, 72);
+    const companyX = logo ? 235 : MARGIN;
+    font(ctx, 24, true); ctx.fillText(company.nombre || company.nombreComercial || 'M. A. SOLTEC SL', companyX, page.y);
+    font(ctx, 13, false); ctx.fillStyle = MUTED;
     const companyLine = [company.nif && 'NIF/CIF ' + company.nif, company.telefono, company.email].filter(Boolean).join(' · ');
-    wrapped(ctx, companyLine, companyX, page.y + 42, PAGE_W - companyX - MARGIN, 24, 2);
-    const address = [company.direccion, [company.cp, company.localidad].filter(Boolean).join(' '), company.provincia].filter(Boolean).join(' · ');
-    wrapped(ctx, address, companyX, page.y + 70, PAGE_W - companyX - MARGIN, 24, 2);
-    page.y += 125; ctx.fillStyle = RED; ctx.fillRect(MARGIN, page.y, PAGE_W - MARGIN * 2, 8); page.y += 30;
-    font(ctx, 45, true); ctx.fillStyle = INK; ctx.fillText('PARTE DE TRABAJO', MARGIN, page.y);
-    font(ctx, 25, true); ctx.fillStyle = RED; ctx.textAlign = 'right'; ctx.fillText(part.partNo, PAGE_W - MARGIN, page.y + 8); ctx.textAlign = 'left'; page.y += 70;
+    wrapped(ctx, companyLine, companyX, page.y + 31, PAGE_W - companyX - MARGIN, 17, 2);
+    const companyAddress = [company.direccion, [company.cp, company.localidad].filter(Boolean).join(' '), company.provincia].filter(Boolean).join(' · ');
+    wrapped(ctx, companyAddress, companyX, page.y + 52, PAGE_W - companyX - MARGIN, 17, 2);
+    page.y += 82; ctx.fillStyle = RED; ctx.fillRect(MARGIN, page.y, PAGE_W - MARGIN * 2, 5); page.y += 15;
+    font(ctx, 31, true); ctx.fillStyle = INK; ctx.fillText('PARTE DE TRABAJO', MARGIN, page.y);
+    font(ctx, 19, true); ctx.fillStyle = RED; ctx.textAlign = 'right'; ctx.fillText(part.partNo, PAGE_W - MARGIN, page.y + 6); ctx.textAlign = 'left'; page.y += 45;
 
-    const col = (PAGE_W - MARGIN * 2 - 34) / 2;
-    let y0 = page.y; const h1 = labelValue(page, 'Nº aviso', part.avisoNo, MARGIN, col); page.y = y0; const h2 = labelValue(page, 'Fecha', formatDate(part.fecha), MARGIN + col + 34, col); page.y = y0 + Math.max(h1, h2) + 10;
-    y0 = page.y; const h3 = labelValue(page, 'Cliente', part.cliente, MARGIN, col); page.y = y0; const h4 = labelValue(page, 'Técnico', part.tecnico, MARGIN + col + 34, col); page.y = y0 + Math.max(h3, h4) + 10;
-    const addressH = labelValue(page, 'Dirección', [part.direccion, [part.cp, part.localidad].filter(Boolean).join(' '), part.provincia].filter(Boolean).join(' · '), MARGIN, PAGE_W - MARGIN * 2); page.y += addressH + 4;
-    y0 = page.y; const h5 = labelValue(page, 'Contacto', part.contacto, MARGIN, col); page.y = y0; const h6 = labelValue(page, 'NIF/CIF', part.nif, MARGIN + col + 34, col); page.y = y0 + Math.max(h5, h6) + 10;
-    y0 = page.y; const h7 = labelValue(page, 'Teléfono', part.telefono, MARGIN, col); page.y = y0; const h8 = labelValue(page, 'Email', part.email, MARGIN + col + 34, col); page.y = y0 + Math.max(h7, h8) + 8;
+    const gap = 24, col = (PAGE_W - MARGIN * 2 - gap) / 2;
+    function pair(labelA, valueA, labelB, valueB) {
+      const y = page.y, a = labelValue(page, labelA, valueA, MARGIN, col); page.y = y;
+      const b = labelValue(page, labelB, valueB, MARGIN + col + gap, col); page.y = y + Math.max(a, b) + 4;
+    }
+    pair('Nº aviso', part.avisoNo, 'Fecha', formatDate(part.fecha));
+    pair('Cliente', part.cliente, 'Técnico', part.tecnico);
+    page.y += labelValue(page, 'Dirección', [part.direccion, [part.cp, part.localidad].filter(Boolean).join(' '), part.provincia].filter(Boolean).join(' · '), MARGIN, PAGE_W - MARGIN * 2) + 2;
+    pair('Contacto', part.contacto, 'NIF/CIF', part.nif);
+    pair('Teléfono', part.telefono, 'Email', part.email);
     line(page);
 
-    heading(page, 'Trabajos realizados'); font(ctx, 22, false); ctx.fillStyle = INK;
-    page.y += wrapped(ctx, part.trabajos || '—', MARGIN, page.y, PAGE_W - MARGIN * 2, 31, 15) + 16;
+    heading(page, 'Trabajos realizados'); font(ctx, 16, false); ctx.fillStyle = INK;
+    page.y += wrapped(ctx, part.trabajos || '—', MARGIN, page.y, PAGE_W - MARGIN * 2, 21) + 8;
     line(page);
-    heading(page, 'Conceptos');
+    heading(page, 'Conceptos y mano de obra');
     const concepts = [part.conceptos.desplazamiento && 'Desplazamiento', part.conceptos.disponibilidad && 'Disponibilidad', part.conceptos.urgencia && 'Urgencia'].filter(Boolean);
-    font(ctx, 22, false); ctx.fillStyle = INK; ctx.fillText(concepts.length ? concepts.join(' · ') : 'Sin conceptos adicionales', MARGIN, page.y); page.y += 42;
-    font(ctx, 24, true); ctx.fillText('Mano de obra: ' + text(part.manoObraHoras || '0') + ' horas', MARGIN, page.y); page.y += 55;
-    heading(page, 'Resultado'); font(ctx, 23, true); ctx.fillStyle = INK; ctx.fillText(part.resultado || '—', MARGIN, page.y);
-    footer(page, part, 1);
-    return page.canvas;
-  }
+    font(ctx, 16, false); ctx.fillStyle = INK; ctx.fillText(concepts.length ? concepts.join(' · ') : 'Sin conceptos adicionales', MARGIN, page.y);
+    font(ctx, 17, true); ctx.textAlign = 'right'; ctx.fillText('Mano de obra: ' + text(part.manoObraHoras || '0') + ' horas', PAGE_W - MARGIN, page.y); ctx.textAlign = 'left'; page.y += 29;
+    line(page);
 
-  async function secondPage(part) {
-    const page = canvasPage(), ctx = page.ctx;
-    font(ctx, 34, true); ctx.fillStyle = INK; ctx.fillText('PARTE ' + part.partNo, MARGIN, page.y);
-    font(ctx, 20, false); ctx.fillStyle = MUTED; ctx.textAlign = 'right'; ctx.fillText('Aviso ' + part.avisoNo, PAGE_W - MARGIN, page.y + 8); ctx.textAlign = 'left'; page.y += 65; line(page, RED);
     heading(page, 'Material empleado');
     const materials = part.materiales || [];
-    if (!materials.length) { font(ctx, 21, false); ctx.fillText('No se ha indicado material.', MARGIN, page.y); page.y += 42; }
+    if (!materials.length) { font(ctx, 15, false); ctx.fillText('No se ha indicado material.', MARGIN, page.y); page.y += 24; }
     materials.forEach((row, index) => {
-      font(ctx, 19, true); ctx.fillText((index + 1) + '. ' + (row.cantidad ? row.cantidad + ' × ' : '') + (row.descripcion || 'Material'), MARGIN, page.y);
-      font(ctx, 17, false); ctx.fillStyle = MUTED;
+      font(ctx, 15, true); ctx.fillStyle = INK;
+      const title = (index + 1) + '. ' + (row.cantidad ? row.cantidad + ' x ' : '') + (row.descripcion || 'Material');
+      page.y += wrapped(ctx, title, MARGIN, page.y, PAGE_W - MARGIN * 2, 19) + 2;
       const detail = [row.referencia && 'Ref. ' + row.referencia, row.observaciones].filter(Boolean).join(' · ');
-      page.y += 26 + wrapped(ctx, detail, MARGIN + 24, page.y + 25, PAGE_W - MARGIN * 2 - 24, 23, 3) + 14;
+      if (detail) { font(ctx, 13, false); ctx.fillStyle = MUTED; page.y += wrapped(ctx, detail, MARGIN + 18, page.y, PAGE_W - MARGIN * 2 - 18, 17) + 4; }
     });
     line(page);
-    heading(page, 'Observaciones'); font(ctx, 21, false); ctx.fillStyle = INK;
-    page.y += wrapped(ctx, part.observaciones || '—', MARGIN, page.y, PAGE_W - MARGIN * 2, 29, 12) + 18;
+    heading(page, 'Observaciones'); font(ctx, 15, false); ctx.fillStyle = INK;
+    page.y += wrapped(ctx, part.observaciones || '—', MARGIN, page.y, PAGE_W - MARGIN * 2, 20) + 7;
+    font(ctx, 14, true); ctx.fillStyle = MUTED; ctx.fillText('RESULTADO', MARGIN, page.y);
+    font(ctx, 17, true); ctx.fillStyle = INK; ctx.fillText(part.resultado || '—', MARGIN + 105, page.y - 2); page.y += 27;
     line(page);
+
     heading(page, 'Firmas');
     const signClient = await loadImage(part.firmaCliente), signTech = await loadImage(part.firmaTecnico);
-    const col = (PAGE_W - MARGIN * 2 - 36) / 2, sigTop = page.y;
-    font(ctx, 20, true); ctx.fillText('CLIENTE', MARGIN, sigTop); ctx.fillText('TÉCNICO', MARGIN + col + 36, sigTop);
-    ctx.strokeStyle = LINE; ctx.strokeRect(MARGIN, sigTop + 35, col, 235); ctx.strokeRect(MARGIN + col + 36, sigTop + 35, col, 235);
-    fitImage(ctx, signClient, MARGIN + 8, sigTop + 43, col - 16, 219); fitImage(ctx, signTech, MARGIN + col + 44, sigTop + 43, col - 16, 219);
-    font(ctx, 18, false); ctx.fillStyle = INK; ctx.fillText(part.firmante || '—', MARGIN, sigTop + 287); ctx.fillText(part.tecnico || '—', MARGIN + col + 36, sigTop + 287);
-    font(ctx, 16, false); ctx.fillStyle = MUTED; ctx.fillText(part.firmanteNif ? 'DNI/NIF ' + part.firmanteNif : '', MARGIN, sigTop + 315);
-    ctx.fillText(part.signedAt ? formatDateTime(part.signedAt) : '', MARGIN, sigTop + 343);
-    footer(page, part, 2);
-    return page.canvas;
-  }
+    const signCol = (PAGE_W - MARGIN * 2 - gap) / 2, top = page.y;
+    font(ctx, 14, true); ctx.fillText('CLIENTE', MARGIN, top); ctx.fillText('TÉCNICO', MARGIN + signCol + gap, top);
+    ctx.strokeStyle = LINE; ctx.strokeRect(MARGIN, top + 22, signCol, 125); ctx.strokeRect(MARGIN + signCol + gap, top + 22, signCol, 125);
+    fitImage(ctx, signClient, MARGIN + 6, top + 28, signCol - 12, 113); fitImage(ctx, signTech, MARGIN + signCol + gap + 6, top + 28, signCol - 12, 113);
+    font(ctx, 14, false); ctx.fillStyle = INK; ctx.fillText(part.firmante || '—', MARGIN, top + 155); ctx.fillText(part.tecnico || '—', MARGIN + signCol + gap, top + 155);
+    font(ctx, 12, false); ctx.fillStyle = MUTED;
+    ctx.fillText([part.firmanteNif && 'DNI/NIF ' + part.firmanteNif, part.signedAt && formatDateTime(part.signedAt)].filter(Boolean).join(' · '), MARGIN, top + 177);
+    page.y = top + 200;
 
-  function footer(page, part, number) {
-    const ctx = page.ctx; ctx.strokeStyle = LINE; ctx.beginPath(); ctx.moveTo(MARGIN, PAGE_H - 74); ctx.lineTo(PAGE_W - MARGIN, PAGE_H - 74); ctx.stroke();
-    font(ctx, 15, false); ctx.fillStyle = MUTED; ctx.fillText('M. A. SOLTEC SL · ' + part.partNo, MARGIN, PAGE_H - 52); ctx.textAlign = 'right'; ctx.fillText('Página ' + number + '/2', PAGE_W - MARGIN, PAGE_H - 52); ctx.textAlign = 'left';
+    const finalPage = canvasPage(), out = finalPage.ctx, outMargin = 34, footerTop = PAGE_H - 52;
+    const contentWidth = PAGE_W - MARGIN * 2, contentHeight = page.y - MARGIN;
+    const scale = Math.min(1, (PAGE_W - outMargin * 2) / contentWidth, (footerTop - outMargin - 10) / contentHeight);
+    out.drawImage(page.canvas, MARGIN, MARGIN, contentWidth, contentHeight, outMargin, outMargin, contentWidth * scale, contentHeight * scale);
+    out.strokeStyle = LINE; out.beginPath(); out.moveTo(outMargin, footerTop); out.lineTo(PAGE_W - outMargin, footerTop); out.stroke();
+    font(out, 11, false); out.fillStyle = MUTED; out.fillText('M. A. SOLTEC SL · ' + part.partNo, outMargin, footerTop + 12);
+    out.textAlign = 'right'; out.fillText('Página 1/1', PAGE_W - outMargin, footerTop + 12); out.textAlign = 'left';
+    return finalPage.canvas;
   }
 
   function formatDate(value) {
@@ -184,7 +188,7 @@
 
   async function create(part) {
     part = db().normalize(part); const company = db().main().empresa || {};
-    const pages = [await firstPage(part, company), await secondPage(part)];
+    const pages = [await singlePage(part, company)];
     const blob = pdfFromCanvases(pages); const filename = ('Parte_' + part.partNo + '_' + (part.cliente || 'cliente')).replace(/[^a-zA-Z0-9._-]+/g, '_') + '.pdf';
     return new (appWindow().File)([blob], filename, { type: 'application/pdf', lastModified: Date.now() });
   }
