@@ -10,6 +10,11 @@
   const parse = (value, fallback) => { try { return JSON.parse(value || '') || fallback; } catch (_) { return fallback; } };
   const esc = value => text(value).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 
+  function formEditing(d) {
+    const active = d.activeElement;
+    return !!(active && active.closest && active.closest('#formAviso') && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName));
+  }
+
   function main() {
     return parse(appWindow.localStorage.getItem(MAIN), { avisos: [] });
   }
@@ -113,8 +118,8 @@
     let door = (el(d, 'avPuerta') || {}).closest && el(d, 'avPuerta').closest('label');
     if (!floor) { floor = d.createElement('label'); floor.innerHTML = 'Piso<input id="avPiso" autocomplete="address-line2" placeholder="Ej.: 2º">'; }
     if (!door) { door = d.createElement('label'); door.innerHTML = 'Puerta<input id="avPuerta" autocomplete="address-line3" placeholder="Ej.: B">'; }
-    addressLabel.insertAdjacentElement('afterend', floor);
-    floor.insertAdjacentElement('afterend', door);
+    if (addressLabel.nextElementSibling !== floor) addressLabel.insertAdjacentElement('afterend', floor);
+    if (floor.nextElementSibling !== door) floor.insertAdjacentElement('afterend', door);
   }
 
   function openMemory(d) {
@@ -132,7 +137,7 @@
         photo = detailsFrom(d, photo, 's133PhotoShort', '📷 Fotografías del aviso');
         const oldTitle = photo && photo.querySelector('b'); if (oldTitle) oldTitle.style.display = 'none';
       }
-      plan.insertAdjacentElement('afterend', photo);
+      if (plan.nextElementSibling !== photo) plan.insertAdjacentElement('afterend', photo);
     }
     let memory = el(d, 'av135MemoryTab');
     if (!memory) {
@@ -261,12 +266,13 @@
   }
 
   function arrange(d) {
+    if (formEditing(d)) return;
     style(d); home(d); addressFields(d); compactGroups(d); compactFields(d); contextualTabs(d); contextualScreens(d); hookPhotos(d); addressLearning(d); hooks(d);
   }
 
   function init(win) {
     appWindow = win; const d = win.document;
-    arrange(d); setTimeout(() => arrange(d), 250); setTimeout(() => arrange(d), 900); setInterval(() => arrange(d), 1200);
+    arrange(d); setTimeout(() => arrange(d), 250); setTimeout(() => arrange(d), 900); setTimeout(() => arrange(d), 2200);
   }
 
   window.SoltecCompact135 = { init };
