@@ -43,6 +43,7 @@
   <script src="./sync134audit.js"></script>
   <script src="./nav134fix.js"></script>
   <script src="./compact135.js"></script>
+  <script src="./avisoslist135.js"></script>
   <script>
     (async function () {
       try {
@@ -88,6 +89,7 @@
           window.Soltec134Audit && window.Soltec134Audit.init(app);
           window.Soltec134NavFix && window.Soltec134NavFix.init(app);
           window.SoltecCompact135 && window.SoltecCompact135.init(app);
+          window.SoltecAvisosList135 && window.SoltecAvisosList135.init(app);
           try {
             const d = app.document, header = d.querySelector('header .headerText');
             if (header) {
