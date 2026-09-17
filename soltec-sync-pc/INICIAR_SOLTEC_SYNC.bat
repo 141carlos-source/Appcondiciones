@@ -21,8 +21,14 @@ if not defined PYCMD (
   exit /b 1
 )
 
-echo [1/3] Iniciando servidor SOLTEC en el PC...
-start "SOLTEC SYNC - NO CERRAR" cmd /k "cd /d ""%~dp0"" && %PYCMD% server.py"
+echo [1/3] Iniciando servidor SOLTEC en segundo plano...
+rem El servidor debe seguir activo para que el movil pueda verificar y sincronizar,
+rem pero no necesita mantener una ventana CMD visible.
+powershell -NoProfile -WindowStyle Hidden -Command "Start-Process -FilePath '%PYCMD%' -ArgumentList 'server.py' -WorkingDirectory '%~dp0' -WindowStyle Hidden" >nul 2>nul
+if errorlevel 1 (
+  rem Respaldo: si PowerShell no puede ocultarlo, lo inicia minimizado.
+  start "SOLTEC SYNC - NO CERRAR" /min cmd /c "cd /d ""%~dp0"" && %PYCMD% server.py"
+)
 timeout /t 2 /nobreak >nul
 
 echo [2/3] Comprobando Tailscale...
@@ -37,7 +43,8 @@ if errorlevel 1 (
   echo.
   echo Despues usa la direccion HTTPS que muestre Tailscale en SOLTEC V1.34.
   echo.
-  pause
+  echo Esta ventana se cerrara automaticamente.
+  timeout /t 5 /nobreak >nul
   exit /b 0
 )
 
@@ -55,17 +62,16 @@ if errorlevel 1 (
 
 echo.
 echo ==============================================================
-echo  IMPORTANTE
+echo  SOLTEC SYNC QUEDA FUNCIONANDO EN SEGUNDO PLANO
 if exist "soltec-sync-config.json" (
   echo  La CLAVE esta guardada en: %~dp0soltec-sync-config.json
 ) else (
-  echo  La CLAVE aparecera en la ventana SOLTEC SYNC que se ha abierto.
+  echo  La configuracion se creara automaticamente al iniciar el servidor.
 )
-echo  Copia en Configuracion de V1.34:
-echo   - la direccion HTTPS que muestra Tailscale
-  echo   - la clave de sincronizacion
-
+echo  El movil puede verificar el PC y crear copias sin dejar esta ventana abierta.
 echo ==============================================================
 echo.
-pause
+echo Cerrando esta ventana...
+timeout /t 3 /nobreak >nul
 endlocal
+exit /b 0
