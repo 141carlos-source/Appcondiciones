@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SOLTEC · Demo Agenda semanal</title>
+<style>
+:root{--red:#e7281c;--ink:#172b4d;--muted:#667085;--line:#dbe3ee;--soft:#f6f8fb;--ok:#12805c;--warn:#b7791f;--blue:#2463eb}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#eef2f6;color:#1f2937}.app{max-width:1500px;margin:auto;min-height:100vh;background:#fff}.top{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.brand{display:flex;align-items:center;gap:10px;margin-right:auto}.mark{width:34px;height:34px;border-radius:9px;background:var(--red);color:#fff;display:grid;place-items:center;font-weight:900}.brand h1{font-size:18px;margin:0;color:var(--ink)}.brand small{display:block;color:var(--muted);font-size:11px}.viewbar{display:flex;gap:7px;flex-wrap:wrap}.viewbar button,.top .primary{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 12px;font-weight:800;color:var(--ink);cursor:pointer}.viewbar button.active,.top .primary{background:var(--red);color:#fff;border-color:var(--red)}.layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 70px)}.side{border-right:1px solid var(--line);padding:14px;background:#fbfcfe}.side h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:8px 0}.metric{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px}.metric b{font-size:22px;color:var(--ink)}.metric span{display:block;font-size:12px;color:var(--muted)}.unscheduled{display:grid;gap:8px}.mini{border:1px solid var(--line);border-left:4px solid var(--red);border-radius:10px;padding:10px;background:#fff;cursor:grab}.mini strong{display:block;font-size:13px}.mini small{display:block;color:var(--muted);margin-top:3px}.main{padding:14px;overflow:auto}.weekhead{display:flex;align-items:center;gap:10px;margin-bottom:12px}.weekhead h2{font-size:18px;margin:0;color:var(--ink)}.weekhead button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 10px}.week{display:grid;grid-template-columns:repeat(5,minmax(210px,1fr));gap:10px;min-width:1080px}.day{background:var(--soft);border:1px solid var(--line);border-radius:14px;min-height:650px;overflow:hidden}.day.today{box-shadow:0 0 0 2px rgba(231,40,28,.18)}.dayhead{background:#fff;padding:11px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.dayhead strong{color:var(--ink)}.dayhead span{font-size:12px;color:var(--muted)}.slot{padding:8px;display:grid;gap:8px}.job{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 2px 8px rgba(15,23,42,.04);cursor:pointer}.job.high{border-left:5px solid var(--red)}.job.medium{border-left:5px solid var(--warn)}.job.low{border-left:5px solid var(--blue)}.jobtop{display:flex;justify-content:space-between;gap:8px}.time{font-weight:900;color:var(--ink)}.status{font-size:10px;font-weight:900;border-radius:999px;padding:4px 7px;background:#eef2f6;color:#475467}.status.ok{background:#eaf8f1;color:var(--ok)}.status.warn{background:#fff5dc;color:#946200}.job h4{margin:6px 0 2px;font-size:14px;color:var(--ink)}.job p{margin:0;color:var(--muted);font-size:12px;line-height:1.35}.icons{display:flex;gap:8px;margin-top:8px;color:#667085;font-size:12px}.detail{position:fixed;inset:0;background:rgba(15,23,42,.48);display:none;align-items:flex-end;justify-content:center;z-index:40}.detail.open{display:flex}.sheet{background:#fff;width:min(720px,100%);max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px}.sheethead{display:flex;justify-content:space-between;align-items:start;gap:12px}.sheethead h2{margin:0;color:var(--ink);font-size:20px}.close{border:0;background:#eef2f6;border-radius:10px;padding:9px 11px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.field{border:1px solid var(--line);border-radius:10px;padding:10px}.field span{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:800}.field b{display:block;margin-top:3px}.wide{grid-column:1/-1}.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}.photo{aspect-ratio:4/3;border:1px dashed #b8c2d0;border-radius:10px;display:grid;place-items:center;background:#f8fafc;color:#667085;font-size:12px;text-align:center;padding:8px}.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.actions button{border:1px solid var(--line);border-radius:10px;padding:11px;background:#fff;font-weight:800}.actions .go{background:var(--red);color:#fff;border-color:var(--red)}.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#172b4d;color:#fff;padding:10px 14px;border-radius:10px;display:none;z-index:60;font-size:13px}.toast.show{display:block}.mobile-tabs{display:none}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.side{display:none}.main{padding:10px}.week{grid-template-columns:1fr;min-width:0}.day{min-height:auto}.mobile-tabs{display:flex;gap:6px;overflow:auto;margin-bottom:10px}.mobile-tabs button{white-space:nowrap;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 11px}.day:not(.mobile-active){display:none}.grid{grid-template-columns:1fr}.actions{grid-template-columns:1fr}.photos{grid-template-columns:1fr 1fr}.brand small{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top">
+  <div class="brand"><div class="mark">S</div><div><h1>SOLTEC · Agenda</h1><small>Demo independiente · planificación semanal</small></div></div>
+  <div class="viewbar"><button class="active">Semana</button><button>Hoy</button><button>Pendientes</button></div>
+  <button class="primary" onclick="demoNew()">＋ Nueva cita</button>
+</header>
+<div class="layout">
+  <aside class="side">
+    <h3>Resumen semanal</h3>
+    <div class="metric"><b>12</b><span>trabajos planificados</span></div>
+    <div class="metric"><b>31,5 h</b><span>carga estimada</span></div>
+    <div class="metric"><b>3</b><span>pendientes de colocar</span></div>
+    <h3>Sin planificar</h3>
+    <div class="unscheduled">
+      <div class="mini"><strong>Revisión cuadro general</strong><small>Comunidad Plaza Norte · 2 h</small></div>
+      <div class="mini"><strong>Presupuesto iluminación</strong><small>Bar Alameda · 1 h</small></div>
+      <div class="mini"><strong>Avería intermitente</strong><small>Vivienda particular · prioridad alta</small></div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="weekhead"><button>‹</button><h2>Semana · 14–18 septiembre 2026</h2><button>›</button></div>
+    <div class="mobile-tabs">
+      <button onclick="showDay(0)">Lun 14</button><button onclick="showDay(1)">Mar 15</button><button onclick="showDay(2)">Mié 16</button><button onclick="showDay(3)">Jue 17</button><button onclick="showDay(4)">Vie 18</button>
+    </div>
+    <div class="week">
+      <section class="day mobile-active"><div class="dayhead"><strong>Lunes 14</strong><span>6,5 h</span></div><div class="slot">
+        <article class="job high" onclick="openJob('Avería cuadro eléctrico','08:00–09:30','Talleres Aragón','C/ Río Huerva 18 · Zaragoza','Confirmado','30 min antes','2 fotos')"><div class="jobtop"><span class="time">08:00</span><span class="status warn">CONFIRMADO</span></div><h4>Avería cuadro eléctrico</h4><p>Talleres Aragón</p><p>C/ Río Huerva 18</p><div class="icons"><span>⏰ 30 min</span><span>📷 2</span></div></article>
+        <article class="job medium" onclick="openJob('Revisión instalación','10:30–12:30','Comunidad Mirador','Av. Cataluña 44','Pendiente','1 día antes','0 fotos')"><div class="jobtop"><span class="time">10:30</span><span class="status">PENDIENTE</span></div><h4>Revisión instalación</h4><p>Comunidad Mirador</p><p>Av. Cataluña 44</p><div class="icons"><span>⏰ 1 día</span></div></article>
+        <article class="job low" onclick="openJob('Visita presupuesto','16:00–17:30','Reforma López','C/ Manifestación 12','Confirmado','2 h antes','1 foto')"><div class="jobtop"><span class="time">16:00</span><span class="status warn">CONFIRMADO</span></div><h4>Visita presupuesto</h4><p>Reforma López</p><p>C/ Manifestación 12</p><div class="icons"><span>📷 1</span></div></article>
+      </div></section>
+      <section class="day"><div class="dayhead"><strong>Martes 15</strong><span>7 h</span></div><div class="slot">
+        <article class="job medium" onclick="openJob('Instalación luminarias','08:30–12:30','Oficinas Delta','Paseo Independencia 21','En curso','30 min antes','4 fotos')"><div class="jobtop"><span class="time">08:30</span><span class="status ok">EN CURSO</span></div><h4>Instalación luminarias</h4><p>Oficinas Delta</p><p>Paseo Independencia 21</p><div class="icons"><span>📷 4</span><span>📎 Plano</span></div></article>
+        <article class="job low" onclick="openJob('Mantenimiento preventivo','15:30–18:30','Nave Logística 3','Pol. Malpica, calle F','Confirmado','1 día antes','0 fotos')"><div class="jobtop"><span class="time">15:30</span><span class="status warn">CONFIRMADO</span></div><h4>Mantenimiento preventivo</h4><p>Nave Logística 3</p><p>Pol. Malpica</p></article>
+      </div></section>
+      <section class="day"><div class="dayhead"><strong>Miércoles 16</strong><span>5 h</span></div><div class="slot">
+        <article class="job high" onclick="openJob('Urgencia sin suministro','09:00–10:30','Clínica Dental Centro','C/ Don Jaime I 8','Pendiente','Al momento','0 fotos')"><div class="jobtop"><span class="time">09:00</span><span class="status">PENDIENTE</span></div><h4>Urgencia sin suministro</h4><p>Clínica Dental Centro</p><p>C/ Don Jaime I 8</p></article>
+        <article class="job medium" onclick="openJob('Comprobación protecciones','12:00–13:30','Garaje Residencial Sur','C/ Fray Julián Garcés 32','Confirmado','2 h antes','3 fotos')"><div class="jobtop"><span class="time">12:00</span><span class="status warn">CONFIRMADO</span></div><h4>Comprobación protecciones</h4><p>Garaje Residencial Sur</p><div class="icons"><span>📷 3</span></div></article>
+        <article class="job low" onclick="openJob('Visita técnica','17:00–19:00','Vivienda Unifamiliar','Camino del Pilón 77','Pendiente','1 día antes','0 fotos')"><div class="jobtop"><span class="time">17:00</span><span class="status">PENDIENTE</span></div><h4>Visita técnica</h4><p>Vivienda Unifamiliar</p></article>
+      </div></section>
+      <section class="day today"><div class="dayhead"><strong>Jueves 17 · Hoy</strong><span>8 h</span></div><div class="slot">
+        <article class="job high" onclick="openJob('Avería portero eléctrico','08:00–09:00','Comunidad San Miguel','C/ San Miguel 14','Terminado','—','5 fotos')"><div class="jobtop"><span class="time">08:00</span><span class="status ok">TERMINADO</span></div><h4>Avería portero eléctrico</h4><p>Comunidad San Miguel</p><div class="icons"><span>📷 5</span><span>✓ terminado</span></div></article>
+        <article class="job medium" onclick="openJob('Instalación cuadro secundario','10:00–14:00','Restaurante Central','C/ Coso 115','En curso','30 min antes','2 fotos')"><div class="jobtop"><span class="time">10:00</span><span class="status ok">EN CURSO</span></div><h4>Instalación cuadro secundario</h4><p>Restaurante Central</p><div class="icons"><span>⏰ 30 min</span><span>📷 2</span></div></article>
+        <article class="job low" onclick="openJob('Revisión presupuesto','16:30–19:30','Obra Residencial Ebro','Av. Ranillas 9','Confirmado','1 h antes','1 foto')"><div class="jobtop"><span class="time">16:30</span><span class="status warn">CONFIRMADO</span></div><h4>Revisión presupuesto</h4><p>Obra Residencial Ebro</p><div class="icons"><span>📷 1</span></div></article>
+      </div></section>
+      <section class="day"><div class="dayhead"><strong>Viernes 18</strong><span>5 h</span></div><div class="slot">
+        <article class="job medium" onclick="openJob('Puesta en marcha','09:00–12:00','Centro Deportivo Oeste','Vía Hispanidad 86','Confirmado','1 día antes','0 fotos')"><div class="jobtop"><span class="time">09:00</span><span class="status warn">CONFIRMADO</span></div><h4>Puesta en marcha</h4><p>Centro Deportivo Oeste</p></article>
+        <article class="job low" onclick="openJob('Mediciones y fotografías','13:00–15:00','Local Comercial','C/ Alfonso I 27','Pendiente','2 h antes','0 fotos')"><div class="jobtop"><span class="time">13:00</span><span class="status">PENDIENTE</span></div><h4>Mediciones y fotografías</h4><p>Local Comercial</p><div class="icons"><span>📷 previstas</span></div></article>
+      </div></section>
+    </div>
+  </main>
+</div>
+</div>
+<div id="detail" class="detail" onclick="if(event.target===this)closeJob()"><div class="sheet">
+  <div class="sheethead"><div><h2 id="dTitle">Trabajo</h2><div id="dStatus" class="status" style="display:inline-block;margin-top:6px">PENDIENTE</div></div><button class="close" onclick="closeJob()">✕</button></div>
+  <div class="grid">
+    <div class="field"><span>Horario</span><b id="dTime"></b></div><div class="field"><span>Alarma</span><b id="dAlarm"></b></div>
+    <div class="field"><span>Cliente / Obra</span><b id="dClient"></b></div><div class="field"><span>Estado</span><b id="dStatus2"></b></div>
+    <div class="field wide"><span>Dirección</span><b id="dAddress"></b></div>
+    <div class="field wide"><span>Notas</span><b>Material preparado · Confirmar acceso antes de salir.</b></div>
+    <div class="field wide"><span>Fotos</span><div class="photos"><div class="photo">📷 Foto ubicación</div><div class="photo">📷 Foto instalación</div><div class="photo" id="dPhotos">Sin fotos</div></div></div>
+  </div>
+  <div class="actions"><button onclick="demoToast('Alarma cambiada en la demo')">⏰ Cambiar alarma</button><button onclick="demoToast('Foto añadida en la demo')">📷 Hacer foto</button><button class="go" onclick="demoToast('Trabajo iniciado en la demo')">▶ Empezar trabajo</button></div>
+</div></div>
+<div id="toast" class="toast"></div>
+<script>
+function openJob(title,time,client,address,status,alarm,photos){
+  dTitle.textContent=title;dTime.textContent=time;dClient.textContent=client;dAddress.textContent=address;dStatus.textContent=status.toUpperCase();dStatus2.textContent=status;dAlarm.textContent=alarm;dPhotos.textContent=photos;detail.classList.add('open')
+}
+function closeJob(){detail.classList.remove('open')}
+function demoToast(t){toast.textContent=t;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),1800)}
+function demoNew(){demoToast('Nueva cita: en la versión real abriría el formulario de planificación')}
+function showDay(i){document.querySelectorAll('.day').forEach((d,n)=>d.classList.toggle('mobile-active',n===i))}
+</script>
+</body>
+</html>
