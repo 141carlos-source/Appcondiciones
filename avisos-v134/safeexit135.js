@@ -1,9 +1,9 @@
 (function(){'use strict';
-const B='V135-ONECLICK3-TECLADO',EXIT='SOLTEC_SAFE_EXIT_V135';let running=false,resumeTimer=0,started=false;
+const B='V135-SALIDA-CIERRE2',EXIT='SOLTEC_SAFE_EXIT_V135';let running=false,resumeTimer=0,started=false,okTimer=0;
 function frame(){try{let f=document.getElementById('app134');return f&&f.contentWindow&&f.contentWindow.document?f.contentWindow:null}catch(e){return null}}
 function S(v){return String(v==null?'':v)}
 function box(w){let d=w.document,b=d.getElementById('safeExit135Box');if(!d.getElementById('safeExit135Style')){let st=d.createElement('style');st.id='safeExit135Style';st.textContent='#safeExit135Box{position:fixed;left:12px;right:12px;bottom:86px;z-index:99999;background:#fff;border:2px solid #0b5ed7;border-radius:16px;padding:14px;box-shadow:0 8px 28px #0003;font-size:14px;color:#182033}#safeExit135Box strong{display:block;font-size:16px;margin-bottom:5px}#safeExit135Box.ok{border-color:#15803d}#safeExit135Box.warn{border-color:#b42318}';d.head.appendChild(st)}if(!b){b=d.createElement('div');b.id='safeExit135Box';b.style.display='none';d.body.appendChild(b)}return b}
-function say(w,cls,title,msg){let b=box(w);b.className=cls||'';b.innerHTML='<strong>'+title+'</strong><div>'+msg+'</div>';b.style.display='block'}
+function say(w,cls,title,msg){let b=box(w);b.className=cls||'';b.innerHTML='<strong>'+title+'</strong><div>'+msg+'</div>';b.style.display='block';if(cls==='ok'&&/YA PUEDES CERRAR SOLTEC/i.test(title)){clearTimeout(okTimer);okTimer=setTimeout(function(){try{if(b&&/YA PUEDES CERRAR SOLTEC/i.test(S(b.textContent)))b.style.display='none'}catch(e){}},3500)}}
 function setFlag(w,on){try{if(on)localStorage.setItem(EXIT,JSON.stringify({at:Date.now()}));else localStorage.removeItem(EXIT)}catch(e){}try{if(on)w.localStorage.setItem(EXIT,JSON.stringify({at:Date.now()}));else w.localStorage.removeItem(EXIT)}catch(e){}}
 function hasFlag(w){try{if(localStorage.getItem(EXIT))return true}catch(e){}try{return !!w.localStorage.getItem(EXIT)}catch(e){return false}}
 function delay(ms){return new Promise(r=>setTimeout(r,ms))}
