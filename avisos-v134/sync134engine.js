@@ -1,7 +1,7 @@
 (function(){'use strict';
 const CFG='SOLTEC_SYNC_CONFIG_V134',PENDING='SOLTEC_SYNC_PENDING_V134';
 const MAIN='APP_AVISOS_WEB_DATOS_V116_PERSISTENTE',PARTS='APP_AVISOS_PARTES_V134',DRAFT='APP_AVISOS_WEB_BORRADOR_V116';
-const DB='APP_AVISOS_PERSISTENCIA',DBV=2,STATE='estado';
+const DB='APP_AVISOS_PERSISTENCIA',DBV=3,STATE='estado';
 const OUT=window,GEN='UNIFIED-1';
 let W=null,busy=false,pendingConflict=null,lastAutoAt=0;
 function e(d,id){return d.getElementById(id)}

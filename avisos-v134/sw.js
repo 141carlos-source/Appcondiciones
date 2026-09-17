@@ -1,4 +1,4 @@
-const CACHE='APP-AVISOS-V135-MODULOS-8-PANTALLA-ESTABLE';
+const CACHE='APP-AVISOS-V135-MODULOS-9-CNMC-PLANO-CP';
 const SHELL=['./','./index.html','./build134.json','./appupdate134.js','./core-template.html','./app133.js','./patch133.js','plan133.js','./photos133.js','./photos133fix.js','./cnmc133.js','./print133fix.js','./stabilize133.js','./normalize134.js','./companybase134.js','./companyaccordion134.js','./partes135storage.js','./partes135.js','./partes135.css','./partes135pdf.js','./avisos135cliente.js','./safeexit135.js','./sync134engine.js','./sync134recovery.js','./sync134revfix.js','./sync134audit.js','./nav134fix.js','./compact135.js','./print.html','./printpage133.js','./assets/logo_e-distribucion.jpg','./manifest.webmanifest','./icon.svg','./install.js'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});

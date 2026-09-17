@@ -1,5 +1,5 @@
 (function(){'use strict';
-const MAIN='APP_AVISOS_WEB_DATOS_V116_PERSISTENTE',DB='APP_AVISOS_PERSISTENCIA',DBV=2,STATE='estado',PREFIX='APP_AVISOS_FOTOS_V123_';
+const MAIN='APP_AVISOS_WEB_DATOS_V116_PERSISTENTE',DB='APP_AVISOS_PERSISTENCIA',DBV=3,STATE='estado',PREFIX='APP_AVISOS_FOTOS_V123_';
 let urls=[];
 function jget(k,d){try{const x=JSON.parse(localStorage.getItem(k)||'null');return x&&typeof x==='object'?x:d}catch(e){return d}}
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]))}

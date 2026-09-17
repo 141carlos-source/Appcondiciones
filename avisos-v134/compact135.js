@@ -123,7 +123,18 @@
   }
 
   function openMemory(d) {
-    const id = noticeId(d); if (!id) { appWindow.alert('GUARDA PRIMERO EL AVISO.'); return; }
+    let id = noticeId(d);
+    const form = el(d, 'formAviso');
+    if (form && form.style.display !== 'none') {
+      const before = new Set((main().avisos || []).map(item => Number(item.id)));
+      appWindow.App.guardarAviso();
+      if (form.style.display !== 'none') { appWindow.alert('NO SE HA PODIDO GUARDAR EL AVISO. REVISA LOS CAMPOS OBLIGATORIOS.'); return; }
+      if (!id) {
+        const created = (main().avisos || []).filter(item => !before.has(Number(item.id))).sort((a, b) => Number(b.id) - Number(a.id))[0];
+        id = created ? Number(created.id) : 0;
+      }
+    }
+    if (!id || !(main().avisos || []).some(item => Number(item.id) === id)) { appWindow.alert('GUARDA PRIMERO EL AVISO.'); return; }
     appWindow.App.show('mem132');
     const selector = el(d, 's132MemSel'); if (selector) { selector.value = String(id); selector.dispatchEvent(new appWindow.Event('change', { bubbles: true })); }
     const context = el(d, 'c135MemContext'); if (context) context.textContent = 'Memoria del aviso ' + id;
@@ -215,11 +226,72 @@
     return '';
   }
 
-  function applyCandidate(d, candidate) {
+  function postalValue(source) {
+    const seen = new Set();
+    function walk(value, key) {
+      if (value == null) return '';
+      if (typeof value !== 'object') {
+        const raw = text(value), match = raw.match(/\b\d{5}\b/);
+        return (/(postal|postcode|codigo.?postal|cod.?postal|\bcp\b)/i.test(key || '') && match) ? match[0] : '';
+      }
+      if (seen.has(value)) return '';
+      seen.add(value);
+      for (const name of Object.keys(value)) { const found = walk(value[name], name); if (found) return found; }
+      return '';
+    }
+    return walk(source, '') || '';
+  }
+
+  function reverseJsonp(url) {
+    return new Promise((resolve, reject) => {
+      const callback = '__soltecCp' + Date.now() + Math.random().toString(36).slice(2), script = appWindow.document.createElement('script');
+      let finished = false;
+      const cleanup = () => { if (finished) return; finished = true; clearTimeout(timer); try { delete appWindow[callback]; } catch (_) {} if (script.parentNode) script.parentNode.removeChild(script); };
+      appWindow[callback] = result => { cleanup(); resolve(result); };
+      script.onerror = () => { cleanup(); reject(new Error('CartoCiudad no disponible')); };
+      script.src = url + '&callback=' + encodeURIComponent(callback) + '&_=' + Date.now();
+      appWindow.document.head.appendChild(script);
+      const timer = setTimeout(() => { cleanup(); reject(new Error('Tiempo agotado')); }, 7000);
+    });
+  }
+
+  async function reversePostalCode(d, candidate) {
+    const lat = text(candidateValue(candidate, ['lat', 'latitude', 'y']) || (el(d, 'avLatitud') || {}).value);
+    const lon = text(candidateValue(candidate, ['lng', 'lon', 'longitude', 'x']) || (el(d, 'avLongitud') || {}).value);
+    if (!lat || !lon || !appWindow.fetch) return '';
+    const query = 'lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon);
+    const urls = [
+      'https://www.cartociudad.es/geocoder/api/geocoder/reverseGeocode?' + query,
+      'https://www.cartociudad.es/services/api/geocoder/reverseGeocode?' + query
+    ];
+    for (const url of urls) {
+      try {
+        const response = await appWindow.fetch(url, { cache: 'no-store' });
+        if (!response.ok) continue;
+        const result = await response.json(), cp = postalValue(result);
+        if (cp) return cp;
+      } catch (_) {}
+    }
+    const jsonpUrls = [
+      'https://www.cartociudad.es/geocoder/api/geocoder/reverseGeocodeJsonp?' + query,
+      'https://www.cartociudad.es/geocoder/api/geocoder/reverseGeocode?' + query
+    ];
+    for (const url of jsonpUrls) {
+      try { const result = await reverseJsonp(url), cp = postalValue(result); if (cp) return cp; } catch (_) {}
+    }
+    return '';
+  }
+
+  async function applyCandidate(d, candidate) {
     if (!candidate) return;
     const addressText = typeof candidate.address === 'string' ? candidate.address : text(candidate.name);
-    let cp = candidateValue(candidate, ['postalCode', 'postcode', 'postal_code', 'codigoPostal', 'cp']);
+    let cp = candidateValue(candidate, ['postalCode', 'postcode', 'postal_code', 'codigoPostal', 'codPostal', 'cod_postal', 'cp']) || postalValue(candidate);
     if (!cp) { const match = addressText.match(/\b\d{5}\b/); if (match) cp = match[0]; }
+    const state = el(d, 'cartoEstado');
+    if (!cp) {
+      if (state) state.textContent = 'Dirección localizada. Calculando código postal…';
+      cp = await reversePostalCode(d, candidate);
+    }
     const locality = candidateValue(candidate, ['city', 'locality', 'municipality', 'municipio', 'poblacion', 'town']);
     const province = candidateValue(candidate, ['province', 'provincia', 'state']);
     if (cp) el(d, 'avCp').value = cp;
@@ -227,6 +299,7 @@
     if (province && !text(el(d, 'avProvincia').value)) el(d, 'avProvincia').value = province;
     rememberPlace({ cp: el(d, 'avCp').value, localidad: el(d, 'avLocalidad').value, provincia: el(d, 'avProvincia').value });
     refreshPlaces(d);
+    if (state) state.textContent = cp ? 'Dirección y código postal obtenidos.' : 'Dirección localizada. No se pudo obtener el código postal automáticamente; introdúcelo manualmente.';
   }
 
   function addressLearning(d) {
@@ -238,10 +311,14 @@
     });
     let button = el(d, 'c135FindCp');
     if (!button) {
-      button = d.createElement('button'); button.id = 'c135FindCp'; button.type = 'button'; button.textContent = '📍 CALCULAR / BUSCAR CP'; button.style.marginTop = '6px';
-      button.onclick = () => {
+      button = d.createElement('button'); button.id = 'c135FindCp'; button.type = 'button'; button.textContent = '📍 BUSCAR DIRECCIÓN Y CP'; button.style.marginTop = '6px';
+      button.onclick = async () => {
         if (!text((el(d, 'avDireccion') || {}).value) || !text(locality.value) || !text(province.value)) { appWindow.alert('INDICA DIRECCIÓN, LOCALIDAD Y PROVINCIA.'); return; }
         const details = el(d, 'av135CartoDetails'); if (details) details.open = true;
+        if (text((el(d, 'avLatitud') || {}).value) && text((el(d, 'avLongitud') || {}).value)) {
+          const found = await reversePostalCode(d, null);
+          if (found) { cp.value = found; rememberPlace({ cp: cp.value, localidad: locality.value, provincia: province.value }); refreshPlaces(d); const state = el(d, 'cartoEstado'); if (state) state.textContent = 'Código postal obtenido: ' + found; return; }
+        }
         appWindow.App.buscarCartoDireccion();
         const state = el(d, 'cartoEstado'); if (state) state.textContent = 'Selecciona el resultado correcto para completar coordenadas y código postal.';
       };
@@ -255,7 +332,7 @@
     const choose = App.elegirCarto;
     App.elegirCarto = function (index) {
       const candidate = appWindow.cartoCandidates && appWindow.cartoCandidates[Number(index)];
-      const result = choose.apply(this, arguments); setTimeout(() => applyCandidate(d, candidate), 0); return result;
+      const result = choose.apply(this, arguments); setTimeout(() => applyCandidate(d, candidate).catch(() => {}), 0); return result;
     };
     const save = App.guardarAviso;
     App.guardarAviso = function () {

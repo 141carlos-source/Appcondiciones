@@ -50,7 +50,8 @@
           .replaceAll('APP Avisos', 'SOLTEC')
           .replaceAll('V1.17B PRUEBA · CartoCiudad corregido', 'V1.35 · AVISOS + PARTES')
           .replaceAll('V1.17B mantiene los datos persistentes de V1.16 y corrige la consulta CartoCiudad para navegador.', 'V1.35 · Avisos y Partes conectados con sincronización central.')
-          .replace(/indexedDB\.open\(DB_NAME\s*,\s*1\)/g, 'indexedDB.open(DB_NAME,2)');
+          .replace(/indexedDB\.open\(DB_NAME\s*,\s*1\)/g, 'indexedDB.open(DB_NAME,3)')
+          .replace("if(!db.objectStoreNames.contains(DB_STORE))db.createObjectStore(DB_STORE);", "if(!db.objectStoreNames.contains(DB_STORE))db.createObjectStore(DB_STORE);if(!db.objectStoreNames.contains('planos'))db.createObjectStore('planos');");
         html = html
           .replace('function normalizarAviso(a)', "function normalizarTension(v){var x=String(v||'').toUpperCase();if(x.indexOf('3X230 V')>=0&&x.indexOf('400')<0)return '3X230 V';if(x.indexOf('400')>=0)return '3X230/400V';return '230 V MONOFÁSICA';}function normalizarAviso(a)")
           .replace("tension:String(a.tension||'').includes('400')?'400 V TRIFÁSICA':'230 V MONOFÁSICA'", 'tension:normalizarTension(a.tension)')

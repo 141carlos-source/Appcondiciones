@@ -1,5 +1,5 @@
 (function(){'use strict';
-const DB='APP_AVISOS_PERSISTENCIA',DBV=2,STORE='planos';let previewUrl='';
+const DB='APP_AVISOS_PERSISTENCIA',DBV=3,STORE='planos';let previewUrl='';
 function el(d,id){return d.getElementById(id)}function val(d,id){const x=el(d,id);return x?String(x.value||'').trim():''}function id(d){return Number(val(d,'avId'))||0}function num(v){const n=parseFloat(String(v||'').replace(',','.'));return Number.isFinite(n)?n:null}
 function openDb(){return new Promise((ok,no)=>{const r=indexedDB.open(DB,DBV);r.onupgradeneeded=()=>{const q=r.result;if(!q.objectStoreNames.contains('estado'))q.createObjectStore('estado');if(!q.objectStoreNames.contains(STORE))q.createObjectStore(STORE)};r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error||new Error('No se pudo abrir IndexedDB'))})}
 function get(k){return openDb().then(q=>new Promise((ok,no)=>{const r=q.transaction(STORE,'readonly').objectStore(STORE).get(String(k));r.onsuccess=()=>{const v=r.result;q.close();ok(v||null)};r.onerror=()=>{const e=r.error;q.close();no(e)}}))}

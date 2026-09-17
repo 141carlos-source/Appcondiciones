@@ -1,5 +1,5 @@
 (function(){'use strict';
-const DB='APP_AVISOS_PERSISTENCIA',DBV=2,STATE='estado',PREFIX='APP_AVISOS_FOTOS_V123_';
+const DB='APP_AVISOS_PERSISTENCIA',DBV=3,STATE='estado',PREFIX='APP_AVISOS_FOTOS_V123_';
 function openDb(){return new Promise((ok,no)=>{const r=indexedDB.open(DB,DBV);r.onupgradeneeded=()=>{const q=r.result;if(!q.objectStoreNames.contains(STATE))q.createObjectStore(STATE);if(!q.objectStoreNames.contains('planos'))q.createObjectStore('planos')};r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error||new Error('No se pudo abrir la base de datos'))})}
 function get(k){return openDb().then(q=>new Promise((ok,no)=>{const r=q.transaction(STATE,'readonly').objectStore(STATE).get(String(k));r.onsuccess=()=>{const v=r.result;q.close();ok(v==null?null:v)};r.onerror=()=>{const e=r.error;q.close();no(e)}}))}
 function put(k,v){return openDb().then(q=>new Promise((ok,no)=>{const t=q.transaction(STATE,'readwrite');t.objectStore(STATE).put(v,String(k));t.oncomplete=()=>{q.close();ok()};t.onerror=()=>{const e=t.error;q.close();no(e)}}))}

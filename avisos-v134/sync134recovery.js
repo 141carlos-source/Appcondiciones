@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const BUILD='V135-MODULOS-1',CFG='SOLTEC_SYNC_CONFIG_V134',PENDING='SOLTEC_SYNC_PENDING_V134',REC='SOLTEC_SYNC_RECOVERY_V134',MAIN='APP_AVISOS_WEB_DATOS_V116_PERSISTENTE',PARTS='APP_AVISOS_PARTES_V134',DRAFT='APP_AVISOS_WEB_BORRADOR_V116',DB='APP_AVISOS_PERSISTENCIA',DBV=2,STATE='estado',GEN='UNIFIED-1';
+const BUILD='V135-MODULOS-1',CFG='SOLTEC_SYNC_CONFIG_V134',PENDING='SOLTEC_SYNC_PENDING_V134',REC='SOLTEC_SYNC_RECOVERY_V134',MAIN='APP_AVISOS_WEB_DATOS_V116_PERSISTENTE',PARTS='APP_AVISOS_PARTES_V134',DRAFT='APP_AVISOS_WEB_BORRADOR_V116',DB='APP_AVISOS_PERSISTENCIA',DBV=3,STATE='estado',GEN='UNIFIED-1';
 let W=null,busy=false;
 function frame(){try{const f=document.getElementById('app134');return f&&f.contentWindow&&f.contentWindow.document?f.contentWindow:null}catch(e){return null}}
 function parse(v,d){try{const x=JSON.parse(String(v||''));return x&&typeof x==='object'?x:d}catch(e){return d}}

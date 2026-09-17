@@ -1,5 +1,5 @@
 (function(){'use strict';
-const CFG='SOLTEC_SYNC_CONFIG_V134',PENDING='SOLTEC_SYNC_PENDING_V134',DB='APP_AVISOS_PERSISTENCIA',DBV=2,STATE='estado',DRAFT='APP_AVISOS_WEB_BORRADOR_V116',MAIN='APP_AVISOS_WEB_DATOS_V116_PERSISTENTE';
+const CFG='SOLTEC_SYNC_CONFIG_V134',PENDING='SOLTEC_SYNC_PENDING_V134',DB='APP_AVISOS_PERSISTENCIA',DBV=3,STATE='estado',DRAFT='APP_AVISOS_WEB_BORRADOR_V116',MAIN='APP_AVISOS_WEB_DATOS_V116_PERSISTENTE';
 const OUT=window;let W=null,pendingConflict=null,busy=false;
 function e(d,id){return d.getElementById(id)}
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
