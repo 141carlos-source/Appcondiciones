@@ -3,7 +3,7 @@ const CFG='SOLTEC_SYNC_CONFIG_V134';
 const PENDING='SOLTEC_SYNC_PENDING_V134';
 const DRAFT='APP_AVISOS_WEB_BORRADOR_V116';
 const DB='APP_AVISOS_PERSISTENCIA',DBV=2,STATE='estado';
-const DRAFT_FIELDS=['avId','avFecha','avEstado','avCliente','avContacto','avNif','avTelefono','avEmail','avRefCatastral','avDireccion','avCp','avLocalidad','avProvincia','avLatitud','avLongitud','avCupsE','avCupsG','avTension','avIga','avPotenciaCalculada','avPotenciaSolicitada','avConcepto','avObservaciones'];
+const DRAFT_FIELDS=['avId','avFecha','avEstado','avCliente','avContacto','avNif','avTelefono','avEmail','avRefCatastral','avDireccion','avPiso','avPuerta','avCp','avLocalidad','avProvincia','avLatitud','avLongitud','avCupsE','avCupsG','avTension','avIga','avPotenciaCalculada','avPotenciaSolicitada','avConcepto','avObservaciones'];
 const CTX=new WeakMap();
 function e(d,id){return d.getElementById(id)}
 function delay(ms){return new Promise(r=>setTimeout(r,ms))}

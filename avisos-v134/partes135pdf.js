@@ -95,7 +95,7 @@
     }
     pair('Nº aviso', part.avisoNo, 'Fecha', formatDate(part.fecha));
     pair('Cliente', part.cliente, 'Técnico', part.tecnico);
-    page.y += labelValue(page, 'Dirección', [part.direccion, [part.cp, part.localidad].filter(Boolean).join(' '), part.provincia].filter(Boolean).join(' · '), MARGIN, PAGE_W - MARGIN * 2) + 2;
+    page.y += labelValue(page, 'Dirección', [part.direccion, [part.piso && ('Piso ' + part.piso), part.puerta && ('Puerta ' + part.puerta)].filter(Boolean).join(' · '), [part.cp, part.localidad].filter(Boolean).join(' '), part.provincia].filter(Boolean).join(' · '), MARGIN, PAGE_W - MARGIN * 2) + 2;
     pair('Contacto', part.contacto, 'NIF/CIF', part.nif);
     pair('Teléfono', part.telefono, 'Email', part.email);
     line(page);

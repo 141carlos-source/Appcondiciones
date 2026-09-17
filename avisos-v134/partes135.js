@@ -110,6 +110,7 @@
       '<div class="pt135-grid">' + field('Nº de aviso', 'pt135-aviso', current.avisoNo, true) + field('Fecha', 'pt135-fecha', current.fecha, locked, 'date') +
       field('Técnico', 'pt135-tecnico', current.tecnico, locked) + field('Cliente', 'pt135-cliente', current.cliente, locked) +
       '<div class="pt135-wide">' + field('Dirección', 'pt135-direccion', current.direccion, locked) + '</div>' +
+      field('Piso', 'pt135-piso', current.piso, locked) + field('Puerta', 'pt135-puerta', current.puerta, locked) +
       field('Contacto', 'pt135-contacto', current.contacto, locked) + field('NIF/CIF', 'pt135-nif-cliente', current.nif, locked) +
       field('Teléfono', 'pt135-telefono', current.telefono, locked, 'tel') + field('Email', 'pt135-email', current.email, locked, 'email') +
       field('CP', 'pt135-cp', current.cp, locked) + field('Localidad', 'pt135-localidad', current.localidad, locked) +
@@ -143,7 +144,7 @@
     if (!current) return null;
     const read = id => el(id) ? el(id).value : '';
     current.fecha = read('pt135-fecha'); current.tecnico = read('pt135-tecnico'); current.cliente = read('pt135-cliente');
-    current.direccion = read('pt135-direccion'); current.contacto = read('pt135-contacto'); current.nif = read('pt135-nif-cliente');
+    current.direccion = read('pt135-direccion'); current.piso = read('pt135-piso'); current.puerta = read('pt135-puerta'); current.contacto = read('pt135-contacto'); current.nif = read('pt135-nif-cliente');
     current.telefono = read('pt135-telefono'); current.email = read('pt135-email'); current.cp = read('pt135-cp');
     current.localidad = read('pt135-localidad'); current.provincia = read('pt135-provincia'); current.trabajos = read('pt135-trabajos');
     current.manoObraHoras = read('pt135-horas'); current.observaciones = read('pt135-observaciones'); current.resultado = read('pt135-resultado');

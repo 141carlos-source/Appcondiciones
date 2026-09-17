@@ -54,6 +54,12 @@
         html = html
           .replace('function normalizarAviso(a)', "function normalizarTension(v){var x=String(v||'').toUpperCase();if(x.indexOf('3X230 V')>=0&&x.indexOf('400')<0)return '3X230 V';if(x.indexOf('400')>=0)return '3X230/400V';return '230 V MONOFÁSICA';}function normalizarAviso(a)")
           .replace("tension:String(a.tension||'').includes('400')?'400 V TRIFÁSICA':'230 V MONOFÁSICA'", 'tension:normalizarTension(a.tension)')
+          .replace('direccion:text(a.direccion),cp:text(a.cp)', 'direccion:text(a.direccion),piso:text(a.piso),puerta:text(a.puerta),cp:text(a.cp)')
+          .replaceAll("'avDireccion','avCp'", "'avDireccion','avPiso','avPuerta','avCp'")
+          .replace("setValue('avDireccion',a.direccion);setValue('avCp'", "setValue('avDireccion',a.direccion);setValue('avPiso',a.piso);setValue('avPuerta',a.puerta);setValue('avCp'")
+          .replace("direccion:getValue('avDireccion'),cp:getValue('avCp')", "direccion:getValue('avDireccion'),piso:getValue('avPiso'),puerta:getValue('avPuerta'),cp:getValue('avCp')")
+          .replace('a.refCatastral,a.direccion,a.cp', 'a.refCatastral,a.direccion,a.piso,a.puerta,a.cp')
+          .replace("(a.direccion?' · '+esc(a.direccion):'')+(ubicacion", "(a.direccion?' · '+esc(a.direccion):'')+(a.piso?' · Piso '+esc(a.piso):'')+(a.puerta?' · Puerta '+esc(a.puerta):'')+(ubicacion")
           .replace("var w=String(tension||'').includes('400')?Math.sqrt(3)*400*i:230*i;", "var tv=String(tension||'').toUpperCase(),tri=tv.indexOf('3X')>=0,u=tv.indexOf('400')>=0?400:230,w=tri?Math.sqrt(3)*u*i:230*i;")
           .replace("[dir,getValue('avLocalidad')].filter(Boolean).join(', ')", "[dir,getValue('avLocalidad'),getValue('avProvincia')].filter(Boolean).join(', ')");
         if (!html.includes('function cartoBuscar(q)')) {

@@ -96,12 +96,25 @@
   }
 
   function compactFields(d) {
-    ['avCliente', 'avContacto', 'avNif', 'avTelefono', 'avEmail', 'avCp', 'avLocalidad', 'avProvincia'].forEach(id => {
+    ['avCliente', 'avContacto', 'avNif', 'avTelefono', 'avEmail', 'avPiso', 'avPuerta', 'avCp', 'avLocalidad', 'avProvincia'].forEach(id => {
       const label = (el(d, id) || {}).closest && el(d, id).closest('label'); if (label) label.classList.remove('wide');
     });
     ['avDireccion', 'avRefCatastral'].forEach(id => {
       const label = (el(d, id) || {}).closest && el(d, id).closest('label'); if (label) label.classList.add('wide');
     });
+  }
+
+  function addressFields(d) {
+    const address = el(d, 'avDireccion');
+    if (!address) return;
+    const addressLabel = address.closest('label');
+    if (!addressLabel) return;
+    let floor = (el(d, 'avPiso') || {}).closest && el(d, 'avPiso').closest('label');
+    let door = (el(d, 'avPuerta') || {}).closest && el(d, 'avPuerta').closest('label');
+    if (!floor) { floor = d.createElement('label'); floor.innerHTML = 'Piso<input id="avPiso" autocomplete="address-line2" placeholder="Ej.: 2º">'; }
+    if (!door) { door = d.createElement('label'); door.innerHTML = 'Puerta<input id="avPuerta" autocomplete="address-line3" placeholder="Ej.: B">'; }
+    addressLabel.insertAdjacentElement('afterend', floor);
+    floor.insertAdjacentElement('afterend', door);
   }
 
   function openMemory(d) {
@@ -124,7 +137,7 @@
     let memory = el(d, 'av135MemoryTab');
     if (!memory) {
       memory = d.createElement('details'); memory.id = 'av135MemoryTab'; memory.className = 'c135-tab';
-      memory.innerHTML = '<summary>▤ Memoria RES-CNMC</summary><div class="c135-tab-body"><p class="muted">La memoria se genera directamente con los datos, el plano y las fotos de este aviso.</p><button type="button" class="primary" id="av135OpenMemory">ABRIR / GENERAR MEMORIA</button></div>';
+      memory.innerHTML = '<summary>▤ CNMC Circular 1/2024 ENDESA</summary><div class="c135-tab-body"><p class="muted">El documento se genera directamente con los datos, el plano y las fotos de este aviso.</p><button type="button" class="primary" id="av135OpenMemory">ABRIR / GENERAR CNMC</button></div>';
       (photo || plan).insertAdjacentElement('afterend', memory);
       el(d, 'av135OpenMemory').onclick = () => openMemory(d);
     } else if (photo && memory.previousElementSibling !== photo) photo.insertAdjacentElement('afterend', memory);
@@ -248,7 +261,7 @@
   }
 
   function arrange(d) {
-    style(d); home(d); compactGroups(d); compactFields(d); contextualTabs(d); contextualScreens(d); hookPhotos(d); addressLearning(d); hooks(d);
+    style(d); home(d); addressFields(d); compactGroups(d); compactFields(d); contextualTabs(d); contextualScreens(d); hookPhotos(d); addressLearning(d); hooks(d);
   }
 
   function init(win) {
