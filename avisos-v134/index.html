@@ -24,10 +24,12 @@
   <script src="./appupdate134.js"></script>
   <script src="./install.js"></script>
   <script src="./app133.js"></script>
+  <script src="./technical135.js"></script>
   <script src="./patch133.js"></script>
   <script src="./plan133.js"></script>
   <script src="./photos133.js"></script>
   <script src="./photos133fix.js"></script>
+  <script src="./technical135render.js"></script>
   <script src="./cnmc133.js"></script>
   <script src="./print133fix.js"></script>
   <script src="./stabilize133.js"></script>
@@ -70,6 +72,7 @@
         frame.onload = function () {
           const app = frame.contentWindow;
           window.Soltec132 && window.Soltec132.init(app);
+          window.SoltecTechnical135 && window.SoltecTechnical135.init(app);
           window.Soltec132Fix && window.Soltec132Fix.init(app);
           window.Soltec133Plan && window.Soltec133Plan.init(app);
           window.Soltec133Photos && window.Soltec133Photos.init(app);

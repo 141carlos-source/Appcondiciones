@@ -135,9 +135,11 @@
       }
     }
     if (!id || !(main().avisos || []).some(item => Number(item.id) === id)) { appWindow.alert('GUARDA PRIMERO EL AVISO.'); return; }
-    appWindow.App.show('mem132');
-    const selector = el(d, 's132MemSel'); if (selector) { selector.value = String(id); selector.dispatchEvent(new appWindow.Event('change', { bubbles: true })); }
-    const context = el(d, 'c135MemContext'); if (context) context.textContent = 'Memoria del aviso ' + id;
+    setTimeout(() => {
+      appWindow.App.show('mem132');
+      const selector = el(d, 's132MemSel'); if (selector) { selector.value = String(id); selector.dispatchEvent(new appWindow.Event('change', { bubbles: true })); }
+      const context = el(d, 'c135MemContext'); if (context) context.textContent = 'Memoria del aviso ' + id;
+    }, 80);
   }
 
   function contextualTabs(d) {
