@@ -1,5 +1,5 @@
 (function(){'use strict';
-const BUILD='V135-DUP-COND1',MAIN='APP_AVISOS_WEB_DATOS_V116_PERSISTENTE',FLAGS='APP_AVISOS_FLAGS_V120';
+const BUILD='V135-NUEVO-DIRECCION1',MAIN='APP_AVISOS_WEB_DATOS_V116_PERSISTENTE',FLAGS='APP_AVISOS_FLAGS_V120';
 let appWindow=null,patched=false,timer=0;
 function findWindow(){try{const f=document.getElementById('app134');return f&&f.contentWindow&&f.contentWindow.document?f.contentWindow:null}catch(e){return null}}
 function d(){return appWindow&&appWindow.document}
@@ -12,9 +12,9 @@ function mark(node,on){if(!node)return;node.dataset.s135ModeHidden=on?'1':'0';if
 function installCss(){const x=d();if(!x||x.getElementById('s135AvisosModosStyle'))return;const s=x.createElement('style');s.id='s135AvisosModosStyle';s.textContent='#formAviso[data-s135-aviso-mode="simple"] [data-s135-mode-hidden="1"]{display:none!important}#s135DupWrap{margin-top:8px;padding:10px;border:1px solid #dbe3ee;border-radius:10px;background:#f8fafc}#s135DupWrap label{display:block;font-weight:800;color:#24466e}#s135DupSel{display:block;width:100%;margin-top:6px;padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}#s135DupMsg{font-size:12px;color:#667085;margin-top:6px}';x.head.appendChild(s)}
 function allTechnical(){const x=d(),f=el('formAviso');if(!x||!f)return[];const out=[];
  ['s132Loc','av135CartoDetails','s133PlanBox','s132CupsReq','s132Extra','s132CliExtra','av135Solicitudes','s132MemBox','mem132','s132CondFile','s132ActBox'].forEach(id=>{const n=el(id);if(n)out.push(n)});
- ['avRefCatastral','avDireccion','avPiso','avPuerta','avCp','avLocalidad','avProvincia','avLatitud','avLongitud','avCupsE','avCupsG','avTension','avIga','avPotenciaCalculada','avPotenciaSolicitada'].forEach(id=>{const n=lab(id);if(n)out.push(n)});
+ ['avRefCatastral','avLatitud','avLongitud','avCupsE','avCupsG','avTension','avIga','avPotenciaCalculada','avPotenciaSolicitada'].forEach(id=>{const n=lab(id);if(n)out.push(n)});
  f.querySelectorAll('.cartoBox').forEach(n=>out.push(n));
- const grid=f.querySelector('.grid2');if(grid){let hide=false;Array.from(grid.children).forEach(n=>{if(n.classList&&n.classList.contains('sectionTitle')){const t=String(n.textContent||'').toUpperCase();if(/DATOS DEL AVISO/.test(t)){hide=false;return}hide=/UBICACI|DATOS EL[ÉE]CTRICOS|DATOS ADICIONALES|CNMC|SUMINISTRO/.test(t)}if(hide)out.push(n)})}
+ const grid=f.querySelector('.grid2');if(grid){let hide=false;Array.from(grid.children).forEach(n=>{if(n.classList&&n.classList.contains('sectionTitle')){const t=String(n.textContent||'').toUpperCase();if(/DATOS DEL AVISO/.test(t)){hide=false;return}hide=/DATOS EL[ÉE]CTRICOS|DATOS ADICIONALES|CNMC|SUMINISTRO/.test(t)}if(hide)out.push(n)})}
  f.querySelectorAll('details,.s132box,.s132acc,.cartoBox').forEach(n=>{const t=String(n.textContent||'').toUpperCase();if(/CNMC|CARTOCIUDAD|PLANO DE SITUACI|CUPS|DATOS EL[ÉE]CTRICOS|CONDICIONES DE SUMINISTRO ACTUALES|ACTUACIONES DE CONDICIONES|DATOS ADICIONALES DEL SUMINISTRO/.test(t))out.push(n)});
  const pot=el('potenciaAviso');if(pot)out.push(pot);return Array.from(new Set(out))}
 function setCondFlag(on){const n=el('s132CondFlag');if(n)n.checked=!!on}
