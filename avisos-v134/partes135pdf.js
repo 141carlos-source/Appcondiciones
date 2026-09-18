@@ -95,6 +95,7 @@
     }
     pair('Nº aviso', part.avisoNo, 'Fecha', formatDate(part.fecha));
     pair('Cliente', part.cliente, 'Técnico', part.tecnico);
+    if (part.obra || part.presupuesto === 'SI') pair('Obra / denominación', part.obra || '—', 'Presupuesto', part.presupuesto === 'SI' ? ('Sí' + (part.presupuestoNumero ? ' · Nº ' + part.presupuestoNumero : '')) : 'No');
     page.y += labelValue(page, 'Dirección', [part.direccion, [part.piso && ('Piso ' + part.piso), part.puerta && ('Puerta ' + part.puerta)].filter(Boolean).join(' · '), [part.cp, part.localidad].filter(Boolean).join(' '), part.provincia].filter(Boolean).join(' · '), MARGIN, PAGE_W - MARGIN * 2) + 2;
     pair('Contacto', part.contacto, 'NIF/CIF', part.nif);
     pair('Teléfono', part.telefono, 'Email', part.email);
@@ -186,8 +187,36 @@
     return new Blob(chunks, { type: 'application/pdf' });
   }
 
+  function obraPresupuesto(part) {
+    const win = appWindow(), ls = win && win.localStorage;
+    let obra = '', presupuesto = 'NO', numero = '';
+    if (!ls) return { obra, presupuesto, numero };
+    try {
+      const x = JSON.parse(ls.getItem('APP_AVISOS_PARTES_OBRAS_V135') || 'null') || {};
+      const byPart = x.byPart && typeof x.byPart === 'object' ? x.byPart : {};
+      const budgets = x.presupuestoByPart && typeof x.presupuestoByPart === 'object' ? x.presupuestoByPart : {};
+      const key = text(part.partNo).trim();
+      obra = text(byPart[key]).trim();
+      const b = budgets[key] || {};
+      presupuesto = b.presupuesto === 'SI' ? 'SI' : 'NO';
+      numero = text(b.numero).trim();
+    } catch (_) {}
+    if (!obra || presupuesto !== 'SI') {
+      try {
+        const all = JSON.parse(ls.getItem('APP_AVISOS_OBRA_PRESUPUESTO_V135') || '{}') || {};
+        const a = all[String(text(part.avisoId || part.avisoNo).trim())] || {};
+        if (!obra) obra = text(a.obra).trim();
+        if (presupuesto !== 'SI' && a.presupuesto === 'SI') {
+          presupuesto = 'SI';
+          numero = text(a.numero).trim();
+        }
+      } catch (_) {}
+    }
+    return { obra, presupuesto, numero };
+  }
+
   async function create(part) {
-    part = db().normalize(part); const company = db().main().empresa || {};
+    part = db().normalize(part); const extra = obraPresupuesto(part); part.obra = extra.obra; part.presupuesto = extra.presupuesto; part.presupuestoNumero = extra.numero; const company = db().main().empresa || {};
     const pages = [await singlePage(part, company)];
     const blob = pdfFromCanvases(pages); const filename = ('Parte_' + part.partNo + '_' + (part.cliente || 'cliente')).replace(/[^a-zA-Z0-9._-]+/g, '_') + '.pdf';
     return new (appWindow().File)([blob], filename, { type: 'application/pdf', lastModified: Date.now() });
