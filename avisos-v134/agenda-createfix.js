@@ -1,17 +1,22 @@
 (function(){'use strict';
-const VERSION='AGENDA-CREATEFIX1';
+const VERSION='AGENDA-CREATEFIX2';
 const $=id=>document.getElementById(id);
 function openNew(ev){
   if(ev){ev.preventDefault();ev.stopImmediatePropagation()}
   const form=$('form'),modal=$('modal'),title=$('title');
   if(!form||!modal||!title)return;
-  try{form.reset()}catch(_){}
+  try{
+    if(window.SoltecAgendaCore&&typeof window.SoltecAgendaCore.openNew==='function')window.SoltecAgendaCore.openNew();
+    else form.reset();
+  }catch(_){try{form.reset()}catch(__){}}
   const id=$('id');if(id)id.value='';
   const priority=$('priority');if(priority)priority.value='medium';
   const status=$('status');if(status)status.value='Pendiente';
   const del=$('deleteBtn');if(del)del.hidden=true;
   const head=$('formTitle');if(head)head.textContent='Nueva cita';
+  const input=$('photoInput');if(input)input.value='';
   title.disabled=false;title.readOnly=false;
+  try{window.dispatchEvent(new CustomEvent('agenda:new'))}catch(_){}
   modal.classList.add('open');
   modal.style.display='flex';
   setTimeout(()=>{try{title.focus();title.click()}catch(_){}},80);
