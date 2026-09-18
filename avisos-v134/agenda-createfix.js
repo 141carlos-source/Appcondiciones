@@ -1,5 +1,5 @@
 (function(){'use strict';
-const VERSION='AGENDA-CREATEFIX2';
+const VERSION='AGENDA-CREATEFIX3';
 const $=id=>document.getElementById(id);
 function openNew(ev){
   if(ev){ev.preventDefault();ev.stopImmediatePropagation()}
@@ -17,6 +17,7 @@ function openNew(ev){
   const input=$('photoInput');if(input)input.value='';
   title.disabled=false;title.readOnly=false;
   try{window.dispatchEvent(new CustomEvent('agenda:new'))}catch(_){}
+  try{const v=window.SoltecAgendaView135;if(v&&v.getMode&&v.getSelectedDate&&v.getMode()!=='week'){const dt=$('date');if(dt)dt.value=v.getSelectedDate()}}catch(_){}
   modal.classList.add('open');
   modal.style.display='flex';
   setTimeout(()=>{try{title.focus();title.click()}catch(_){}},80);
