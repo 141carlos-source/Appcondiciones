@@ -30,15 +30,15 @@
 <div id="toast" class="toast"></div>
 <script>
 (function(){'use strict';
-const KEY='SOLTEC_AGENDA_V1',FIRED='SOLTEC_AGENDA_V1_FIRED';
+const KEY='SOLTEC_AGENDA_V1',BACKUP='SOLTEC_AGENDA_V1_AUTOBACKUP',FIRED='SOLTEC_AGENDA_V1_FIRED';
 const $=id=>document.getElementById(id), pad=n=>String(n).padStart(2,'0');
 let weekStart=startOfWeek(new Date()), editing=null,formPhotos=[],searchText='';
 function startOfWeek(d){const x=new Date(d);x.setHours(12,0,0,0);const day=x.getDay()||7;x.setDate(x.getDate()-day+1);return x}
 function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
 function parseDate(s){const p=String(s||'').split('-').map(Number);return p.length===3?new Date(p[0],p[1]-1,p[2],12):null}
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function read(){try{const x=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(x)?x:[]}catch(_){return[]}}
-function write(rows){try{localStorage.setItem(KEY,JSON.stringify(rows))}catch(e){if(e&&(e.name==='QuotaExceededError'||e.code===22)){alert('No queda espacio suficiente en este dispositivo. Elimina alguna foto o cita antigua y vuelve a intentarlo.');return false}throw e}return true}
+function read(){try{const raw=localStorage.getItem(KEY);if(raw){const x=JSON.parse(raw);if(Array.isArray(x))return x}const b=localStorage.getItem(BACKUP);if(b){const y=JSON.parse(b);if(Array.isArray(y)){localStorage.setItem(KEY,JSON.stringify(y));return y}}return[]}catch(_){try{const b=JSON.parse(localStorage.getItem(BACKUP)||'[]');return Array.isArray(b)?b:[]}catch(__){return[]}}}
+function write(rows){try{const json=JSON.stringify(rows);localStorage.setItem(KEY,json);localStorage.setItem(BACKUP,json)}catch(e){if(e&&(e.name==='QuotaExceededError'||e.code===22)){alert('No queda espacio suficiente en este dispositivo. Elimina alguna foto o cita antigua y vuelve a intentarlo.');return false}throw e}return true}
 function toast(t){const n=$('toast');n.textContent=t;n.classList.add('show');setTimeout(()=>n.classList.remove('show'),1800)}
 function hours(v){const n=parseFloat(String(v||'').replace(',','.'));return Number.isFinite(n)?n:0}
 function matchesSearch(r){if(!searchText)return true;const s=[r.title,r.client,r.work,r.address,r.phone,r.tech].join(' ').toLowerCase();return s.includes(searchText)}
