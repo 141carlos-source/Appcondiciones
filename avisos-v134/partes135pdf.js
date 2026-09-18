@@ -127,6 +127,23 @@
     font(ctx, 17, true); ctx.fillStyle = INK; ctx.fillText(part.resultado || '—', MARGIN + 105, page.y - 2); page.y += 27;
     line(page);
 
+    const photoSources = Array.isArray(part.fotos) ? part.fotos.slice(0, 6) : [];
+    if (photoSources.length) {
+      heading(page, 'Fotografías');
+      const photoImages = await Promise.all(photoSources.map(loadImage));
+      const cols = Math.min(3, photoImages.length), rows = Math.ceil(photoImages.length / cols);
+      const photoGap = 12, photoW = (PAGE_W - MARGIN * 2 - photoGap * (cols - 1)) / cols;
+      const photoH = photoImages.length <= 1 ? 250 : photoImages.length <= 3 ? 190 : 150;
+      photoImages.forEach((image, index) => {
+        const colIndex = index % cols, rowIndex = Math.floor(index / cols);
+        const x = MARGIN + colIndex * (photoW + photoGap), y = page.y + rowIndex * (photoH + photoGap);
+        ctx.strokeStyle = LINE; ctx.strokeRect(x, y, photoW, photoH);
+        fitImage(ctx, image, x + 4, y + 4, photoW - 8, photoH - 8);
+      });
+      page.y += rows * photoH + Math.max(0, rows - 1) * photoGap + 10;
+      line(page);
+    }
+
     heading(page, 'Firmas');
     const signClient = await loadImage(part.firmaCliente), signTech = await loadImage(part.firmaTecnico);
     const signCol = (PAGE_W - MARGIN * 2 - gap) / 2, top = page.y;
@@ -187,6 +204,16 @@
     return new Blob(chunks, { type: 'application/pdf' });
   }
 
+  function fotosParte(part) {
+    try {
+      const ls = appWindow() && appWindow().localStorage;
+      if (!ls) return [];
+      const all = JSON.parse(ls.getItem('APP_AVISOS_PARTES_FOTOS_V135') || '{}') || {};
+      const rows = all[text(part.partNo).trim()];
+      return Array.isArray(rows) ? rows.filter(src => text(src).startsWith('data:image/')).slice(0, 6) : [];
+    } catch (_) { return []; }
+  }
+
   function obraPresupuesto(part) {
     const win = appWindow(), ls = win && win.localStorage;
     let obra = '', presupuesto = 'NO', numero = '';
@@ -216,7 +243,7 @@
   }
 
   async function create(part) {
-    part = db().normalize(part); const extra = obraPresupuesto(part); part.obra = extra.obra; part.presupuesto = extra.presupuesto; part.presupuestoNumero = extra.numero; const company = db().main().empresa || {};
+    part = db().normalize(part); const extra = obraPresupuesto(part); part.obra = extra.obra; part.presupuesto = extra.presupuesto; part.presupuestoNumero = extra.numero; part.fotos = fotosParte(part); const company = db().main().empresa || {};
     const pages = [await singlePage(part, company)];
     const blob = pdfFromCanvases(pages); const filename = ('Parte_' + part.partNo + '_' + (part.cliente || 'cliente')).replace(/[^a-zA-Z0-9._-]+/g, '_') + '.pdf';
     return new (appWindow().File)([blob], filename, { type: 'application/pdf', lastModified: Date.now() });
