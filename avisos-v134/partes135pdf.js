@@ -133,7 +133,10 @@
       const photoImages = await Promise.all(photoSources.map(loadImage));
       const cols = Math.min(3, photoImages.length), rows = Math.ceil(photoImages.length / cols);
       const photoGap = 12, photoW = (PAGE_W - MARGIN * 2 - photoGap * (cols - 1)) / cols;
-      const photoH = photoImages.length <= 1 ? 250 : photoImages.length <= 3 ? 190 : 150;
+      const desiredPhotoH = photoImages.length <= 1 ? 250 : photoImages.length <= 3 ? 190 : 150;
+      const reserveForSignatures = 245, targetBottom = 1660;
+      const availableForPhotos = Math.max(90 * rows, targetBottom - page.y - reserveForSignatures - Math.max(0, rows - 1) * photoGap);
+      const photoH = Math.max(90, Math.min(desiredPhotoH, Math.floor(availableForPhotos / rows)));
       photoImages.forEach((image, index) => {
         const colIndex = index % cols, rowIndex = Math.floor(index / cols);
         const x = MARGIN + colIndex * (photoW + photoGap), y = page.y + rowIndex * (photoH + photoGap);
