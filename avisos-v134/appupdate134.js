@@ -1,5 +1,5 @@
 (function(){'use strict';
-const BUILD='V135-PARTES-FOTOS3';
+const BUILD='V135-AGENDA-INAPP1';
 let checking=false,lastCheck=0;
 function loadSafe(){try{if(!document.getElementById('s135SafeExit')){let s=document.createElement('script');s.id='s135SafeExit';s.src='./safeexit135.js?build='+encodeURIComponent(BUILD)+'&t='+Date.now();document.head.appendChild(s)}else if(window.Soltec135SafeExit&&window.Soltec135SafeExit.init){window.Soltec135SafeExit.init()}}catch(e){}}
 function loadSafeAutoHide(){try{if(!document.getElementById('s135SafeExitAutoHide')){let s=document.createElement('script');s.id='s135SafeExitAutoHide';s.src='./safeexit135autohide.js?build='+encodeURIComponent(BUILD)+'&t='+Date.now();document.head.appendChild(s)}else if(window.Soltec135SafeExitAutoHide&&window.Soltec135SafeExitAutoHide.init){window.Soltec135SafeExitAutoHide.init()}}catch(e){}}
