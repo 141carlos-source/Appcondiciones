@@ -63,5 +63,6 @@ function renderMonth(){
   $('agendaMonthGrid').querySelectorAll('[data-agenda-open]').forEach(n=>n.onclick=e=>{e.stopPropagation();open(n.dataset.agendaOpen)});
   $('agendaMonthGrid').querySelectorAll('[data-agenda-day]').forEach(n=>n.onclick=()=>{const p=n.dataset.agendaDay.split('-').map(Number);selected=new Date(p[0],p[1]-1,p[2],12);setMode('day')})
 }
+window.SoltecAgendaView135={getMode:()=>mode,getSelectedDate:()=>iso(selected),setMode};
 inject();
 })();
