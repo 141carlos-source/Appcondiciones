@@ -1,8 +1,8 @@
 (function(){'use strict';
-const BUILD='V135-PARTES-DELETE2',PARTS='APP_AVISOS_PARTES_V134',OBRAS='APP_AVISOS_PARTES_OBRAS_V135';let W=null,obs=null,timer=0;
+const BUILD='V135-PARTES-DELETE3',PARTS='APP_AVISOS_PARTES_V134',OBRAS='APP_AVISOS_PARTES_OBRAS_V135';let W=null,obs=null,timer=0;
 function d(){return W&&W.document}function db(){return window.SoltecDB135}function text(v){return v==null?'':String(v)}
 function parse(v,f){try{const x=JSON.parse(v||'');return x==null?f:x}catch(_){return f}}
-function removeAux(part){try{const x=parse(W.localStorage.getItem(OBRAS),{values:[],byPart:{}});if(x&&x.byPart&&part&&part.partNo){delete x.byPart[part.partNo];W.localStorage.setItem(OBRAS,JSON.stringify(x))}}catch(_){}}
+function removeAux(part){try{const x=parse(W.localStorage.getItem(OBRAS),{values:[],byPart:{},presupuestoByPart:{}});if(part&&part.partNo){if(x&&x.byPart)delete x.byPart[part.partNo];if(x&&x.presupuestoByPart)delete x.presupuestoByPart[part.partNo];W.localStorage.setItem(OBRAS,JSON.stringify(x))}}catch(_){}}
 function rawPartNo(x){return text(x&&(x.partNo||x.numero)).trim()}
 function removePart(id){const api=db();if(!api||!id)return false;const part=api.partById(id);if(!part)return false;const raw=parse(W.localStorage.getItem(PARTS),[]),wrapped=!Array.isArray(raw)&&raw&&Array.isArray(raw.parts),rows=Array.isArray(raw)?raw:(wrapped?raw.parts:[]),targetNo=text(part.partNo).trim();const next=rows.filter(x=>{const sameId=text(x&&x.id)===text(id);const sameNo=targetNo&&rawPartNo(x)===targetNo;return !(sameId||sameNo)});if(next.length===rows.length)return false;if(wrapped){const out=Object.assign({},raw,{parts:next});W.localStorage.setItem(PARTS,JSON.stringify(out))}else W.localStorage.setItem(PARTS,JSON.stringify(next));removeAux(part);try{api.markChanged()}catch(_){}return !api.parts().some(p=>text(p.partNo).trim()===targetNo)}
 function refresh(){const box=d()&&d().getElementById('pt135-history');if(!box)return;const search=d().getElementById('pt135-search');if(search){search.dispatchEvent(new W.Event('input',{bubbles:true}))}else{const tab=d().getElementById('pt135-list');if(tab)tab.click()}}
