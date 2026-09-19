@@ -1,5 +1,5 @@
 (function(){'use strict';
-const KEY='SOLTEC_AGENDA_V1',MAX_NOTES=3,MAX_MS=60000,MAX_BYTES=900000;
+const KEY='SOLTEC_AGENDA_V1',MAX_NOTES=3,MAX_MS=60000,MAX_BYTES=280000;
 const $=id=>document.getElementById(id);
 let notes=[],rec=null,chunks=[],stream=null,timer=null,started=0,lastId='__boot__';
 function rows(){try{const x=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(x)?x:[]}catch(_){return[]}}
@@ -14,7 +14,7 @@ async function start(){
  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){alert('Este navegador no permite grabar notas de voz.');return}
  try{
   stream=await navigator.mediaDevices.getUserMedia({audio:true});
-  chunks=[];const type=mimeType();rec=new MediaRecorder(stream,type?{mimeType:type}:undefined);
+  chunks=[];const type=mimeType();rec=new MediaRecorder(stream,type?{mimeType:type,audioBitsPerSecond:24000}:{audioBitsPerSecond:24000});
   rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
   rec.onstop=finish;rec.start(500);started=Date.now();$('agendaVoiceBtn').textContent='■ Parar grabación';tick();timer=setInterval(tick,500)
  }catch(e){stopTracks();alert('No se pudo acceder al micrófono. Revisa el permiso del navegador.')}
@@ -25,7 +25,7 @@ function resetUi(){const b=$('agendaVoiceBtn'),s=$('agendaVoiceState');if(b)b.te
 async function finish(){
  const blob=new Blob(chunks,{type:(rec&&rec.mimeType)||'audio/webm'});stopTracks();resetUi();rec=null;chunks=[];
  if(!blob.size)return;
- if(blob.size>MAX_BYTES){alert('La nota de voz ocupa demasiado espacio. Intenta una grabación más corta.');return}
+ if(blob.size>MAX_BYTES){alert('La nota de voz ocupa demasiado espacio. Intenta una grabación más corta para poder guardar la cita.');return}
  try{
   const src=await dataUrl(blob);notes.push({id:'VN-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),src,type:blob.type||'audio/webm',seconds:Math.max(1,Math.min(60,Math.round((Date.now()-started)/1000))),createdAt:new Date().toISOString()});render()
  }catch(_){alert('No se pudo guardar la nota de voz.')}
