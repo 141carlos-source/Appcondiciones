@@ -11,7 +11,7 @@ function inject(){
  const b=basic.querySelector('.agendaFoldBody'),p=plan.querySelector('.agendaFoldBody'),w=work.querySelector('.agendaFoldBody'),x=extras.querySelector('.agendaFoldBody'),ph=photos.querySelector('.agendaFoldBody');
  ['title','client','work','address','phone','tech'].forEach(id=>move(b,nodeFor(id)));
  ['date','time','quickMove','duration','priority','status','alarm'].forEach(id=>move(p,nodeFor(id)));
- move(w,nodeFor('notes'));move(w,$('workOps'));
+ move(w,nodeFor('notes'));move(w,$('agendaVoiceBlock'));move(w,$('workOps'));
  move(x,$('agendaMaterialsBlock'));move(x,$('agendaChecklistBlock'));
  const pi=$('photoInput');move(ph,pi&&pi.closest('.wide'));
  updateBadges()
