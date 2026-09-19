@@ -21,7 +21,7 @@ function inject(){
   const day=document.createElement('section');day.id='agendaDayView';day.className='agendaCustomView';day.innerHTML='<div class="agendaDayNav"><button type="button" class="ghost" id="agendaDayPrev">‹</button><h2 id="agendaDayTitle"></h2><button type="button" class="ghost" id="agendaDayToday">Hoy</button><button type="button" class="ghost" id="agendaDayNext">›</button></div><div id="agendaDayList" class="agendaDayList"></div>';
   const month=document.createElement('section');month.id='agendaMonthView';month.className='agendaCustomView';month.innerHTML='<div class="agendaMonthNav"><button type="button" class="ghost" id="agendaMonthPrev">‹</button><h2 id="agendaMonthTitle"></h2><button type="button" class="ghost" id="agendaMonthToday">Este mes</button><button type="button" class="ghost" id="agendaMonthNext">›</button></div><div id="agendaMonthGrid" class="agendaMonthGrid"></div>';
   if(search){search.insertAdjacentElement('afterend',day);day.insertAdjacentElement('afterend',month)}else{main.append(day,month)}
-  const side=document.querySelector('.side');if(side){const det=document.createElement('details');det.className='agendaSummaryDrop';det.open=window.innerWidth>860;const sum=document.createElement('summary');sum.textContent='Resumen y filtros';side.parentNode.insertBefore(det,side);det.append(sum,side);side.classList.add('agendaSideCollapsed');det.addEventListener('toggle',()=>side.classList.toggle('agendaSideCollapsed',!det.open))}
+  const side=document.querySelector('.side');if(side){const det=document.createElement('details');det.className='agendaSummaryDrop';det.open=window.innerWidth>860;const sum=document.createElement('summary');sum.textContent='Resumen y filtros';side.parentNode.insertBefore(det,side);det.append(sum,side);side.classList.toggle('agendaSideCollapsed',!det.open);det.addEventListener('toggle',()=>side.classList.toggle('agendaSideCollapsed',!det.open))}
   bind();setMode('week');renderAll()
 }
 function bind(){
@@ -34,6 +34,7 @@ function bind(){
   $('agendaMonthNext').onclick=()=>{selected.setMonth(selected.getMonth()+1,1);renderAll()};
   $('agendaMonthToday').onclick=()=>{selected=new Date();selected.setHours(12,0,0,0);renderAll()};
   window.addEventListener('agenda:saved',()=>setTimeout(renderAll,100));
+  window.addEventListener('agenda:deleted',()=>setTimeout(renderAll,60));
   window.addEventListener('storage',e=>{if(e.key===KEY)renderAll()});
 }
 function setMode(v){
