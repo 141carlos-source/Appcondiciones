@@ -1,9 +1,9 @@
 (function(){'use strict';
-const KEY='SOLTEC_AGENDA_V1';let materials=[],checklist=[],lastId='',saveTimer=0;
+const KEY='SOLTEC_AGENDA_V1',BACKUP='SOLTEC_AGENDA_V1_AUTOBACKUP';let materials=[],checklist=[],lastId='',saveTimer=0;
 const $=id=>document.getElementById(id);
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function rows(){try{const x=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(x)?x:[]}catch(_){return[]}}
-function write(x){try{localStorage.setItem(KEY,JSON.stringify(x));return true}catch(_){return false}}
+function write(x){try{const raw=JSON.stringify(x);localStorage.setItem(KEY,raw);localStorage.setItem(BACKUP,raw);try{window.dispatchEvent(new CustomEvent('agenda:changed'))}catch(_){}return true}catch(_){return false}}
 function currentId(){return String(($('id')||{}).value||'')}
 function load(){const id=currentId(),r=rows().find(x=>String(x.id)===id)||{};materials=Array.isArray(r.materials)?r.materials.map(x=>({text:String(x.text||''),qty:String(x.qty||'')})):[];checklist=Array.isArray(r.checklist)?r.checklist.map(x=>({id:x.id||('CK-'+Date.now()),text:String(x.text||''),done:!!x.done})):[];render()}
 function payload(){return{materials:materials.filter(x=>x.text.trim()).map(x=>({text:x.text.trim(),qty:x.qty.trim()})),checklist:checklist.filter(x=>x.text.trim()).map(x=>({id:x.id,text:x.text.trim(),done:!!x.done}))}}function persist(id){id=String(id||currentId());if(!id)return;const all=rows(),r=all.find(x=>String(x.id)===id);if(!r)return;const p=payload();r.materials=p.materials;r.checklist=p.checklist;write(all)}function schedulePersist(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{if(currentId())persist()},180)}
