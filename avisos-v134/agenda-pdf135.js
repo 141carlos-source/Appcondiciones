@@ -2,7 +2,7 @@
 const KEY='SOLTEC_AGENDA_V1',W=1240,H=1754,M=48;
 const $=id=>document.getElementById(id);
 function read(){try{const x=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(x)?x:[]}catch(_){return[]}}
-function current(){const id=String(($('id')||{}).value||'');return read().find(r=>String(r.id)===id)||null}
+function current(){try{if(window.SoltecAgendaCore&&typeof window.SoltecAgendaCore.formSnapshot==='function')return window.SoltecAgendaCore.formSnapshot()}catch(_){}const id=String(($('id')||{}).value||'');return read().find(r=>String(r.id)===id)||null}
 function font(c,s,b){c.font=(b?'700 ':'400 ')+s+'px Arial';c.fillStyle='#182033';c.textBaseline='top'}
 function wrap(c,t,x,y,w,lh,max){const out=[];for(const p of String(t||'—').split(/\r?\n/)){let line='';for(const word of p.split(/\s+/).filter(Boolean)){const q=line?line+' '+word:word;if(c.measureText(q).width>w&&line){out.push(line);line=word}else line=q}if(line)out.push(line);if(!p)out.push('')}const rows=max?out.slice(0,max):out;rows.forEach((r,i)=>c.fillText(r,x,y+i*lh));return Math.max(lh,rows.length*lh)}
 function image(src){return new Promise(ok=>{if(!src||!String(src).startsWith('data:image/'))return ok(null);const im=new Image();im.onload=()=>ok(im);im.onerror=()=>ok(null);im.src=src})}
@@ -23,7 +23,7 @@ function pdf(canvas){
  chunks.push(ascii(s));return new Blob([join(chunks)],{type:'application/pdf'})
 }
 async function make(){
- const r=current();if(!r){alert('Guarda primero la cita para crear su PDF.');return}
+ const r=current();if(!r){alert('No hay datos de cita para crear el PDF.');return}
  const src=document.createElement('canvas');src.width=W;src.height=3200;const c=src.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,src.width,src.height);let y=M;
  c.fillStyle='#e7281c';c.fillRect(M,y,W-M*2,6);y+=18;font(c,32,true);c.fillText('SOLTEC · CITA DE AGENDA',M,y);y+=50;
  font(c,14,true);c.fillStyle='#667085';c.fillText('FECHA / HORA',M,y);c.fillText('ESTADO',650,y);y+=18;font(c,20,false);c.fillStyle='#182033';c.fillText([r.date,r.time].filter(Boolean).join(' · ')||'—',M,y);c.fillText(r.status||'Pendiente',650,y);y+=42;
