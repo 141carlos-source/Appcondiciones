@@ -6,13 +6,13 @@ function fold(id,title,open){let d=$(id);if(d)return d;const grid=document.query
 function move(body,node){if(node&&node.parentNode!==body)body.appendChild(node)}
 function inject(){
  style();const grid=document.querySelector('#form .formgrid');if(!grid)return;
- const basic=fold('agendaFoldBasic','Datos de la cita',true),plan=fold('agendaFoldPlan','Planificación',true),work=fold('agendaFoldWork','Notas y control del trabajo',false),extras=fold('agendaFoldExtras','Materiales y checklist',false),photos=fold('agendaFoldPhotos','Fotografías',false);
- if(!basic||!plan||!work||!extras||!photos)return;
- const b=basic.querySelector('.agendaFoldBody'),p=plan.querySelector('.agendaFoldBody'),w=work.querySelector('.agendaFoldBody'),x=extras.querySelector('.agendaFoldBody'),ph=photos.querySelector('.agendaFoldBody');
+ const basic=fold('agendaFoldBasic','Datos de la cita',true),plan=fold('agendaFoldPlan','Planificación',true),work=fold('agendaFoldWork','Notas y control del trabajo',false),extras=fold('agendaFoldExtras','Materiales y checklist',false),files=fold('agendaFoldFiles','Archivos adjuntos',false),photos=fold('agendaFoldPhotos','Fotografías',false);
+ if(!basic||!plan||!work||!extras||!files||!photos)return;
+ const b=basic.querySelector('.agendaFoldBody'),p=plan.querySelector('.agendaFoldBody'),w=work.querySelector('.agendaFoldBody'),x=extras.querySelector('.agendaFoldBody'),fi=files.querySelector('.agendaFoldBody'),ph=photos.querySelector('.agendaFoldBody');
  ['title','client','work','address','phone','tech'].forEach(id=>move(b,nodeFor(id)));
  ['date','time','quickMove','duration','priority','status','alarm'].forEach(id=>move(p,nodeFor(id)));
  move(w,nodeFor('notes'));move(w,$('agendaVoiceBlock'));move(w,$('workOps'));
- move(x,$('agendaMaterialsBlock'));move(x,$('agendaChecklistBlock'));
+ move(x,$('agendaMaterialsBlock'));move(x,$('agendaChecklistBlock'));move(fi,$('agendaFilesBlock'));
  const pi=$('photoInput');move(ph,pi&&pi.closest('.wide'));
  updateBadges()
 }
@@ -20,11 +20,11 @@ function badge(details,text){if(!details)return;const s=details.querySelector('s
 function updateBadges(){
  const mats=document.querySelectorAll('#agendaMaterialsList .agMatRow').length;
  const checks=[...document.querySelectorAll('#agendaChecklistList [data-cdone]')],done=checks.filter(n=>n.checked).length;
- const pics=document.querySelectorAll('#gallery .pic').length;
+ const pics=document.querySelectorAll('#gallery .pic').length;const af=document.querySelectorAll('#agendaFilesList .agendaFileRow').length;
  badge($('agendaFoldExtras'),(mats?'🧰 '+mats:'')+(checks.length?(mats?' · ':'')+'☑ '+done+'/'+checks.length:''));
- badge($('agendaFoldPhotos'),pics?'📷 '+pics:'');
+ badge($('agendaFoldFiles'),af?'📎 '+af:'');badge($('agendaFoldPhotos'),pics?'📷 '+pics:'');
 }
-function resetFolds(){const a=$('agendaFoldBasic'),b=$('agendaFoldPlan'),c=$('agendaFoldWork'),d=$('agendaFoldExtras'),e=$('agendaFoldPhotos');if(a)a.open=true;if(b)b.open=true;if(c)c.open=false;if(d)d.open=false;if(e)e.open=false;setTimeout(updateBadges,30)}
+function resetFolds(){const a=$('agendaFoldBasic'),b=$('agendaFoldPlan'),c=$('agendaFoldWork'),d=$('agendaFoldExtras'),f=$('agendaFoldFiles'),e=$('agendaFoldPhotos');if(a)a.open=true;if(b)b.open=true;if(c)c.open=false;if(d)d.open=false;if(f)f.open=false;if(e)e.open=false;setTimeout(updateBadges,30)}
 window.addEventListener('agenda:new',resetFolds);
 window.addEventListener('agenda:saved',()=>setTimeout(updateBadges,80));
 document.addEventListener('input',()=>setTimeout(updateBadges,20));
