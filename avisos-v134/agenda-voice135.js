@@ -1,11 +1,11 @@
 (function(){'use strict';
-const KEY='SOLTEC_AGENDA_V1',MAX_NOTES=3,MAX_MS=60000,MAX_BYTES=280000;
+const KEY='SOLTEC_AGENDA_V1',MAX_NOTES=3,MAX_MS=30000,MAX_BYTES=280000;
 const $=id=>document.getElementById(id);
 let notes=[],rec=null,chunks=[],stream=null,timer=null,started=0,lastId='__boot__';
 function rows(){try{const x=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(x)?x:[]}catch(_){return[]}}
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function style(){if($('agendaVoiceStyle'))return;const s=document.createElement('style');s.id='agendaVoiceStyle';s.textContent='.agendaVoiceBlock{grid-column:1/-1;border:1px solid #dbe3ee;border-radius:12px;padding:12px;background:#fbfcfe}.agendaVoiceHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.agendaVoiceHead h3{margin:0;flex:1;font-size:13px;color:#172b4d}.agendaVoiceList{display:grid;gap:8px;margin-top:10px}.agendaVoiceRow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border:1px solid #dbe3ee;border-radius:10px;background:#fff;padding:8px}.agendaVoiceRow audio{width:100%;max-width:100%}.agendaVoiceRec{color:#b42318;font-weight:900;font-size:12px}.agendaVoiceHint{font-size:11px;color:#667085;margin-top:6px}@media(max-width:560px){.agendaVoiceRow{grid-template-columns:1fr}.agendaVoiceRow .danger{width:100%}}';document.head.appendChild(s)}
-function inject(){style();if($('agendaVoiceBlock'))return;const grid=document.querySelector('#form .formgrid');if(!grid)return;const box=document.createElement('div');box.id='agendaVoiceBlock';box.className='agendaVoiceBlock';box.innerHTML='<div class="agendaVoiceHead"><h3>Notas de voz</h3><span id="agendaVoiceState" class="agendaVoiceRec"></span><button type="button" class="ghost" id="agendaVoiceBtn">🎙 Grabar nota</button></div><div class="agendaVoiceHint">Máximo 3 notas · 60 segundos por nota.</div><div id="agendaVoiceList" class="agendaVoiceList"></div>';grid.appendChild(box);$('agendaVoiceBtn').onclick=toggle;render();try{window.dispatchEvent(new CustomEvent('agenda:voice-ready'))}catch(_){}}
+function inject(){style();if($('agendaVoiceBlock'))return;const grid=document.querySelector('#form .formgrid');if(!grid)return;const box=document.createElement('div');box.id='agendaVoiceBlock';box.className='agendaVoiceBlock';box.innerHTML='<div class="agendaVoiceHead"><h3>Notas de voz</h3><span id="agendaVoiceState" class="agendaVoiceRec"></span><button type="button" class="ghost" id="agendaVoiceBtn">🎙 Grabar nota</button></div><div class="agendaVoiceHint">Máximo 3 notas · 30 segundos por nota.</div><div id="agendaVoiceList" class="agendaVoiceList"></div>';grid.appendChild(box);$('agendaVoiceBtn').onclick=toggle;render();try{window.dispatchEvent(new CustomEvent('agenda:voice-ready'))}catch(_){}}
 function stopTracks(){if(stream){try{stream.getTracks().forEach(t=>t.stop())}catch(_){}stream=null}}
 function dataUrl(blob){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result||''));r.onerror=no;r.readAsDataURL(blob)})}
 function mimeType(){const opts=['audio/webm;codecs=opus','audio/webm','audio/mp4'];for(const x of opts){try{if(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(x))return x}catch(_){}}return''}
@@ -19,7 +19,7 @@ async function start(){
   rec.onstop=finish;rec.start(500);started=Date.now();$('agendaVoiceBtn').textContent='■ Parar grabación';tick();timer=setInterval(tick,500)
  }catch(e){stopTracks();alert('No se pudo acceder al micrófono. Revisa el permiso del navegador.')}
 }
-function tick(){const sec=Math.min(60,Math.floor((Date.now()-started)/1000));const n=$('agendaVoiceState');if(n)n.textContent=rec&&rec.state==='recording'?'Grabando · '+sec+' s':'';if(sec>=60)stop()}
+function tick(){const sec=Math.min(30,Math.floor((Date.now()-started)/1000));const n=$('agendaVoiceState');if(n)n.textContent=rec&&rec.state==='recording'?'Grabando · '+sec+' s':'';if(sec>=30)stop()}
 function stop(){if(timer){clearInterval(timer);timer=null}if(rec&&rec.state==='recording'){try{rec.stop()}catch(_){}}else{stopTracks();resetUi()}}
 function resetUi(){const b=$('agendaVoiceBtn'),s=$('agendaVoiceState');if(b)b.textContent='🎙 Grabar nota';if(s)s.textContent=''}
 async function finish(){
@@ -27,7 +27,7 @@ async function finish(){
  if(!blob.size)return;
  if(blob.size>MAX_BYTES){alert('La nota de voz ocupa demasiado espacio. Intenta una grabación más corta para poder guardar la cita.');return}
  try{
-  const src=await dataUrl(blob);notes.push({id:'VN-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),src,type:blob.type||'audio/webm',seconds:Math.max(1,Math.min(60,Math.round((Date.now()-started)/1000))),createdAt:new Date().toISOString()});render()
+  const src=await dataUrl(blob);notes.push({id:'VN-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),src,type:blob.type||'audio/webm',seconds:Math.max(1,Math.min(30,Math.round((Date.now()-started)/1000))),createdAt:new Date().toISOString()});render()
  }catch(_){alert('No se pudo guardar la nota de voz.')}
 }
 function toggle(){if(rec&&rec.state==='recording')stop();else start()}
