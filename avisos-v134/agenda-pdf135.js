@@ -25,15 +25,22 @@ function pdf(canvas){
 async function make(){
  const r=current();if(!r){alert('No hay datos de cita para crear el PDF.');return}
  const src=document.createElement('canvas');src.width=W;src.height=3200;const c=src.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,src.width,src.height);let y=M;
- c.fillStyle='#e7281c';c.fillRect(M,y,W-M*2,6);y+=18;font(c,32,true);c.fillText('SOLTEC · CITA DE AGENDA',M,y);y+=50;
- font(c,14,true);c.fillStyle='#667085';c.fillText('FECHA / HORA',M,y);c.fillText('ESTADO',650,y);y+=18;font(c,20,false);c.fillStyle='#182033';c.fillText([r.date,r.time].filter(Boolean).join(' · ')||'—',M,y);c.fillText(r.status||'Pendiente',650,y);y+=42;
- const fields=[['TRABAJO',r.title],['CLIENTE',r.client],['OBRA',r.work],['DIRECCIÓN',r.address],['TELÉFONO',r.phone],['TÉCNICO',r.tech],['DURACIÓN',r.duration?r.duration+' h':'—'],['PRIORIDAD',r.priority||'—']];
- for(const [lab,val] of fields){font(c,13,true);c.fillStyle='#667085';c.fillText(lab,M,y);font(c,18,false);c.fillStyle='#182033';y+=18;y+=wrap(c,val,M,y,W-M*2,23,3)+12}
- c.strokeStyle='#d6dbe3';c.beginPath();c.moveTo(M,y);c.lineTo(W-M,y);c.stroke();y+=18;
- font(c,22,true);c.fillStyle='#e7281c';c.fillText('Notas',M,y);y+=32;font(c,16,false);c.fillStyle='#182033';y+=wrap(c,r.notes||'—',M,y,W-M*2,22,8)+12;
+ c.fillStyle='#e7281c';c.fillRect(M,y,W-M*2,6);y+=16;font(c,29,true);c.fillText('SOLTEC · CITA DE AGENDA',M,y);y+=43;
+ const GAP=24,COL=(W-M*2-GAP)/2;
+ function one(label,value,maxLines){font(c,12,true);c.fillStyle='#667085';c.fillText(label,M,y);font(c,17,false);c.fillStyle='#182033';y+=16;y+=wrap(c,value||'—',M,y,W-M*2,21,maxLines||2)+7}
+ function pair(la,va,lb,vb){const top=y;function cell(label,value,x){font(c,12,true);c.fillStyle='#667085';c.fillText(label,x,top);font(c,17,false);c.fillStyle='#182033';return wrap(c,value||'—',x,top+16,COL,21,2)}const ah=cell(la,va,M),bh=cell(lb,vb,M+COL+GAP);y=top+16+Math.max(ah,bh)+8}
+ one('TRABAJO',r.title,2);
+ one('OBRA',r.work,2);
+ one('DIRECCIÓN',r.address,2);
+ pair('FECHA / HORA',[r.date,r.time].filter(Boolean).join(' · ')||'—','ESTADO',r.status||'Pendiente');
+ pair('CLIENTE',r.client,'TÉCNICO',r.tech);
+ pair('TELÉFONO',r.phone,'PRIORIDAD',r.priority||'—');
+ pair('DURACIÓN',r.duration?r.duration+' h':'—','ALARMA',r.alarm||'—');
+ c.strokeStyle='#d6dbe3';c.beginPath();c.moveTo(M,y);c.lineTo(W-M,y);c.stroke();y+=14;
+ font(c,22,true);c.fillStyle='#e7281c';c.fillText('Notas',M,y);y+=29;font(c,16,false);c.fillStyle='#182033';y+=wrap(c,r.notes||'—',M,y,W-M*2,22,14)+10;
  const mats=Array.isArray(r.materials)?r.materials:[];if(mats.length){font(c,22,true);c.fillStyle='#e7281c';c.fillText('Material previsto',M,y);y+=32;for(const x of mats){font(c,16,false);c.fillStyle='#182033';c.fillText('• '+(x.qty?x.qty+' × ':'')+(x.text||''),M,y);y+=23}y+=8}
  const ck=Array.isArray(r.checklist)?r.checklist:[];if(ck.length){font(c,22,true);c.fillStyle='#e7281c';c.fillText('Checklist',M,y);y+=32;for(const x of ck){font(c,16,false);c.fillStyle='#182033';c.fillText((x.done?'☑ ':'☐ ')+(x.text||''),M,y);y+=23}y+=8}
- const photos=(Array.isArray(r.photos)?r.photos:[]).slice(0,6);if(photos.length){font(c,22,true);c.fillStyle='#e7281c';c.fillText('Fotografías',M,y);y+=34;const ims=await Promise.all(photos.map(image)),cols=Math.min(3,ims.length),gap=12,pw=(W-M*2-gap*(cols-1))/cols,ph=160;ims.forEach((im,i)=>{const row=Math.floor(i/cols),col=i%cols,x=M+col*(pw+gap),yy=y+row*(ph+gap);c.strokeStyle='#d6dbe3';c.strokeRect(x,yy,pw,ph);fit(c,im,x+4,yy+4,pw-8,ph-8)});y+=Math.ceil(ims.length/cols)*(ph+gap)+8}
+ const photos=(Array.isArray(r.photos)?r.photos:[]).slice(0,6);if(photos.length){font(c,22,true);c.fillStyle='#e7281c';c.fillText('Fotografías',M,y);y+=31;const ims=await Promise.all(photos.map(image)),cols=photos.length===1?1:(photos.length<=4?2:3),rows=Math.ceil(ims.length/cols),gap=12,pw=(W-M*2-gap*(cols-1))/cols;const free=Math.max(280,1580-y),ph=Math.max(130,Math.min(photos.length===1?520:photos.length<=2?360:250,Math.floor((free-gap*(rows-1))/rows)));ims.forEach((im,i)=>{const row=Math.floor(i/cols),col=i%cols,x=M+col*(pw+gap),yy=y+row*(ph+gap);c.strokeStyle='#d6dbe3';c.strokeRect(x,yy,pw,ph);fit(c,im,x+4,yy+4,pw-8,ph-8)});y+=rows*ph+Math.max(0,rows-1)*gap+8}
  const out=document.createElement('canvas');out.width=W;out.height=H;const o=out.getContext('2d');o.fillStyle='#fff';o.fillRect(0,0,W,H);const scale=Math.min(1,(W-68)/(W-M*2),(H-90)/(y-M));o.drawImage(src,M,M,W-M*2,y-M,34,34,(W-M*2)*scale,(y-M)*scale);
  const blob=pdf(out),a=document.createElement('a'),safe=String(r.title||'cita').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'');a.href=URL.createObjectURL(blob);a.download='SOLTEC_CITA_'+(safe||r.id)+'.pdf';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1200)
 }
