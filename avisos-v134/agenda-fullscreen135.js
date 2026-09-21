@@ -26,5 +26,5 @@ function boot(){
  sync()
 }
 boot();
-window.SoltecAgendaFullscreen135={sync,version:'AGENDA-FULLSCREEN1'};
+window.SoltecAgendaFullscreen135={sync,exit:()=>apply(false),enter:()=>apply(true),version:'AGENDA-FULLSCREEN2'};
 })();
