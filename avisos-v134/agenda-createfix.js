@@ -22,7 +22,7 @@ function openNew(ev){
   modal.style.display='flex';
   setTimeout(()=>{try{title.focus();title.click()}catch(_){}},80);
 }
-function close(ev){if(ev){ev.preventDefault();ev.stopImmediatePropagation()}const m=$('modal');if(m){m.classList.remove('open');m.style.removeProperty('display')}}
+function close(ev){if(ev){ev.preventDefault();ev.stopImmediatePropagation()}const m=$('modal');if(m){m.classList.remove('open');m.style.removeProperty('display')}try{window.SoltecAgendaFullscreen135&&window.SoltecAgendaFullscreen135.exit&&window.SoltecAgendaFullscreen135.exit()}catch(_){}}
 function bind(){
   const b=$('newBtn');if(b&&!b.dataset.createFix){b.dataset.createFix='1';b.addEventListener('click',openNew,true)}
   for(const id of ['closeBtn','cancelBtn']){const n=$(id);if(n&&!n.dataset.createFix){n.dataset.createFix='1';n.addEventListener('click',close,true)}}
