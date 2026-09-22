@@ -160,6 +160,8 @@ class Handler(BaseHTTPRequestHandler):
                 "revision": int(state.get("revision") or 0),
                 "hasSnapshot": bool(state.get("snapshot")),
                 "updatedAt": state.get("updatedAt"),
+                "deviceId": state.get("deviceId"),
+                "deviceName": state.get("deviceName"),
             })
             return
         self.json_response(200, {
