@@ -1,6 +1,6 @@
 (function(){'use strict';
-const BUILD='V135-SYNC-GUARD1';
-const CFG='SOLTEC_SYNC_CONFIG_V134',GUARD='SOLTEC_SYNC_GUARD_V135';
+const BUILD='V135-SYNC-GUARD2';
+const CFG='SOLTEC_SYNC_CONFIG_V134',GUARD='SOLTEC_SYNC_GUARD_V135',PENDING='SOLTEC_SYNC_PENDING_V134';
 const OUT=window;
 let W=null,busy=false,bypass=false,rawSyncNow=null;
 
@@ -52,6 +52,18 @@ function paint(msg,kind){
 function engineStatus(msg,err){
   try{const n=W.document.getElementById('s134EngineStatus');if(n){n.textContent=msg;n.style.color=err?'#b42318':'#667085'}}catch(_){}
 }
+function pendingText(){
+  try{return W.localStorage.getItem(PENDING)==='1'?'CAMBIOS PENDIENTES: SÍ':'CAMBIOS PENDIENTES: NO'}catch(_){return'CAMBIOS PENDIENTES: DESCONOCIDO'}
+}
+function fmtDate(v){
+  if(!v)return'SIN FECHA';
+  try{return new Date(v).toLocaleString('es-ES')}catch(_){return String(v)}
+}
+function successText(s,rev){
+  const who=String(s&&s.deviceName||'').trim();
+  const writer=who?('ÚLTIMA ESCRITURA CENTRAL: '+who+' · '+fmtDate(s.updatedAt)):'ÚLTIMA ESCRITURA CENTRAL: SERVIDOR SIN METADATO DE DISPOSITIVO';
+  return 'PC CENTRAL VALIDADO · REV. '+rev+' · '+writer+' · ESTE DISPOSITIVO: '+pendingText();
+}
 function fail(code,msg,extra){paint(msg,'err');engineStatus(msg,true);return Object.assign({ok:false,code,message:msg},extra||{})}
 function timeoutFetch(url,opt,ms){
   const ctl=new W.AbortController(),tm=W.setTimeout(()=>ctl.abort(),ms||12000);
@@ -93,20 +105,24 @@ async function preflight(opts){
     }else if(g.signature===sig&&rev>lastGuard){
       g.lastGoodRevision=rev;g.lastGoodAt=new Date().toISOString();saveGuard(g);
     }
-    paint('PC CENTRAL VALIDADO · SOLTEC-PC V1.34 · REV. '+rev,'ok');
+    paint(successText(s,rev),'ok');
     return{ok:true,revision:rev,status:s,signature:sig};
   }finally{busy=false}
 }
 async function manualTest(){
   const h=await preflight({bind:true});
-  if(h.ok)engineStatus('PC CENTRAL CONECTADO Y VALIDADO · REV. '+h.revision,false);
+  if(h.ok)engineStatus(successText(h.status,h.revision),false);
   return h;
 }
 async function manualSync(){
   const h=await preflight({requireBound:true});
   if(!h.ok)return{state:'guard-blocked',guard:h};
   if(typeof rawSyncNow!=='function')return fail('NO_ENGINE','MOTOR DE SINCRONIZACIÓN NO DISPONIBLE.');
-  return rawSyncNow(W);
+  const r=await rawSyncNow(W);
+  if(r&&['uploaded','current','received'].includes(r.state)){
+    try{await preflight({requireBound:true})}catch(_){}
+  }
+  return r;
 }
 function installListeners(){
   const d=W.document;if(d.__soltecSyncGuard135)return;d.__soltecSyncGuard135=true;
