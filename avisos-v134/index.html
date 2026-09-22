@@ -19,7 +19,7 @@
   </style>
 </head>
 <body>
-  <iframe id="app134" title="SOLTEC Avisos V1.35"></iframe>
+  <iframe id="app134" title="SOLTEC Avisos V1.35" allow="local-network; loopback-network; local-network-access"></iframe>
   <button id="installBtn" class="install" type="button">⬇ INSTALAR SOLTEC</button>
   <script src="./appupdate134.js"></script>
   <script src="./install.js"></script>
@@ -41,6 +41,7 @@
   <script src="./partes135.js"></script>
   <script src="./sync135localnetwork.js"></script>
   <script src="./sync134engine.js"></script>
+  <script src="./sync135guard.js"></script>
   <script src="./sync134audit.js"></script>
   <script src="./nav134fix.js"></script>
   <script src="./compact135.js"></script>
@@ -89,6 +90,7 @@
           window.SoltecPartes135 && window.SoltecPartes135.init(app);
           window.Soltec135LocalNetwork && window.Soltec135LocalNetwork.init(app);
           window.Soltec134Engine && window.Soltec134Engine.init(app);
+          window.Soltec135SyncGuard && window.Soltec135SyncGuard.init(app);
           window.Soltec134Audit && window.Soltec134Audit.init(app);
           window.Soltec134NavFix && window.Soltec134NavFix.init(app);
           window.SoltecCompact135 && window.SoltecCompact135.init(app);
