@@ -28,7 +28,8 @@
     const sheet = d.createElement('style'); sheet.id = 'compact135Style';
     sheet.textContent = `
       #navAvisos,#navPartes,#navExp132,#navMem132,#navPhotos133{display:none!important}
-      nav.bottom{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+      nav.bottom{display:flex!important;flex-wrap:nowrap!important;grid-template-columns:none!important}
+      nav.bottom>button{flex:1 1 0!important;min-width:0!important;max-width:none!important;font-size:12px!important;padding-left:2px!important;padding-right:2px!important}
       .c135-home{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
       .c135-home button{min-height:82px;border:1px solid #f0b7b2;background:#fff7f6;color:#8f1d16;border-radius:14px;font-size:16px;font-weight:900}
       .c135-home button span{display:block;font-size:11px;font-weight:600;color:#667085;margin-top:5px}
