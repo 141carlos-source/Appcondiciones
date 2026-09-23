@@ -1,5 +1,5 @@
 (function(){'use strict';
-const B='V135-SALIDA-DIAG1',EXIT='SOLTEC_SAFE_EXIT_V135';let running=false,resumeTimer=0,started=false,okTimer=0;
+const B='V135-SALIDA-DRAFTFIX1',EXIT='SOLTEC_SAFE_EXIT_V135',DRAFT='APP_AVISOS_WEB_BORRADOR_V116',PENDING='SOLTEC_SYNC_PENDING_V134',DB='APP_AVISOS_PERSISTENCIA',STATE='estado';let running=false,resumeTimer=0,started=false,okTimer=0;
 function frame(){try{let f=document.getElementById('app134');return f&&f.contentWindow&&f.contentWindow.document?f.contentWindow:null}catch(e){return null}}
 function S(v){return String(v==null?'':v)}function H(v){return S(v).replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]))}
 function box(w){let d=w.document,b=d.getElementById('safeExit135Box');if(!d.getElementById('safeExit135Style')){let st=d.createElement('style');st.id='safeExit135Style';st.textContent='#safeExit135Box{position:fixed;left:12px;right:12px;bottom:86px;z-index:99999;background:#fff;border:2px solid #0b5ed7;border-radius:16px;padding:14px;box-shadow:0 8px 28px #0003;font-size:14px;color:#182033}#safeExit135Box strong{display:block;font-size:16px;margin-bottom:5px}#safeExit135Box.ok{border-color:#15803d}#safeExit135Box.warn{border-color:#b42318}';d.head.appendChild(st)}if(!b){b=d.createElement('div');b.id='safeExit135Box';b.style.display='none';d.body.appendChild(b)}return b}
@@ -7,9 +7,40 @@ function say(w,cls,title,msg){let b=box(w);b.className=cls||'';b.innerHTML='<str
 function setFlag(w,on){try{if(on)localStorage.setItem(EXIT,JSON.stringify({at:Date.now()}));else localStorage.removeItem(EXIT)}catch(e){}try{if(on)w.localStorage.setItem(EXIT,JSON.stringify({at:Date.now()}));else w.localStorage.removeItem(EXIT)}catch(e){}}
 function hasFlag(w){try{if(localStorage.getItem(EXIT))return true}catch(e){}try{return !!w.localStorage.getItem(EXIT)}catch(e){return false}}
 function delay(ms){return new Promise(r=>setTimeout(r,ms))}
+function syncOk(w){
+  try{
+    const d=w.document,s=S(d.getElementById('s134EngineStatus')&&d.getElementById('s134EngineStatus').textContent).toUpperCase(),b=S(d.getElementById('s134EngineBadge')&&d.getElementById('s134EngineBadge').textContent).toUpperCase();
+    if(w.localStorage.getItem(PENDING)==='1')return false;
+    return /TODO SINCRONIZADO|TODO GUARDADO Y SINCRONIZADO|DATOS ACTUALIZADOS DESDE EL PC/.test(s+' '+b);
+  }catch(e){return false}
+}
+async function clearCommittedDraft(w){
+  try{
+    const f=w.document.getElementById('formAviso');
+    if(f&&f.style.display!=='none')return false;
+    if(!syncOk(w))return false;
+    w.localStorage.removeItem(DRAFT);
+    try{localStorage.removeItem(DRAFT)}catch(e){}
+    try{
+      await new Promise((ok)=>{
+        const r=w.indexedDB.open(DB);
+        r.onerror=()=>ok();
+        r.onsuccess=()=>{
+          const db=r.result;
+          if(!db.objectStoreNames.contains(STATE)){db.close();ok();return}
+          const t=db.transaction(STATE,'readwrite');
+          t.objectStore(STATE).delete(DRAFT);
+          t.oncomplete=()=>{db.close();ok()};
+          t.onerror=()=>{try{db.close()}catch(_){}ok()};
+        };
+      });
+    }catch(e){}
+    return true;
+  }catch(e){return false}
+}
 async function waitRecovery(){for(let i=0;i<40;i++){if(window.Soltec134Recovery&&typeof window.Soltec134Recovery.backupRecoverVerify==='function')return window.Soltec134Recovery;try{if(window.Soltec134AppUpdate&&typeof window.Soltec134AppUpdate.loadRecovery==='function')window.Soltec134AppUpdate.loadRecovery()}catch(e){}await delay(250)}throw new Error('Sistema automático de copia no disponible')}
 async function finish(w){say(w,'','Protegiendo y verificando…','No cierres SOLTEC. Haciendo copia de seguridad y comprobando el PC central.');const rec=await waitRecovery(),r=await rec.backupRecoverVerify();if(!r||!r.ok)throw new Error('No se pudo verificar la salida');setFlag(w,false);say(w,'ok','YA PUEDES CERRAR SOLTEC','Copia de seguridad hecha · sincronización verificada · PC central REV. '+r.revision+' · '+r.avisos+' aviso(s).');return r}
-async function salirSeguro(w){if(running)return;running=true;let btn=w.document.getElementById('navFinalizar');try{if(btn)btn.disabled=true;setFlag(w,true);say(w,'','Guardando…','No cierres SOLTEC. Guardando el trabajo y sincronizando.');let eng=window.Soltec134Engine;if(!eng||typeof eng.finalizar!=='function')throw new Error('Motor de sincronización no disponible');await Promise.resolve(eng.finalizar(w));await delay(700);await finish(w)}catch(e){setFlag(w,false);const base='Salida detenida por seguridad: '+S(e&&e.message||e)+'. Los datos locales no se han sustituido.';say(w,'warn','NO CIERRES TODAVÍA',H(base)+'<div style="margin-top:8px;font-weight:700">🩺 ANALIZANDO DIFERENCIAS…</div>');try{if(window.Soltec134Audit&&typeof window.Soltec134Audit.diagnoseConflict==='function'){const r=await window.Soltec134Audit.diagnoseConflict(w);say(w,'warn','NO CIERRES TODAVÍA',H(base)+'<pre style="white-space:pre-wrap;margin:10px 0 0;padding:9px;background:#fff6f5;border:1px solid #f0b4ae;border-radius:9px;font-size:11px;line-height:1.4;max-height:38vh;overflow:auto">'+H(r&&r.text||'SIN DETALLE DISPONIBLE')+'</pre>')}}catch(dx){say(w,'warn','NO CIERRES TODAVÍA',H(base)+'<div style="margin-top:8px">No se pudo completar el diagnóstico automático: '+H(dx&&dx.message||dx)+'</div>')}}finally{running=false;if(btn)btn.disabled=false;patch()}}
+async function salirSeguro(w){if(running)return;running=true;let btn=w.document.getElementById('navFinalizar');try{if(btn)btn.disabled=true;setFlag(w,true);say(w,'','Guardando…','No cierres SOLTEC. Guardando el trabajo y sincronizando.');let eng=window.Soltec134Engine;if(!eng||typeof eng.finalizar!=='function')throw new Error('Motor de sincronización no disponible');await Promise.resolve(eng.finalizar(w));await delay(250);await clearCommittedDraft(w);await delay(450);await finish(w)}catch(e){setFlag(w,false);const base='Salida detenida por seguridad: '+S(e&&e.message||e)+'. Los datos locales no se han sustituido.';say(w,'warn','NO CIERRES TODAVÍA',H(base)+'<div style="margin-top:8px;font-weight:700">🩺 ANALIZANDO DIFERENCIAS…</div>');try{if(window.Soltec134Audit&&typeof window.Soltec134Audit.diagnoseConflict==='function'){const r=await window.Soltec134Audit.diagnoseConflict(w);say(w,'warn','NO CIERRES TODAVÍA',H(base)+'<pre style="white-space:pre-wrap;margin:10px 0 0;padding:9px;background:#fff6f5;border:1px solid #f0b4ae;border-radius:9px;font-size:11px;line-height:1.4;max-height:38vh;overflow:auto">'+H(r&&r.text||'SIN DETALLE DISPONIBLE')+'</pre>')}}catch(dx){say(w,'warn','NO CIERRES TODAVÍA',H(base)+'<div style="margin-top:8px">No se pudo completar el diagnóstico automático: '+H(dx&&dx.message||dx)+'</div>')}}finally{running=false;if(btn)btn.disabled=false;patch()}}
 function resume(w){if(running||!hasFlag(w))return;clearTimeout(resumeTimer);resumeTimer=setTimeout(async function(){if(running||!hasFlag(w))return;running=true;let btn=w.document.getElementById('navFinalizar');try{if(btn)btn.disabled=true;await finish(w)}catch(e){setFlag(w,false);const base='Salida detenida por seguridad: '+S(e&&e.message||e)+'. Los datos locales no se han sustituido.';say(w,'warn','NO CIERRES TODAVÍA',H(base));try{if(window.Soltec134Audit&&typeof window.Soltec134Audit.diagnoseConflict==='function'){const r=await window.Soltec134Audit.diagnoseConflict(w);say(w,'warn','NO CIERRES TODAVÍA',H(base)+'<pre style="white-space:pre-wrap;margin:10px 0 0;padding:9px;background:#fff6f5;border:1px solid #f0b4ae;border-radius:9px;font-size:11px;line-height:1.4;max-height:38vh;overflow:auto">'+H(r&&r.text||'SIN DETALLE DISPONIBLE')+'</pre>')}}catch(dx){}}finally{running=false;if(btn)btn.disabled=false;patch()}},1200)}
 function recoveryMessage(w){try{let d=w.document,s=d.getElementById('s134EngineStatus'),b=d.getElementById('s134EngineBadge'),st=S(s&&s.textContent).toUpperCase(),bt=S(b&&b.textContent).toUpperCase();if(st.includes('PC CENTRAL APARECE VACÍO')||bt.includes('PC CENTRAL INCONSISTENTE')){if(s){s.textContent='PC CENTRAL PENDIENTE DE RECUPERAR. PULSA SALIR: SOLTEC HARÁ COPIA, RECUPERACIÓN Y VERIFICACIÓN AUTOMÁTICAMENTE.';s.style.color='#8a5a00'}if(b){b.textContent='PC CENTRAL PENDIENTE DE RECUPERAR · PULSA SALIR';b.style.color='#8a5a00'}}}catch(e){}}
 function patch(){let w=frame();if(!w)return;let d=w.document,b=d.getElementById('navFinalizar');let old=d.getElementById('s134Recovery');if(old)old.remove();let hint=d.getElementById('safeExit135Hint');if(hint)hint.remove();recoveryMessage(w);if(!b){resume(w);return}if(b.innerHTML!=='✅<br>Salir')b.innerHTML='✅<br>Salir';b.title='Un clic: guardar, copia de seguridad, sincronizar y verificar';b.onclick=function(ev){if(ev&&ev.preventDefault)ev.preventDefault();salirSeguro(w);return false};resume(w)}
