@@ -47,6 +47,7 @@
   <script src="./compact135.js"></script>
   <script src="./avisoslist135.js"></script>
   <script src="./emails135.js"></script>
+  <script src="./detailsclosed135.js"></script>
   <script>
     (async function () {
       try {
@@ -96,6 +97,7 @@
           window.SoltecCompact135 && window.SoltecCompact135.init(app);
           window.SoltecAvisosList135 && window.SoltecAvisosList135.init(app);
           window.SoltecEmails135 && window.SoltecEmails135.init(app);
+          window.Soltec135DetailsClosed && window.Soltec135DetailsClosed.init(app);
           try {
             const d = app.document, header = d.querySelector('header .headerText');
             if (header) {
