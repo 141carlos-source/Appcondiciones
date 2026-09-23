@@ -48,6 +48,7 @@
   <script src="./avisoslist135.js"></script>
   <script src="./emails135.js"></script>
   <script src="./detailsclosed135.js"></script>
+  <script src="./expedientesedist135.js"></script>
   <script>
     (async function () {
       try {
@@ -98,6 +99,7 @@
           window.SoltecAvisosList135 && window.SoltecAvisosList135.init(app);
           window.SoltecEmails135 && window.SoltecEmails135.init(app);
           window.Soltec135DetailsClosed && window.Soltec135DetailsClosed.init(app);
+          window.Soltec135ExpedientesEdist && window.Soltec135ExpedientesEdist.init(app);
           try {
             const d = app.document, header = d.querySelector('header .headerText');
             if (header) {
