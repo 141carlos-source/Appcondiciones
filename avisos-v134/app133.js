@@ -37,8 +37,6 @@ async function condDocIds(){
 function isExpCandidate(a,pdfIds){
   if(!a)return false;
   if(condRef(a))return true;
-  const f=flags(a.id);
-  if(f&&f.condicionesSuministro)return true;
   return !!(pdfIds&&pdfIds.has(String(a.id)));
 }
 async function condHistory(id){const x=id?await sget(CONDHIST+id):null;return Array.isArray(x)?x:[]}
@@ -79,7 +77,7 @@ async function refreshSelects(d,showMatch){
  const me=d.getElementById('s132MemSel');if(me){const prev=me.value;me.innerHTML='<option value="">SELECCIONAR…</option>'+memOpts;if(Array.from(me.options).some(o=>o.value===prev))me.value=prev}
 }
 function condRefFrom(a,mm){a=a||{};const m=(mm&&mm[String(a.id)])||{},vals=[m.refCondiciones,m.refCondicion,m.numeroCondiciones,m.numCondiciones,m.nCondiciones,m.referenciaCondiciones,m.numeroExpediente,m.expediente,a.refCondiciones,a.refCondicion,a.numeroCondiciones,a.numCondiciones,a.nCondiciones,a.referenciaCondiciones,a.numeroExpediente,a.expedienteCondiciones];for(const v of vals){const s=String(v==null?'':v).trim();if(s)return s}return''}
-function expIndexFrom(mainRaw,metaRaw,flagsRaw,pdfIds){let p={avisos:[]},mm={},ff={};try{p=JSON.parse(String(mainRaw||'{}'))||p}catch(e){}try{mm=JSON.parse(String(metaRaw||'{}'))||{}}catch(e){}try{ff=JSON.parse(String(flagsRaw||'{}'))||{}}catch(e){}const set=new Set(pdfIds||[]),out={};for(const a of (Array.isArray(p.avisos)?p.avisos:[])){const r=condRefFrom(a,mm),candidate=!!r||!!(ff[String(a.id)]&&ff[String(a.id)].condicionesSuministro)||set.has(String(a.id));if(candidate)out[String(a.id)]={id:Number(a.id)||0,ref:String(r||''),cliente:String(a.cliente||''),direccion:String(a.direccion||'')}}return out}
+function expIndexFrom(mainRaw,metaRaw,flagsRaw,pdfIds){let p={avisos:[]},mm={},ff={};try{p=JSON.parse(String(mainRaw||'{}'))||p}catch(e){}try{mm=JSON.parse(String(metaRaw||'{}'))||{}}catch(e){}try{ff=JSON.parse(String(flagsRaw||'{}'))||{}}catch(e){}const set=new Set(pdfIds||[]),out={};for(const a of (Array.isArray(p.avisos)?p.avisos:[])){const r=condRefFrom(a,mm),candidate=!!r||set.has(String(a.id));if(candidate)out[String(a.id)]={id:Number(a.id)||0,ref:String(r||''),cliente:String(a.cliente||''),direccion:String(a.direccion||'')}}return out}
 function remoteCondPdfIds(snapshot){const out=[],stores=snapshot&&snapshot.indexedDB&&snapshot.indexedDB.stores||{},a=Array.isArray(stores[STATE])?stores[STATE]:[];for(const z of a){const k=String(z&&z.key);if(k.startsWith(COND))out.push(String(k.slice(COND.length)))}return Array.from(new Set(out))}
 async function auditExpCentral(d,manual){
  const n=d.getElementById('s132ExpSync');if(!n)return;
