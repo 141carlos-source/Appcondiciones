@@ -30,40 +30,53 @@ async function crearClientePdf(w,d,empresa,lib){
   const image=await pdf.embedJpg(data),scale=Math.min(width/image.width,height/image.height),iw=image.width*scale,ih=image.height*scale;
   page.drawImage(image,{x:x+(width-iw)/2,y:841.89-top-height+(height-ih)/2,width:iw,height:ih});
  }
- await logo(empresa.logoData,36,27,120,52);
- await logo(new URL('./assets/logo_e-distribucion.jpg',window.location.href).href,459,28,100,47);
- write('EMPRESA INSTALADORA',36,85,7,bold,muted);write('DISTRIBUIDORA',459,85,7,bold,muted);
- let top=104;
+ await logo(empresa.logoData,36,20,110,40);
+ await logo(new URL('./assets/logo_e-distribucion.jpg',window.location.href).href,469,20,90,40);
+ write('EMPRESA INSTALADORA',36,66,7,bold,muted);write('DISTRIBUIDORA',469,66,7,bold,muted);
+ let top=82;
  const lines=[empresa.nombreComercial||empresa.nombre,empresa.nombreComercial&&empresa.nombre&&empresa.nombre!==empresa.nombreComercial?empresa.nombre:'',empresa.nif?'NIF/CIF: '+empresa.nif:'',[empresa.direccion,empresa.cp,empresa.localidad,empresa.provincia].filter(Boolean).join(' · '),[empresa.telefono,empresa.email,empresa.web].filter(Boolean).join(' · ')].filter(Boolean);
- lines.forEach((v,i)=>wrap(v,523,i?8:12,i?regular:bold).forEach(row=>{write(row,36,top,i?8:12,i?regular:bold);top+=i?12:17}));
- if(top>207)throw new Error('Los datos de empresa son demasiado largos para la cabecera. Revisa Configuración.');
- top+=8;page.drawRectangle({x:36,y:841.89-top,width:523,height:3,color:red});top+=13;
- write('FICHA DE DATOS DEL CLIENTE',36,top,18,bold);top+=26;
- write('Revise los datos, complete los campos y guarde el PDF antes de devolverlo.',36,top,9);top+=15;
- write('AVISO '+(gv(d,'avId')||'NUEVO')+'  ·  '+new Date().toLocaleDateString('es-ES'),36,top,8,bold,muted);top+=23;
- function section(label){write(label,36,top,10,bold,red);top+=20}
- function field(name,label,value,x,width,height=18,multi=false){write(label,x,top,8,bold,muted);const f=form.createTextField(name);if(multi)f.enableMultiline();f.setText(text(value));f.addToPage(page,{x,y:841.89-top-13-height,width,height,borderWidth:.6,borderColor:line,backgroundColor:pale,textColor:ink,font:regular});f.setFontSize(multi?9:0);f.updateAppearances(regular)}
- function pair(a,b){field(a[0],a[1],gv(d,a[2]),36,254);field(b[0],b[1],gv(d,b[2]),305,254);top+=38}
- function full(name,label,id,height=18,multi=false){field(name,label,gv(d,id),36,523,height,multi);top+=height+20}
- section('01  TITULAR Y CONTACTO');
+ lines.forEach((v,i)=>wrap(v,523,i?8:11,i?regular:bold).forEach(row=>{write(row,36,top,i?8:11,i?regular:bold);top+=i?10:15}));
+ if(top>180)throw new Error('Los datos de empresa son demasiado largos para la cabecera. Revisa Configuración.');
+ top+=7;page.drawRectangle({x:36,y:841.89-top,width:523,height:3,color:red});top+=10;
+ write('FICHA DE DATOS DEL CLIENTE',36,top,16,bold);top+=23;
+ write('Revise los datos y complete los campos para el boletín y/o contrato.',36,top,9);top+=12;
+ write('Guarde el PDF antes de devolverlo.',36,top,9);top+=16;
+ write('AVISO '+(gv(d,'avId')||'NUEVO')+'  ·  '+new Date().toLocaleDateString('es-ES'),36,top,8,bold,muted);top+=19;
+ function section(label){write(label,36,top,9,bold,red);top+=17}
+ function field(name,label,value,x,width,height=18,multi=false){write(label,x,top,7.5,bold,muted);const f=form.createTextField(name);if(multi)f.enableMultiline();f.setText(text(value));f.addToPage(page,{x,y:841.89-top-11-height,width,height,borderWidth:.6,borderColor:line,backgroundColor:pale,textColor:ink,font:regular});f.setFontSize(multi?8:0);f.updateAppearances(regular)}
+ function pair(a,b){field(a[0],a[1],gv(d,a[2]),36,254);field(b[0],b[1],gv(d,b[2]),305,254);top+=34}
+ function full(name,label,id,height=18,multi=false){field(name,label,gv(d,id),36,523,height,multi);top+=height+16}
+ section('01  DATOS DEL CLIENTE');
  pair(['cliente','Nombre / Razón social','avCliente'],['nif','DNI / NIE / NIF / CIF','avNif']);
- pair(['contacto','Persona de contacto','avContacto'],['telefono','Teléfono','avTelefono']);
- full('email','Correo electrónico','avEmail');
- section('02  DATOS DEL SUMINISTRO');
+ field('contacto','Persona de contacto',gv(d,'avContacto'),36,167);field('telefono','Teléfono',gv(d,'avTelefono'),214,125);field('email','Correo electrónico',gv(d,'avEmail'),350,209);top+=34;
+ section('02  DATOS DE SUMINISTRO');
  full('direccion','Dirección del suministro','avDireccion');
- field('piso','Piso',gv(d,'avPiso'),36,74);field('puerta','Puerta',gv(d,'avPuerta'),124,74);field('cp','Código postal',gv(d,'avCp'),212,90);field('localidad','Localidad',gv(d,'avLocalidad'),316,243);top+=38;
+ field('piso','Piso',gv(d,'avPiso'),36,74);field('puerta','Puerta',gv(d,'avPuerta'),124,74);field('cp','Código postal',gv(d,'avCp'),212,90);field('localidad','Localidad',gv(d,'avLocalidad'),316,243);top+=34;
  pair(['provincia','Provincia','avProvincia'],['refCatastral','Referencia catastral','avRefCatastral']);
  pair(['cupsE','CUPS electricidad (si dispone de él)','avCupsE'],['cupsG','CUPS gas (si dispone de él)','avCupsG']);
- section('03  FACTURACIÓN Y OBSERVACIONES');
+ section('03  DATOS ELÉCTRICOS');
+ field('tension','Tensión',gv(d,'avTension'),36,125);field('iga','IGA (A)',gv(d,'avIga'),172,70);field('potenciaInstalada','Potencia calculada (kW)',gv(d,'avPotenciaCalculada'),253,147);field('potenciaSolicitada','Potencia solicitada (kW)',gv(d,'avPotenciaSolicitada'),411,148);top+=34;
+ section('04  FACTURACIÓN Y OBSERVACIONES');
  pair(['direccionFiscal','Dirección fiscal / facturación','avDireccionFiscal'],['emailFiscal','Correo de facturación','avEmailFiscal']);
  full('iban','IBAN (si procede para la contratación)','s132Iban');
- full('concepto','Concepto / motivo de la solicitud','avConcepto');
- full('observaciones','Observaciones o datos que desea corregir','avObservaciones',35,true);
- if(top>785)throw new Error('La cabecera de empresa deja poco espacio. Reduce sus datos de contacto en Configuración.');
- const returnLines=wrap('Guarde el PDF completado y devuélvalo'+(empresa.email?' a '+empresa.email: ' respondiendo al correo recibido')+'.',523,8);
+ field('concepto','Concepto / motivo de la solicitud',gv(d,'avConcepto'),36,254,30,true);field('observaciones','Observaciones / correcciones',gv(d,'avObservaciones'),305,254,30,true);top+=46;
+ // Keep the handwritten signature separate from text fields so mobile PDF readers can draw on it.
+ if(top+116>783)throw new Error('Los datos de empresa ocupan demasiado espacio. Reduce la cabecera en Configuración.');
+ section('05  FIRMA DEL CLIENTE');
+ field('firmante','Nombre y apellidos del firmante','',36,350);field('fechaFirma','Fecha de firma (DD/MM/AAAA)','',400,159);top+=34;
+ page.drawRectangle({x:36,y:841.89-top-46,width:523,height:46,borderWidth:.7,borderColor:line});
+ write('Firma manuscrita del cliente',44,top+5,7.5,regular,muted);top+=52;
+ write('En el móvil: abra el PDF en un lector con «Rellenar y firmar», firme con el dedo y guarde una copia.',36,top,7.5,regular,muted);
+ const returnLines=wrap('Devuelva el PDF completado y firmado por WhatsApp en la conversación recibida'+(empresa.email?' o por correo a '+empresa.email:'')+'.',523,8);
  returnLines.forEach((row,i)=>write(row,36,799+i*11,8,regular,muted));
  pdf.setTitle('Ficha rellenable de datos del cliente');pdf.setAuthor(text(empresa.nombreComercial||empresa.nombre));pdf.setSubject('Datos del cliente y del suministro');
  form.updateFieldAppearances(regular);return pdf.save();
+}
+function telefonoClienteWhatsApp(value){
+ const raw=S(value).trim();if(!/^[+\d\s().-]+$/.test(raw))return '';
+ let n=raw.replace(/\D/g,'');if(n.startsWith('00'))n=n.slice(2);
+ if(/^[6789]\d{8}$/.test(n)&&!raw.startsWith('+'))n='34'+n;
+ return /^[1-9]\d{7,14}$/.test(n)?n:'';
 }
 async function formularioCliente(){
  const w=frame();if(!w)return;const d=w.document;
@@ -72,7 +85,7 @@ async function formularioCliente(){
  if(!(empresa.nombre||empresa.nombreComercial)||!empresa.logoData){w.alert('Guarda primero el nombre y el logo de vuestra empresa en Configuración para incluirlos en el formulario.');return}
  const existing=d.getElementById('s135ClientePdfDialog');if(existing){existing.focus();return}
  const dialog=d.createElement('dialog');dialog.id='s135ClientePdfDialog';dialog.setAttribute('aria-label','Formulario PDF para el cliente');dialog.style.cssText='max-width:520px;width:calc(100% - 40px);box-sizing:border-box;border:1px solid #dbe3ee;border-radius:16px;padding:22px;color:#182033;max-height:90vh;overflow:auto';
- dialog.innerHTML='<h2 style="margin-top:0">Formulario para el cliente</h2><p>PDF rellenable con vuestro logo, el de e-distribución y los datos de empresa. El cliente puede revisar y completar los datos de la ficha.</p><p role="status" data-status>Preparando formulario…</p><div style="display:grid;gap:9px"><button type="button" data-preview disabled>VER PDF</button><button type="button" data-download disabled>DESCARGAR PDF</button><button type="button" data-share disabled>COMPARTIR PDF</button><button type="button" data-mail disabled>PREPARAR CORREO AL CLIENTE</button><button type="button" data-close>CERRAR</button></div><p style="font-size:12px;color:#667085">Para enviarlo por correo, descarga el PDF y adjúntalo al mensaje. El correo no añade el archivo automáticamente. El cliente debe abrirlo en un lector compatible con formularios PDF, rellenarlo, guardarlo y devolverlo.</p>';
+ dialog.innerHTML='<h2 style="margin-top:0">Formulario para el cliente</h2><p>PDF rellenable con vuestro logo, el de e-distribución y los datos de empresa. El cliente puede rellenarlo desde el móvil y añadir su firma con un lector PDF compatible.</p><p role="status" data-status>Preparando formulario…</p><div style="display:grid;gap:9px"><button type="button" data-preview disabled>VER PDF</button><button type="button" data-download disabled>DESCARGAR PDF</button><button type="button" data-share disabled>WHATSAPP / COMPARTIR PDF</button><button type="button" data-whatsapp disabled>ABRIR WHATSAPP DEL CLIENTE</button><button type="button" data-mail disabled>PREPARAR CORREO AL CLIENTE</button><button type="button" data-close>CERRAR</button></div><p style="font-size:12px;color:#667085">Para enviarlo por correo, descarga el PDF y adjúntalo al mensaje. El correo no añade el archivo automáticamente. En el móvil: abre el PDF en un lector con «Rellenar y firmar», completa los campos, firma con el dedo y guarda una copia. Para WhatsApp, pulsa compartir y elige WhatsApp. Si no es compatible, descarga el PDF y adjúntalo como Documento en el chat; abrir el chat no adjunta el archivo.</p>';
  d.body.appendChild(dialog);dialog.showModal();let url='',file=null;const status=dialog.querySelector('[data-status]');dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>{dialog.remove();if(url)setTimeout(()=>URL.revokeObjectURL(url),60000)},{once:true});
  try{
   const lib=await clientePdfLib(),bytes=await crearClientePdf(w,d,empresa,lib);if(!dialog.isConnected)return;
@@ -81,9 +94,20 @@ async function formularioCliente(){
   dialog.querySelectorAll('button').forEach(b=>b.disabled=false);
   dialog.querySelector('[data-preview]').onclick=()=>{const a=d.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';a.click()};
   dialog.querySelector('[data-download]').onclick=()=>{const a=d.createElement('a');a.href=url;a.download=filename;d.body.appendChild(a);a.click();a.remove()};
-  const share=dialog.querySelector('[data-share]');share.hidden=!(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]}));
-  share.onclick=async()=>{try{await navigator.share({files:[file],title:'Formulario de datos del cliente',text:'Por favor, complete y guarde el PDF y devuélvalo a '+(empresa.email||'nuestra empresa')+'.'})}catch(e){if(e.name!=='AbortError')status.textContent='No se pudo compartir. Descarga el PDF y adjúntalo al correo.'}};
-  const to=gv(d,'avEmail'),subject='Formulario de datos - '+(gv(d,'avDireccion')||gv(d,'avCliente')||'suministro'),body=['Buenos días,','','Adjuntamos el formulario de datos del cliente. Por favor, revise los datos, complete los campos y guarde el PDF antes de devolverlo'+(empresa.email?' a '+empresa.email: ' respondiendo a este correo')+'.','','Muchas gracias.',empresa.nombreComercial||empresa.nombre,empresa.telefono||'',empresa.email||''].filter((v,i,a)=>v||i<4).join('\n');
+  const share=dialog.querySelector('[data-share]');
+  share.onclick=async()=>{try{
+   if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+    status.textContent='Elige WhatsApp y el contacto al que quieres enviar el PDF.';
+    await navigator.share({files:[file],title:'Formulario de datos y firma del cliente',text:'Por favor, complete el PDF, firme con el dedo en un lector con Rellenar y firmar, guarde una copia y devuélvala por este chat.'});
+   }else{dialog.querySelector('[data-download]').click();status.textContent='PDF descargado. Abre WhatsApp y adjúntalo como Documento en el chat del cliente.'}
+  }catch(e){if(e.name!=='AbortError')status.textContent='No se pudo compartir. Descarga el PDF, abre WhatsApp y adjúntalo como Documento.'}};
+  dialog.querySelector('[data-whatsapp]').onclick=()=>{
+   const phone=telefonoClienteWhatsApp(gv(d,'avTelefono'));
+   const message='Buenos días. Le enviaremos un PDF para revisar y completar los datos del boletín y/o contrato. Ábralo en un lector PDF con Rellenar y firmar, firme con el dedo, guarde una copia y devuélvala por este chat. Gracias.';
+   const a=d.createElement('a');a.href='https://wa.me/'+phone+'?text='+encodeURIComponent(message);a.target='_blank';a.rel='noopener';d.body.appendChild(a);a.click();a.remove();
+   status.textContent='Adjunta el PDF descargado como Documento. El chat no adjunta el archivo automáticamente.';
+  };
+  const to=gv(d,'avEmail'),subject='Formulario de datos - '+(gv(d,'avDireccion')||gv(d,'avCliente')||'suministro'),body=['Buenos días,','','Adjuntamos el formulario de datos del cliente. Por favor, revise los datos, complete los campos para el boletín y/o contrato, añada su firma y guarde el PDF antes de devolverlo'+(empresa.email?' a '+empresa.email: ' respondiendo a este correo')+'.','','Muchas gracias.',empresa.nombreComercial||empresa.nombre,empresa.telefono||'',empresa.email||''].filter((v,i,a)=>v||i<4).join('\n');
   dialog.querySelector('[data-mail]').onclick=()=>{w.location.href='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);status.textContent='Adjunta al correo el PDF descargado antes de enviarlo.'};
  }catch(e){if(dialog.isConnected)status.textContent='No se pudo crear el formulario: '+(e.message||e)}
 }
@@ -103,4 +127,5 @@ function layout(){loadSalida();let w=frame();if(!w)return;let d=w.document,grid=
 function init(){stableLayout();if(started)return;started=true;setTimeout(stableLayout,300);setTimeout(stableLayout,1000);setTimeout(stableLayout,2200)}
 window.Soltec135AvisosCliente={init:init,version:B,contrato:function(){abrir('contrato')},condiciones:function(){abrir('condiciones')},datosCliente:function(){abrir('cliente')}};init();
 })();
+
 
