@@ -51,6 +51,8 @@
       #formAviso .sectionTitle{margin:7px 0 5px;padding-bottom:4px}
       #formAviso .c135-tab>summary{padding:9px 10px}
       #formAviso .c135-tab-body{padding:0 8px 8px}
+      #formAviso .c135-find-cp{min-width:0;display:flex;align-items:flex-end}
+      #formAviso .c135-find-cp button{width:100%;min-height:36px;margin:0!important;padding:5px 7px;font-size:12px;line-height:1.15}
       #s133PhotoShort{margin:7px 0!important}#av135MemoryTab button,#s133PhotoShort button{width:100%}
       @media(max-width:620px){.c135-place-grid{grid-template-columns:1fr}.c135-home{grid-template-columns:1fr 1fr}.c135-home button{min-height:70px;font-size:14px}}
     `;
@@ -337,6 +339,8 @@
       };
       cp.insertAdjacentElement('afterend', button);
     }
+    const findWrap = el(d, 'c135FindCpWrap');
+    if (findWrap && button.parentElement !== findWrap) findWrap.appendChild(button);
     refreshPlaces(d);
   }
 
