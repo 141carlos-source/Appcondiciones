@@ -53,7 +53,7 @@ async function crearClientePdf(w,d,empresa,lib){
  full('direccion','Dirección del suministro','avDireccion');
  field('piso','Piso',gv(d,'avPiso'),36,74);field('puerta','Puerta',gv(d,'avPuerta'),124,74);field('cp','Código postal',gv(d,'avCp'),212,90);field('localidad','Localidad',gv(d,'avLocalidad'),316,243);top+=34;
  pair(['provincia','Provincia','avProvincia'],['refCatastral','Referencia catastral','avRefCatastral']);
- pair(['cupsE','CUPS electricidad (si dispone de él)','avCupsE'],['cupsG','CUPS gas (si dispone de él)','avCupsG']);
+ field('cupsE','CUPS electricidad (si dispone de él)',gv(d,'avCupsE'),36,254);field('latitud','Latitud',gv(d,'avLatitud'),305,121);field('longitud','Longitud',gv(d,'avLongitud'),438,121);top+=34;
  section('03  DATOS ELÉCTRICOS');
  field('tension','Tensión',gv(d,'avTension'),36,125);field('iga','IGA (A)',gv(d,'avIga'),172,70);field('potenciaInstalada','Potencia calculada (kW)',gv(d,'avPotenciaCalculada'),253,147);field('potenciaSolicitada','Potencia solicitada (kW)',gv(d,'avPotenciaSolicitada'),411,148);top+=34;
  section('04  FACTURACIÓN Y OBSERVACIONES');
