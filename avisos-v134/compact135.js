@@ -41,6 +41,11 @@
       .c135-context{font-size:12px;font-weight:800;color:#667085;margin:0 0 10px}
       .c135-back{margin-bottom:10px}.c135-hidden-label{display:none!important}
       #formAviso{padding:10px}
+      #formAviso .c135-form-details>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;color:#24466e}
+      #formAviso .c135-form-details>summary::-webkit-details-marker{display:none}
+      #formAviso .c135-form-details>summary:after{content:'▾';color:#e7281c;font-size:18px}
+      #formAviso .c135-form-details[open]>summary:after{content:'▴'}
+      #formAviso .c135-form-details>summary h3{margin:2px 0;font-size:16px}
       #formAviso .grid2{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 8px}
       #formAviso .grid2>.wide,#formAviso .grid2>.sectionTitle,#formAviso .grid2>.c135-tab,#formAviso .grid2>.c135-place-grid{grid-column:1/-1}
       #formAviso .grid2>label.wide{grid-column:auto}
@@ -344,6 +349,18 @@
     refreshPlaces(d);
   }
 
+  function collapsibleForm(d) {
+    const form = el(d, 'formAviso'); if (!form || el(d, 'c135FormDetails')) return;
+    const details = d.createElement('details'); details.id = 'c135FormDetails'; details.className = 'c135-form-details';
+    const summary = d.createElement('summary'); const title = el(d, 'formAvisoTitulo');
+    if (title) summary.appendChild(title); else summary.textContent = 'Editar aviso';
+    details.appendChild(summary);
+    const body = d.createElement('div'); body.className = 'c135-form-body';
+    while (form.firstChild) body.appendChild(form.firstChild);
+    details.appendChild(body); form.appendChild(details);
+    details.open = form.style.display !== 'none';
+  }
+
   function hooks(d) {
     const App = appWindow.App; if (!App || App.__compact135) return;
     const choose = App.elegirCarto;
@@ -356,12 +373,20 @@
       const row = { cp: text((el(d, 'avCp') || {}).value), localidad: text((el(d, 'avLocalidad') || {}).value), provincia: text((el(d, 'avProvincia') || {}).value) };
       const result = save.apply(this, arguments); rememberPlace(row); refreshPlaces(d); return result;
     };
+    ['nuevoAviso', 'editarAviso', 'duplicarAviso'].forEach(name => {
+      if (!App[name]) return;
+      const original = App[name];
+      App[name] = function () {
+        const details = el(d, 'c135FormDetails'); if (details) details.open = true;
+        return original.apply(this, arguments);
+      };
+    });
     App.__compact135 = true;
   }
 
   function arrange(d) {
     if (formEditing(d)) return;
-    style(d); home(d); addressFields(d); compactGroups(d); compactFields(d); contextualTabs(d); contextualScreens(d); hookPhotos(d); addressLearning(d); hooks(d);
+    style(d); home(d); collapsibleForm(d); addressFields(d); compactGroups(d); compactFields(d); contextualTabs(d); contextualScreens(d); hookPhotos(d); addressLearning(d); hooks(d);
   }
 
   function init(win) {
