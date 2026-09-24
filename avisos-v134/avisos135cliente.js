@@ -38,7 +38,7 @@ async function crearClientePdf(w,d,empresa,lib){
  lines.forEach((v,i)=>wrap(v,523,i?8:11,i?regular:bold).forEach(row=>{write(row,36,top,i?8:11,i?regular:bold);top+=i?10:15}));
  if(top>180)throw new Error('Los datos de empresa son demasiado largos para la cabecera. Revisa Configuración.');
  top+=7;page.drawRectangle({x:36,y:841.89-top,width:523,height:3,color:red});top+=10;
- write('FICHA DE DATOS DEL CLIENTE',36,top,16,bold);top+=23;
+ write('FICHA DE DATOS DEL CLIENTE',36,top,12,bold);top+=23;
  write('Revise los datos y complete los campos para el boletín y/o contrato.',36,top,9);top+=12;
  write('Guarde el PDF antes de devolverlo.',36,top,9);top+=16;
  write('AVISO '+(gv(d,'avId')||'NUEVO')+'  ·  '+new Date().toLocaleDateString('es-ES'),36,top,8,bold,muted);top+=19;
