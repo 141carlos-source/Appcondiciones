@@ -40,7 +40,17 @@
       .c135-place-grid{display:grid;grid-template-columns:.55fr 1fr 1fr;gap:8px;grid-column:1/-1}
       .c135-context{font-size:12px;font-weight:800;color:#667085;margin:0 0 10px}
       .c135-back{margin-bottom:10px}.c135-hidden-label{display:none!important}
-      #formAviso .grid2{gap:8px 10px}#formAviso label{margin:3px 0}#formAviso input,#formAviso select{padding:10px}
+      #formAviso{padding:10px}
+      #formAviso .grid2{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 8px}
+      #formAviso .grid2>.wide,#formAviso .grid2>.sectionTitle,#formAviso .grid2>.c135-tab,#formAviso .grid2>.c135-place-grid{grid-column:1/-1}
+      #formAviso .grid2>label.wide{grid-column:auto}
+      #formAviso .grid2>label:has(#avCliente,#avDireccion,#avRefCatastral,#avEmail,#s132Iban,#avCupsE,#avCupsG,#avConcepto,#avObservaciones){grid-column:1/-1}
+      #formAviso label{min-width:0;margin:1px 0;line-height:1.25}
+      #formAviso input:not([type=checkbox]):not([type=file]),#formAviso select{box-sizing:border-box;width:100%;min-width:0;height:36px;margin-top:3px;padding:6px 8px;border-radius:8px;font-size:16px}
+      #formAviso textarea{box-sizing:border-box;min-height:72px;margin-top:3px;padding:7px 8px;border-radius:8px;font-size:16px}
+      #formAviso .sectionTitle{margin:7px 0 5px;padding-bottom:4px}
+      #formAviso .c135-tab>summary{padding:9px 10px}
+      #formAviso .c135-tab-body{padding:0 8px 8px}
       #s133PhotoShort{margin:7px 0!important}#av135MemoryTab button,#s133PhotoShort button{width:100%}
       @media(max-width:620px){.c135-place-grid{grid-template-columns:1fr}.c135-home{grid-template-columns:1fr 1fr}.c135-home button{min-height:70px;font-size:14px}}
     `;
