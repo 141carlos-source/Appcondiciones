@@ -23,7 +23,7 @@ async function crearClientePdf(w,d,empresa,lib){
  const regular=await pdf.embedFont(StandardFonts.Helvetica),bold=await pdf.embedFont(StandardFonts.HelveticaBold);
  const ink=rgb(.10,.15,.23),muted=rgb(.36,.41,.48),red=rgb(.90,.15,.11),line=rgb(.79,.83,.88),pale=rgb(.97,.98,1);
  const text=v=>Array.from(S(v).replace(/[\r\n\t]+/g,' ')).map(c=>{try{regular.encodeText(c);return c}catch(_){return '-'}}).join('');
- function write(v,x,top,size=9,font=regular,color=ink){page.drawText(text(v),{x,y:841.89-top-size,size,font,color})}
+ function write(v,x,top,size=9,font=regular,color=ink){size=Math.min(size,9);page.drawText(text(v),{x,y:841.89-top-size,size,font,color})}
  function wrap(v,width,size=9,font=regular){const lines=[];let row='';for(const word of text(v).split(/\s+/)){if(!word)continue;let chunks=[''];for(const c of word){let k=chunks.length-1;if(font.widthOfTextAtSize(chunks[k]+c,size)>width)chunks.push(c);else chunks[k]+=c}for(const chunk of chunks){const next=row?row+' '+chunk:chunk;if(font.widthOfTextAtSize(next,size)>width&&row){lines.push(row);row=chunk}else row=next}}if(row)lines.push(row);return lines}
  async function logo(src,x,top,width,height){
   const data=await new Promise((resolve,reject)=>{const im=new Image(),tm=setTimeout(()=>reject(new Error('No se pudo cargar uno de los logos.')),12000);im.onload=()=>{clearTimeout(tm);try{const c=document.createElement('canvas');c.width=Math.min(im.naturalWidth,900);c.height=Math.max(1,Math.round(im.naturalHeight*c.width/im.naturalWidth));const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.95))}catch(e){reject(e)}};im.onerror=()=>{clearTimeout(tm);reject(new Error('No se pudo cargar uno de los logos.'))};im.src=src});
@@ -38,12 +38,12 @@ async function crearClientePdf(w,d,empresa,lib){
  lines.forEach((v,i)=>wrap(v,523,i?8:11,i?regular:bold).forEach(row=>{write(row,36,top,i?8:11,i?regular:bold);top+=i?10:15}));
  if(top>180)throw new Error('Los datos de empresa son demasiado largos para la cabecera. Revisa Configuración.');
  top+=7;page.drawRectangle({x:36,y:841.89-top,width:523,height:3,color:red});top+=10;
- write('FICHA DE DATOS DEL CLIENTE',36,top,12,bold);top+=23;
+ write('FICHA DE DATOS DEL CLIENTE',36,top,9,bold);top+=23;
  write('Revise los datos y complete los campos para el boletín y/o contrato.',36,top,9);top+=12;
  write('Guarde el PDF antes de devolverlo.',36,top,9);top+=16;
  write('AVISO '+(gv(d,'avId')||'NUEVO')+'  ·  '+new Date().toLocaleDateString('es-ES'),36,top,8,bold,muted);top+=19;
  function section(label){write(label,36,top,9,bold,red);top+=17}
- function field(name,label,value,x,width,height=18,multi=false){write(label,x,top,7.5,bold,muted);const f=form.createTextField(name);if(multi)f.enableMultiline();f.setText(text(value));f.addToPage(page,{x,y:841.89-top-11-height,width,height,borderWidth:.6,borderColor:line,backgroundColor:pale,textColor:ink,font:regular});f.setFontSize(multi?8:0);f.updateAppearances(regular)}
+ function field(name,label,value,x,width,height=18,multi=false){write(label,x,top,7.5,bold,muted);const f=form.createTextField(name);if(multi)f.enableMultiline();f.setText(text(value));f.addToPage(page,{x,y:841.89-top-11-height,width,height,borderWidth:.6,borderColor:line,backgroundColor:pale,textColor:ink,font:regular});f.setFontSize(9);f.updateAppearances(regular)}
  function pair(a,b){field(a[0],a[1],gv(d,a[2]),36,254);field(b[0],b[1],gv(d,b[2]),305,254);top+=34}
  function full(name,label,id,height=18,multi=false){field(name,label,gv(d,id),36,523,height,multi);top+=height+16}
  section('01  DATOS DEL CLIENTE');
