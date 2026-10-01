@@ -1,5 +1,5 @@
 (function(){'use strict';
-const B='V135-ONECLICK3-TECLADO';let done=false,planObs=null,started=false;
+const B='V135-CLIENTE-FIRMA-COMPACT1';let done=false,planObs=null,started=false;
 function loadSalida(){try{if(!document.getElementById('s135SafeExit')){let s=document.createElement('script');s.id='s135SafeExit';s.src='./safeexit135.js?build='+encodeURIComponent(B)+'&t='+Date.now();document.head.appendChild(s)}else if(window.Soltec135SafeExit&&window.Soltec135SafeExit.init)window.Soltec135SafeExit.init()}catch(e){}}
 function frame(){try{let f=document.getElementById('app134');return f&&f.contentWindow&&f.contentWindow.document?f.contentWindow:null}catch(e){return null}}
 function S(v){return String(v==null?'':v)}
@@ -18,7 +18,7 @@ function clientePdfLib(){
   s.onerror=()=>{s.remove();clientePdfLibPromise=null;reject(new Error('No se pudo cargar el generador PDF. Conecta a Internet y vuelve a intentarlo.'))};document.head.appendChild(s);
  });return clientePdfLibPromise;
 }
-async function crearClientePdf(w,d,empresa,lib){
+async function crearClientePdf(w,d,empresa,lib,firma){
  const {PDFDocument,StandardFonts,rgb}=lib,pdf=await PDFDocument.create(),page=pdf.addPage([595.28,841.89]),form=pdf.getForm();
  const regular=await pdf.embedFont(StandardFonts.Helvetica),bold=await pdf.embedFont(StandardFonts.HelveticaBold);
  const ink=rgb(.10,.15,.23),muted=rgb(.36,.41,.48),red=rgb(.90,.15,.11),line=rgb(.79,.83,.88),pale=rgb(.97,.98,1);
@@ -42,35 +42,53 @@ async function crearClientePdf(w,d,empresa,lib){
  write('Revise los datos y complete los campos para el boletín y/o contrato.',36,top,9);top+=12;
  write('Guarde el PDF antes de devolverlo.',36,top,9);top+=16;
  write('AVISO '+(gv(d,'avId')||'NUEVO')+'  ·  '+new Date().toLocaleDateString('es-ES'),36,top,8,bold,muted);top+=19;
- function section(label){write(label,36,top,9,bold,red);top+=17}
- function field(name,label,value,x,width,height=18,multi=false){write(label,x,top,7.5,bold,muted);const f=form.createTextField(name);if(multi)f.enableMultiline();f.setText(text(value));f.addToPage(page,{x,y:841.89-top-11-height,width,height,borderWidth:.6,borderColor:line,backgroundColor:pale,textColor:ink,font:regular});f.setFontSize(9);f.updateAppearances(regular)}
- function pair(a,b){field(a[0],a[1],gv(d,a[2]),36,254);field(b[0],b[1],gv(d,b[2]),305,254);top+=34}
- function full(name,label,id,height=18,multi=false){field(name,label,gv(d,id),36,523,height,multi);top+=height+16}
+ let compact=false;function section(label){compact=/DATOS DE SUMINISTRO|DATOS ELÉCTRICOS/.test(label);write(label,36,top,compact?8:9,bold,red);top+=compact?15:17}
+ function field(name,label,value,x,width,height=compact?14:18,multi=false){write(label,x,top,compact?6.8:7.5,bold,muted);const f=form.createTextField(name);if(multi)f.enableMultiline();f.setText(text(value));f.addToPage(page,{x,y:841.89-top-11-height,width,height,borderWidth:.6,borderColor:line,backgroundColor:pale,textColor:ink,font:regular});f.setFontSize(compact?8:9);f.updateAppearances(regular)}
+ function pair(a,b){field(a[0],a[1],gv(d,a[2]),36,254);field(b[0],b[1],gv(d,b[2]),305,254);top+=compact?28:34}
+ function full(name,label,id,height=compact?14:18,multi=false){field(name,label,gv(d,id),36,523,height,multi);top+=height+(compact?14:16)}
  section('01  DATOS DEL CLIENTE');
  pair(['cliente','Nombre / Razón social','avCliente'],['nif','DNI / NIE / NIF / CIF','avNif']);
  field('contacto','Persona de contacto',gv(d,'avContacto'),36,167);field('telefono','Teléfono',gv(d,'avTelefono'),214,125);field('email','Correo electrónico',gv(d,'avEmail'),350,209);top+=34;
  section('02  DATOS DE SUMINISTRO');
  full('direccion','Dirección del suministro','avDireccion');
- field('piso','Piso',gv(d,'avPiso'),36,74);field('puerta','Puerta',gv(d,'avPuerta'),124,74);field('cp','Código postal',gv(d,'avCp'),212,90);field('localidad','Localidad',gv(d,'avLocalidad'),316,243);top+=34;
+ field('piso','Piso',gv(d,'avPiso'),36,74);field('puerta','Puerta',gv(d,'avPuerta'),124,74);field('cp','Código postal',gv(d,'avCp'),212,90);field('localidad','Localidad',gv(d,'avLocalidad'),316,243);top+=28;
  pair(['provincia','Provincia','avProvincia'],['refCatastral','Referencia catastral','avRefCatastral']);
- field('cupsE','CUPS electricidad (si dispone de él)',gv(d,'avCupsE'),36,254);field('latitud','Latitud',gv(d,'avLatitud'),305,121);field('longitud','Longitud',gv(d,'avLongitud'),438,121);top+=34;
+ field('cupsE','CUPS electricidad (si dispone de él)',gv(d,'avCupsE'),36,254);field('latitud','Latitud',gv(d,'avLatitud'),305,121);field('longitud','Longitud',gv(d,'avLongitud'),438,121);top+=28;
  section('03  DATOS ELÉCTRICOS');
- field('tension','Tensión',gv(d,'avTension'),36,125);field('iga','IGA (A)',gv(d,'avIga'),172,70);field('potenciaInstalada','Potencia calculada (kW)',gv(d,'avPotenciaCalculada'),253,147);field('potenciaSolicitada','Potencia solicitada (kW)',gv(d,'avPotenciaSolicitada'),411,148);top+=34;
+ field('tension','Tensión',gv(d,'avTension'),36,125);field('iga','IGA (A)',gv(d,'avIga'),172,70);field('potenciaInstalada','Potencia calculada (kW)',gv(d,'avPotenciaCalculada'),253,147);field('potenciaSolicitada','Potencia solicitada (kW)',gv(d,'avPotenciaSolicitada'),411,148);top+=28;
  section('04  FACTURACIÓN Y OBSERVACIONES');
  pair(['direccionFiscal','Dirección fiscal / facturación','avDireccionFiscal'],['emailFiscal','Correo de facturación','avEmailFiscal']);
  full('iban','IBAN (si procede para la contratación)','s132Iban');
  field('concepto','Concepto / motivo de la solicitud',gv(d,'avConcepto'),36,254,30,true);field('observaciones','Observaciones / correcciones',gv(d,'avObservaciones'),305,254,30,true);top+=46;
  // Keep the handwritten signature separate from text fields so mobile PDF readers can draw on it.
- if(top+116>783)throw new Error('Los datos de empresa ocupan demasiado espacio. Reduce la cabecera en Configuración.');
+ if(top+140>783)throw new Error('Los datos de empresa ocupan demasiado espacio. Reduce la cabecera en Configuración.');
  section('05  FIRMA DEL CLIENTE');
- field('firmante','Nombre y apellidos del firmante','',36,350);field('fechaFirma','Fecha de firma (DD/MM/AAAA)','',400,159);top+=34;
- page.drawRectangle({x:36,y:841.89-top-46,width:523,height:46,borderWidth:.7,borderColor:line});
- write('Firma manuscrita del cliente',44,top+5,7.5,regular,muted);top+=52;
+ field('firmante','Nombre y apellidos del firmante',firma&&firma.nombre||'',36,350);field('fechaFirma','Fecha de firma (DD/MM/AAAA)',firma&&firma.fecha||'',400,159);top+=34;
+ page.drawRectangle({x:36,y:841.89-top-70,width:523,height:70,borderWidth:.7,borderColor:line});
+ write('Firma manuscrita del cliente',44,top+5,7.5,regular,muted);
+ if(firma&&firma.image){const image=await pdf.embedPng(firma.image),scale=Math.min(495/image.width,50/image.height),iw=image.width*scale,ih=image.height*scale;page.drawImage(image,{x:36+(523-iw)/2,y:841.89-top-65+(50-ih)/2,width:iw,height:ih})}top+=76;
  write('En el móvil: abra el PDF en un lector con «Rellenar y firmar», firme con el dedo y guarde una copia.',36,top,7.5,regular,muted);
  const returnLines=wrap('Devuelva el PDF completado y firmado por WhatsApp en la conversación recibida'+(empresa.email?' o por correo a '+empresa.email:'')+'.',523,8);
  returnLines.forEach((row,i)=>write(row,36,799+i*11,8,regular,muted));
  pdf.setTitle('Ficha rellenable de datos del cliente');pdf.setAuthor(text(empresa.nombreComercial||empresa.nombre));pdf.setSubject('Datos del cliente y del suministro');
  form.updateFieldAppearances(regular);return pdf.save();
+}
+function instalarFirmaCliente(dialog,apply,client){
+ const pad=dialog.querySelector('[data-sign-pad]'),box=dialog.querySelector('[data-sign-box]'),name=dialog.querySelector('[data-sign-name]'),ctx=pad.getContext('2d'),status=dialog.querySelector('[data-status]');
+ let drawing=false,ink=false,bounds=null,applying=false;
+ ctx.lineWidth=4;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#182033';
+ function point(e){const r=pad.getBoundingClientRect();return{x:(e.clientX-r.left)*pad.width/r.width,y:(e.clientY-r.top)*pad.height/r.height}}
+ function remember(p){if(!bounds)bounds={left:p.x,right:p.x,top:p.y,bottom:p.y};else{bounds.left=Math.min(bounds.left,p.x);bounds.right=Math.max(bounds.right,p.x);bounds.top=Math.min(bounds.top,p.y);bounds.bottom=Math.max(bounds.bottom,p.y)}}
+ dialog.querySelector('[data-sign]').onclick=()=>{box.hidden=!box.hidden;if(!name.value)name.value=client()||''};
+ pad.addEventListener('pointerdown',e=>{if(applying)return;e.preventDefault();drawing=true;pad.setPointerCapture(e.pointerId);const p=point(e);ctx.beginPath();ctx.moveTo(p.x,p.y);remember(p)});
+ pad.addEventListener('pointermove',e=>{if(!drawing)return;e.preventDefault();const p=point(e);ctx.lineTo(p.x,p.y);ctx.stroke();remember(p);ink=true});
+ function stop(){drawing=false}
+ pad.addEventListener('pointerup',stop);pad.addEventListener('pointercancel',stop);pad.addEventListener('lostpointercapture',stop);
+ dialog.querySelector('[data-sign-clear]').onclick=()=>{if(applying)return;ctx.clearRect(0,0,pad.width,pad.height);ink=false;bounds=null};
+ dialog.querySelector('[data-sign-apply]').onclick=async()=>{if(applying)return;if(!ink||!bounds){status.textContent='Dibuja primero la firma del cliente con el dedo.';return}if(!name.value.trim()){status.textContent='Indica el nombre del firmante.';name.focus();return}
+  applying=true;const button=dialog.querySelector('[data-sign-apply]');const outputs=dialog.querySelectorAll('[data-preview],[data-download],[data-share],[data-whatsapp],[data-mail]');outputs.forEach(b=>b.disabled=true);button.disabled=true;status.textContent='Añadiendo firma al PDF…';
+  try{const x=Math.max(0,Math.floor(bounds.left-10)),y=Math.max(0,Math.floor(bounds.top-10)),width=Math.min(pad.width-x,Math.ceil(bounds.right-x+10)),height=Math.min(pad.height-y,Math.ceil(bounds.bottom-y+10));const crop=dialog.ownerDocument.createElement('canvas');crop.width=width;crop.height=height;crop.getContext('2d').drawImage(pad,x,y,width,height,0,0,width,height);await apply({image:crop.toDataURL('image/png'),nombre:name.value.trim(),fecha:new Date().toLocaleDateString('es-ES')});box.hidden=true}catch(e){status.textContent='No se pudo añadir la firma: '+(e.message||e)}finally{applying=false;button.disabled=false;outputs.forEach(b=>b.disabled=false)}
+ };
 }
 function telefonoClienteWhatsApp(value){
  const raw=S(value).trim();if(!/^[+\d\s().-]+$/.test(raw))return '';
@@ -85,15 +103,16 @@ async function formularioCliente(){
  if(!(empresa.nombre||empresa.nombreComercial)||!empresa.logoData){w.alert('Guarda primero el nombre y el logo de vuestra empresa en Configuración para incluirlos en el formulario.');return}
  const existing=d.getElementById('s135ClientePdfDialog');if(existing){existing.focus();return}
  const dialog=d.createElement('dialog');dialog.id='s135ClientePdfDialog';dialog.setAttribute('aria-label','Formulario PDF para el cliente');dialog.style.cssText='max-width:520px;width:calc(100% - 40px);box-sizing:border-box;border:1px solid #dbe3ee;border-radius:16px;padding:22px;color:#182033;max-height:90vh;overflow:auto';
- dialog.innerHTML='<h2 style="margin-top:0">Formulario para el cliente</h2><p>PDF rellenable con vuestro logo, el de e-distribución y los datos de empresa. El cliente puede rellenarlo desde el móvil y añadir su firma con un lector PDF compatible.</p><p role="status" data-status>Preparando formulario…</p><div style="display:grid;gap:9px"><button type="button" data-preview disabled>VER PDF</button><button type="button" data-download disabled>DESCARGAR PDF</button><button type="button" data-share disabled>WHATSAPP / COMPARTIR PDF</button><button type="button" data-whatsapp disabled>ABRIR WHATSAPP DEL CLIENTE</button><button type="button" data-mail disabled>PREPARAR CORREO AL CLIENTE</button><button type="button" data-close>CERRAR</button></div><p style="font-size:12px;color:#667085">Para enviarlo por correo, descarga el PDF y adjúntalo al mensaje. El correo no añade el archivo automáticamente. En el móvil: abre el PDF en un lector con «Rellenar y firmar», completa los campos, firma con el dedo y guarda una copia. Para WhatsApp, pulsa compartir y elige WhatsApp. Si no es compatible, descarga el PDF y adjúntalo como Documento en el chat; abrir el chat no adjunta el archivo.</p>';
- d.body.appendChild(dialog);dialog.showModal();let url='',file=null;const status=dialog.querySelector('[data-status]');dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>{dialog.remove();if(url)setTimeout(()=>URL.revokeObjectURL(url),60000)},{once:true});
+ dialog.innerHTML='<h2 style="margin-top:0">Formulario para el cliente</h2><p>PDF rellenable con vuestro logo, el de e-distribución y los datos de empresa. El cliente puede rellenarlo desde el móvil y añadir su firma con un lector PDF compatible.</p><p role="status" data-status>Preparando formulario…</p><div style="display:grid;gap:9px"><button type="button" data-sign disabled>✍ FIRMA DEL CLIENTE CON EL DEDO</button><div data-sign-box hidden style="border:1px solid #dbe3ee;border-radius:10px;padding:10px"><p style="font-size:12px;margin-top:0">Si el cliente está presente, puede firmar aquí. La firma se añadirá al PDF.</p><label>Nombre del firmante<input data-sign-name autocomplete="name"></label><canvas data-sign-pad width="600" height="240" aria-label="Zona para dibujar la firma del cliente" style="display:block;width:100%;height:auto;background:white;border:1px solid #cbd5e1;touch-action:none"></canvas><div style="display:flex;gap:6px;margin-top:8px"><button type="button" data-sign-clear>LIMPIAR RECUADRO</button><button type="button" data-sign-apply>APLICAR AL PDF</button></div></div><button type="button" data-preview disabled>VER PDF</button><button type="button" data-download disabled>DESCARGAR PDF</button><button type="button" data-share disabled>WHATSAPP / COMPARTIR PDF</button><button type="button" data-whatsapp disabled>ABRIR WHATSAPP DEL CLIENTE</button><button type="button" data-mail disabled>PREPARAR CORREO AL CLIENTE</button><button type="button" data-close>CERRAR</button></div><p style="font-size:12px;color:#667085">Para enviarlo por correo, descarga el PDF y adjúntalo al mensaje. El correo no añade el archivo automáticamente. En el móvil: abre el PDF en un lector con «Rellenar y firmar», completa los campos, firma con el dedo y guarda una copia. Para WhatsApp, pulsa compartir y elige WhatsApp. Si no es compatible, descarga el PDF y adjúntalo como Documento en el chat; abrir el chat no adjunta el archivo.</p>';
+ d.body.appendChild(dialog);dialog.showModal();let url='',file=null,lib=null;const status=dialog.querySelector('[data-status]');dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>{dialog.remove();if(url)setTimeout(()=>URL.revokeObjectURL(url),60000)},{once:true});
  try{
-  const lib=await clientePdfLib(),bytes=await crearClientePdf(w,d,empresa,lib);if(!dialog.isConnected)return;
+  lib=await clientePdfLib();const bytes=await crearClientePdf(w,d,empresa,lib);if(!dialog.isConnected)return;
   const filename='SOLTEC_DATOS_CLIENTE_'+(gv(d,'avId').replace(/[^a-zA-Z0-9_-]/g,'')||'NUEVO')+'.pdf';file=new File([bytes],filename,{type:'application/pdf'});url=URL.createObjectURL(file);
   status.textContent='Formulario listo. Revisa el PDF antes de enviarlo.';
   dialog.querySelectorAll('button').forEach(b=>b.disabled=false);
   dialog.querySelector('[data-preview]').onclick=()=>{const a=d.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';a.click()};
   dialog.querySelector('[data-download]').onclick=()=>{const a=d.createElement('a');a.href=url;a.download=filename;d.body.appendChild(a);a.click();a.remove()};
+  instalarFirmaCliente(dialog,async firma=>{const bytes=await crearClientePdf(w,d,empresa,lib,firma);if(!dialog.isConnected)return;file=new File([bytes],filename,{type:'application/pdf'});const oldUrl=url;url=URL.createObjectURL(file);if(oldUrl)setTimeout(()=>URL.revokeObjectURL(oldUrl),60000);status.textContent='Firma añadida. Revisa el PDF antes de compartirlo.'},()=>gv(d,'avCliente'));
   const share=dialog.querySelector('[data-share]');
   share.onclick=async()=>{try{
    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
