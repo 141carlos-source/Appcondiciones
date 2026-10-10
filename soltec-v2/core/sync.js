@@ -41,6 +41,12 @@ export class SyncManager {
   async guardarConfig({ url, clave, nombre }) {
     const limpia = String(url || '').trim().replace(/\/+$/, '');
     if (limpia && !/^https?:\/\//.test(limpia)) throw new SyncError('La dirección debe empezar por https://');
+    const antes = await this.config();
+    if (antes.url && limpia && antes.url !== limpia) {
+      // Otro servidor: hay que bajarlo todo y subirle todo lo de este dispositivo.
+      await this.s.setMeta('cursor', 0);
+      await this.s._requeueAll();
+    }
     await this.s.setMeta('sync', { url: limpia, clave: String(clave || '').trim(), nombre: String(nombre || '').trim() });
   }
 
@@ -116,6 +122,11 @@ export class SyncManager {
     await this._subirArchivos(inf);
     await this._subirRegistros(inf);
     await this._bajarRegistros(inf);
+    if (inf.servidorReiniciado || inf.reintentar) {
+      // El PC empezó de cero: se le vuelve a subir todo lo que hay aquí.
+      await this._subirArchivos(inf);
+      await this._subirRegistros(inf);
+    }
     await this._bajarArchivos(inf);
     inf.fin = new Date().toISOString();
     await this.s.setMeta('ultimaSync', inf);
@@ -158,14 +169,21 @@ export class SyncManager {
           await this.s._ackPushed(r.id, p.record.rev, r.serverRev);
           inf.subidos++;
         } else if (r.status === 'conflict') {
-          if (r.server) {
+          if (r.server && r.server.rev === p.record.rev && r.server.updatedAt === p.record.updatedAt && r.server.deviceId === p.record.deviceId) {
+            // El PC ya tenía exactamente esta versión (p. ej. tras volver a subirlo todo): no es un conflicto.
+            await this.s._ackPushed(r.id, p.record.rev, r.serverRev);
+          } else if (r.server && p.reenvio && r.server.updatedAt >= p.record.updatedAt) {
+            // Reenvío tras cambiar de servidor: el PC tiene una versión igual o más nueva y aquí no se tocó.
+            await this.s._applyRemote(r.server, { dropPending: true });
+          } else if (r.server) {
             await this._anotarConflicto(p.record, r.server);
             await this.s._applyRemote(r.server, { dropPending: true });
+            inf.conflictos++;
           } else {
-            // El PC no tiene el registro (base de datos nueva o restaurada): se reintenta como nuevo.
+            // El PC no tiene el registro (base de datos nueva o restaurada): se sube como nuevo en la siguiente vuelta.
             await this.s._rebase(r.id, 0);
+            inf.reintentar = true;
           }
-          inf.conflictos++;
         }
       }
     }
@@ -175,10 +193,28 @@ export class SyncManager {
     let since = (await this.s.getMeta('cursor')) || 0;
     for (;;) {
       const res = await this._call('GET', `/api/v2/pull?since=${since}&limit=500`);
+      if (res.seq < since) {
+        // El PC tiene menos cambios de los que ya habíamos visto: su base de datos es nueva o se restauró.
+        inf.servidorReiniciado = true;
+        await this.s._requeueAll();
+        since = 0;
+        await this.s.setMeta('cursor', 0);
+        continue;
+      }
       for (const remoto of res.changes) {
         const local = await this.s.get(remoto.id);
         const pendiente = await this.s._hasPending(remoto.id);
         if (pendiente) {
+          if (local && remoto.rev === local.rev && remoto.updatedAt === local.updatedAt && remoto.deviceId === local.deviceId) {
+            // Es la misma versión que tenemos (p. ej. al volver a un servidor que ya la tenía): solo se anota.
+            await this.s._ackPushed(remoto.id, local.rev, remoto.serverRev);
+            continue;
+          }
+          if (pendiente.reenvio && local && remoto.updatedAt >= local.updatedAt) {
+            await this.s._applyRemote(remoto, { dropPending: true });
+            inf.bajados++;
+            continue;
+          }
           // Cambiado aquí después de la subida. Si el PC tiene algo más nuevo que nuestra base, es conflicto.
           if (remoto.serverRev > pendiente.baseServerRev && local) {
             await this._anotarConflicto(local, remoto);
@@ -200,7 +236,7 @@ export class SyncManager {
 
   async _bajarArchivos(inf) {
     const todas = new Set();
-    for (const r of (await this.s.dumpAll()).records) huellasDe(r.data, todas);
+    for (const r of await this.s.listAllRecords()) huellasDe(r.data, todas);
     for (const h of todas) {
       if (await this.s._hasFile(h)) continue;
       try {

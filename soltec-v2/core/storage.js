@@ -297,6 +297,33 @@ export class Storage {
     return (await req(tx.objectStore('blobs').count(hash))) > 0;
   }
 
+  /** Todos los registros (sin los archivos: no carga PDF ni fotos en memoria). */
+  async listAllRecords() {
+    const tx = this.db.transaction('records');
+    return req(tx.objectStore('records').getAll());
+  }
+
+  /**
+   * El PC ha perdido los datos o es otro servidor: se vuelve a subir todo.
+   * Los registros pasan a revisión 0 del servidor y los archivos a la cola de subida.
+   */
+  async _requeueAll() {
+    const tx = this.db.transaction(['records', 'outbox', 'blobs', 'blobOutbox'], 'readwrite');
+    const recs = tx.objectStore('records');
+    const all = await req(recs.getAll());
+    for (const r of all) {
+      r.serverRev = 0;
+      recs.put(r);
+      // «reenvio»: no es un cambio hecho aquí; si el PC tiene algo igual o más nuevo, gana el PC sin conflicto.
+      if (!(await req(tx.objectStore('outbox').get(r.id)))) tx.objectStore('outbox').put({ id: r.id, baseServerRev: 0, reenvio: true, queuedAt: now() });
+      else tx.objectStore('outbox').put({ id: r.id, baseServerRev: 0, queuedAt: now() });
+    }
+    const hashes = await req(tx.objectStore('blobs').getAllKeys());
+    for (const h of hashes) tx.objectStore('blobOutbox').put({ hash: h, queuedAt: now() });
+    await done(tx);
+    return { registros: all.length, archivos: hashes.length };
+  }
+
   // ---------- Volcado completo (base de la copia de seguridad, capa 2) ----------
   async dumpAll() {
     const tx = this.db.transaction(['records', 'blobs']);

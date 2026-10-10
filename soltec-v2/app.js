@@ -6,12 +6,12 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-0.6.0';
+export const VERSION = 'V2-0.6.1';
 
 import { h, toast, hace, descargar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
 import { bandeja, buscar, FILTROS_BANDEJA } from './core/search.js';
-import { direccionCompleta } from './core/model.js';
+import { direccionCompleta, hoyLocal, numerosRepetidos, siguienteNumero } from './core/model.js';
 
 const ICONOS = {
   inicio: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -39,7 +39,21 @@ const partesRuta = () => location.hash.replace(/^#\/?/, '').split('?')[0].split(
 const rutaActual = () => partesRuta()[0] || 'inicio';
 
 let renderN = 0;
+let hashActual = location.hash;
+let ignorarHash = false;
+/** Cambio de pantalla: si la actual tiene cambios sin guardar, se pregunta antes. */
+function alCambiarHash() {
+  if (ignorarHash) { ignorarHash = false; return; }
+  if (app.guardia?.() && location.hash !== hashActual && !confirm('Hay cambios sin guardar. ¿Salir sin guardar?')) {
+    ignorarHash = true;
+    location.hash = hashActual; // se vuelve a la pantalla con los cambios
+    return;
+  }
+  render();
+}
 async function render() {
+  app.guardia = null;
+  hashActual = location.hash;
   const ruta = RUTAS[rutaActual()] ? rutaActual() : 'inicio';
   const n = ++renderN;
   document.title = `SOLTEC · ${RUTAS[ruta].titulo}`;
@@ -121,7 +135,7 @@ async function vistaInicio() {
   const avisos = await app.storage.list('aviso');
   const citas = await app.storage.list('cita');
   const exp = avisos.filter((r) => isExpediente(r.data)).length;
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyLocal();
   const proximas = citas.filter((c) => !c.data.hecho && (c.data.fecha || '') >= hoy).length;
 
   // Buscador único: avisos y expedientes, activos y finalizados (sin papelera)
@@ -151,8 +165,25 @@ async function vistaInicio() {
       h('a', { class: 'btn peq', href: `#/aviso/${i.registro.id}` }, 'Abrir'))))
     : [h('div', { class: 'card muted' }, avisos.length ? 'Nada pendiente con este filtro.' : 'Todavía no hay avisos. Crea el primero desde Avisos.')];
 
+  // Números repetidos: dos dispositivos crearon avisos sin conexión a la vez
+  const repetidos = numerosRepetidos(avisos);
+  const avisoRepetidos = repetidos.length ? h('div', { class: 'aviso err' },
+    h('b', {}, 'Números de aviso repetidos: '), repetidos.map((g) => `${g.numero} (${g.registros.length})`).join(', '),
+    h('div', { class: 'muted' }, 'Pasa si se crean avisos en dos dispositivos sin conexión. Se conserva el más antiguo y los demás reciben un número nuevo; queda anotado en su historial.'),
+    h('div', { class: 'fila' }, h('button', { class: 'btn peq prim', onclick: async () => {
+      for (const g of repetidos) {
+        for (const r of g.registros.slice(1)) {
+          const nuevo = siguienteNumero(await app.storage.list('aviso', { includeDeleted: true }));
+          await app.storage.patch(r.id, { numero: nuevo }, { event: { kind: 'nota', text: `Número cambiado de ${g.numero} a ${nuevo} por estar repetido` } });
+        }
+      }
+      toast('Avisos renumerados');
+      render();
+    } }, 'Renumerar'))) : null;
+
   const [, txt] = textoEstado();
   return h('div', {},
+    avisoRepetidos,
     h('div', { class: 'cifras' },
       h('a', { class: 'cifra', href: '#/avisos' }, h('b', {}, avisos.length - exp), h('span', {}, 'Avisos')),
       h('a', { class: 'cifra', href: '#/expedientes' }, h('b', {}, exp), h('span', {}, 'Expedientes')),
@@ -376,7 +407,8 @@ export async function iniciar() {
     refrescarEstado();
     programarSync(8000);
   });
-  window.addEventListener('hashchange', render);
+  window.addEventListener('hashchange', alCambiarHash);
+  window.addEventListener('beforeunload', (e) => { if (app.guardia?.()) { e.preventDefault(); e.returnValue = ''; } });
   window.addEventListener('online', () => { app.estado.error = null; programarSync(1000); });
   window.addEventListener('offline', () => { app.estado.error = 'Sin conexión a Internet'; pintarEstado(); });
   document.addEventListener('visibilitychange', () => {

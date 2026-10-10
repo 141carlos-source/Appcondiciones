@@ -3,7 +3,7 @@
 
 import { h, toast, fecha, fechaHora, abrirBlob, compartir, ir } from '../ui.js';
 import {
-  nuevoAviso, siguienteNumero, isExpediente, conPdfCondiciones, pdfCondicionesActual, datosPendientes,
+  nuevoAviso, normalizarAviso, siguienteNumero, isExpediente, conPdfCondiciones, pdfCondicionesActual, datosPendientes,
   docsPendientes, direccionCompleta, FASES_TRAMITE, DOCUMENTOS, ESTADOS_DOC, ESTADOS_AVISO, EVENTOS, EVENTOS_MANUALES, DESTINOS,
 } from '../core/model.js';
 import { buscar, duplicados } from '../core/search.js';
@@ -123,10 +123,12 @@ export async function vistaFicha(app, id) {
   } else {
     registro = await app.storage.get(id);
     if (!registro) return h('div', {}, h('h1', {}, 'Aviso no encontrado'), h('a', { class: 'btn', href: '#/avisos' }, 'Volver a avisos'));
-    draft = clonar(registro.data);
+    draft = normalizarAviso(clonar(registro.data));
   }
   const original = clonar(draft);
   let cambiado = false;
+  // Aviso de cambios sin guardar al cambiar de pantalla o cerrar la pestaña
+  app.guardia = () => cambiado; // la carcasa pregunta antes de salir si hay cambios
   const todos = await app.storage.list('aviso');
 
   // --- datos pendientes y duplicados, recalculados en cada cambio
@@ -246,6 +248,17 @@ export async function vistaFicha(app, id) {
   // --- guardar
   const guardar = async () => {
     const nuevoReg = !registro;
+    if (!nuevoReg) {
+      const actual = await app.storage.get(registro.id);
+      if (actual && actual.updatedAt !== registro.updatedAt) {
+        // Otro dispositivo lo cambió mientras lo editabas (llegó por sincronización).
+        if (!confirm('Este aviso se ha modificado en otro dispositivo mientras lo editabas.\n\nAceptar: guardar tus cambios encima.\nCancelar: no guardar y ver la versión nueva.')) {
+          cambiado = false;
+          window.dispatchEvent(new HashChangeEvent('hashchange'));
+          return;
+        }
+      }
+    }
     if (nuevoReg) {
       const d = comprobarDuplicados();
       if (d.length && !confirm(`Hay ${d.length} aviso(s) con el mismo CUPS o la misma dirección.\n\n${d.map((x) => `· ${x.registro.data.numero} ${x.registro.data.cliente?.nombre || ''}`).join('\n')}\n\n¿Es otra actuación y quieres crear el aviso igualmente?`)) return;
@@ -274,7 +287,7 @@ export async function vistaFicha(app, id) {
   const cont = h('form', { class: 'ficha', onsubmit: (e) => { e.preventDefault(); guardar(); } },
     h('div', { class: 'titulo-fila' },
       h('div', {}, h('h1', {}, titulo), registro && isExpediente(draft) ? h('span', { class: 'insignia ok' }, 'Expediente') : null),
-      h('a', { class: 'btn', href: registro && isExpediente(draft) ? '#/expedientes' : '#/avisos', onclick: (e) => { if (cambiado && !confirm('Hay cambios sin guardar. ¿Salir sin guardar?')) e.preventDefault(); } }, 'Volver')),
+      h('a', { class: 'btn', href: registro && isExpediente(draft) ? '#/expedientes' : '#/avisos' }, 'Volver')),
     registro?.deleted ? h('div', { class: 'aviso err' }, 'Este aviso está en la papelera. ', h('button', { class: 'btn peq', type: 'button', onclick: async () => { await app.storage.restore(registro.id); toast('Recuperado'); window.dispatchEvent(new HashChangeEvent('hashchange')); } }, 'Recuperar')) : null,
     resumen, avisoDup,
     seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.map(campo))),

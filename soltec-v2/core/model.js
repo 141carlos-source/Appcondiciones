@@ -58,11 +58,17 @@ export const EVENTOS = {
 };
 export const EVENTOS_MANUALES = ['solicitud_presentada', 'condiciones_recibidas', 'doc_preparada', 'doc_enviada', 'contrato_tramitado', 'cliente_informado', 'firma_recibida', 'nota'];
 
+/** Fecha de hoy en hora local (toISOString daría el día anterior entre las 00:00 y las 02:00 en España). */
+export function hoyLocal(d = new Date()) {
+  const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return z.toISOString().slice(0, 10);
+}
+
 /** Aviso vacío con todos los campos. */
 export function nuevoAviso(extra = {}) {
   return {
     numero: '',
-    fecha: new Date().toISOString().slice(0, 10),
+    fecha: hoyLocal(),
     estado: 'Abierto',
     concepto: '',
     observaciones: '',
@@ -78,6 +84,34 @@ export function nuevoAviso(extra = {}) {
     fotos: [],
     ...extra,
   };
+}
+
+/**
+ * Completa un aviso guardado por otra versión o dispositivo con los campos que le falten,
+ * sin cambiar los que ya tiene. Evita fallos al abrir registros antiguos.
+ */
+export function normalizarAviso(d = {}) {
+  const base = nuevoAviso();
+  const out = { ...base, ...d, fecha: d.fecha ?? '' };
+  for (const k of ['presupuesto', 'cliente', 'facturacion', 'suministro', 'electrico', 'condiciones', 'docs']) {
+    out[k] = { ...base[k], ...(d[k] && typeof d[k] === 'object' ? d[k] : {}) };
+  }
+  out.condiciones.pdfs = Array.isArray(out.condiciones.pdfs) ? out.condiciones.pdfs : [];
+  out.fotos = Array.isArray(d.fotos) ? d.fotos : [];
+  return out;
+}
+
+/** Grupos de avisos con el mismo número (pasa si dos dispositivos crean avisos sin conexión a la vez). */
+export function numerosRepetidos(avisos) {
+  const grupos = new Map();
+  for (const r of avisos) {
+    const n = r.data?.numero;
+    if (!n) continue;
+    if (!grupos.has(n)) grupos.set(n, []);
+    grupos.get(n).push(r);
+  }
+  return [...grupos.entries()].filter(([, rs]) => rs.length > 1)
+    .map(([numero, rs]) => ({ numero, registros: rs.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)) }));
 }
 
 /** Siguiente número de aviso del año: 2026-0001, 2026-0002... */

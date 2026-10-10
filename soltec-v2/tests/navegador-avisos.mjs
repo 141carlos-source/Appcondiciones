@@ -26,7 +26,8 @@ try {
   const errores = [];
   page.on('pageerror', (e) => errores.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errores.push(m.text()); });
-  page.on('dialog', (d) => d.accept());
+  let respuesta = 'aceptar';
+  page.on('dialog', (d) => (respuesta === 'aceptar' ? d.accept() : d.dismiss()));
   const base = `http://localhost:${pWeb}/index.html`;
 
   await page.goto(base + '#/avisos');
@@ -135,6 +136,21 @@ try {
   await page.goto(base + '#/avisos');
   await page.waitForSelector('.lista .tarjeta');
   ok('Papelera: el aviso se oculta y se recupera sin perder datos');
+
+  // Salir con cambios sin guardar: pregunta, y si cancelas sigues en la ficha con tus cambios
+  await page.goto(base + '#/aviso/' + id1);
+  await page.waitForSelector('#f-cliente-contacto', { state: 'attached' });
+  await page.click('summary:has-text("Cliente y suministro")');
+  await page.fill('#f-cliente-contacto', 'Juan (hijo)');
+  respuesta = 'cancelar';
+  await page.click('nav.inferior a[data-ruta=inicio]');
+  await page.waitForTimeout(300);
+  assert.match(page.url(), /#\/aviso\//);
+  assert.equal(await page.inputValue('#f-cliente-contacto'), 'Juan (hijo)');
+  respuesta = 'aceptar';
+  await page.click('nav.inferior a[data-ruta=inicio]');
+  await page.waitForSelector('#buscador-unico');
+  ok('Salir de una ficha con cambios sin guardar pide confirmación');
 
   assert.deepEqual(errores, []);
   ok('Sin errores en la consola');
