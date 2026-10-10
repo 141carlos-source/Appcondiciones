@@ -6,46 +6,12 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-0.5.1';
+export const VERSION = 'V2-0.6.0';
 
-// ---------------------------------------------------------------- utilidades DOM
-function h(tag, attrs = {}, ...children) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (v == null || v === false) continue;
-    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (k === 'class') el.className = v;
-    else if (k === 'html') el.innerHTML = v; // solo para iconos SVG propios
-    else el.setAttribute(k, v === true ? '' : v);
-  }
-  for (const c of children.flat()) if (c != null && c !== false) el.append(c instanceof Node ? c : String(c));
-  return el;
-}
-
-function toast(msg, err = false) {
-  document.querySelector('.toast')?.remove();
-  const t = h('div', { class: 'toast' + (err ? ' err' : ''), role: 'status' }, msg);
-  document.body.append(t);
-  setTimeout(() => t.remove(), err ? 6000 : 3000);
-}
-
-const hace = (iso) => {
-  if (!iso) return 'nunca';
-  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'hace un momento';
-  if (s < 3600) return `hace ${Math.round(s / 60)} min`;
-  if (s < 86400) return `hace ${Math.round(s / 3600)} h`;
-  return new Date(iso).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-};
-
-function descargar(blob, nombre) {
-  const url = URL.createObjectURL(blob);
-  const a = h('a', { href: url, download: nombre });
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
-}
+import { h, toast, hace, descargar } from './ui.js';
+import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
+import { bandeja, buscar, FILTROS_BANDEJA } from './core/search.js';
+import { direccionCompleta } from './core/model.js';
 
 const ICONOS = {
   inicio: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -62,23 +28,29 @@ const app = { storage: null, sync: null, estado: { pendientes: 0, archivos: 0, u
 
 const RUTAS = {
   inicio: { titulo: 'Inicio', vista: vistaInicio },
-  avisos: { titulo: 'Avisos', vista: vistaAvisos },
-  expedientes: { titulo: 'Expedientes', vista: vistaExpedientes },
+  avisos: { titulo: 'Avisos', vista: () => vistaAvisos(app) },
+  expedientes: { titulo: 'Expedientes', vista: () => vistaExpedientes(app) },
+  aviso: { titulo: 'Aviso', vista: (id) => vistaFicha(app, id), nav: 'avisos' },
   agenda: { titulo: 'Agenda', vista: vistaAgenda },
   ajustes: { titulo: 'Ajustes', vista: vistaAjustes },
   salir: { titulo: 'Salir', vista: vistaSalir },
 };
-const rutaActual = () => (location.hash.replace(/^#\/?/, '').split('/')[0] || 'inicio');
+const partesRuta = () => location.hash.replace(/^#\/?/, '').split('?')[0].split('/');
+const rutaActual = () => partesRuta()[0] || 'inicio';
 
+let renderN = 0;
 async function render() {
   const ruta = RUTAS[rutaActual()] ? rutaActual() : 'inicio';
+  const n = ++renderN;
   document.title = `SOLTEC · ${RUTAS[ruta].titulo}`;
+  const marcada = RUTAS[ruta].nav || ruta;
   for (const a of document.querySelectorAll('nav.inferior a')) {
-    if (a.dataset.ruta === ruta) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    if (a.dataset.ruta === marcada) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   }
-  const main = document.querySelector('main');
-  const vista = await RUTAS[ruta].vista();
-  if (rutaActual() === ruta || !RUTAS[rutaActual()]) main.replaceChildren(vista);
+  const vista = await RUTAS[ruta].vista(partesRuta()[1]);
+  if (n !== renderN) return; // el usuario ya ha cambiado de pantalla
+  document.querySelector('main').replaceChildren(vista);
+  window.scrollTo(0, 0);
 }
 
 // ---------------------------------------------------------------- estado de sincronización
@@ -151,27 +123,57 @@ async function vistaInicio() {
   const exp = avisos.filter((r) => isExpediente(r.data)).length;
   const hoy = new Date().toISOString().slice(0, 10);
   const proximas = citas.filter((c) => !c.data.hecho && (c.data.fecha || '') >= hoy).length;
+
+  // Buscador único: avisos y expedientes, activos y finalizados (sin papelera)
+  const resultados = h('div', { class: 'lista' });
+  const busca = h('input', { type: 'search', class: 'buscador', id: 'buscador-unico', placeholder: 'Buscar cliente, teléfono, dirección, CUPS, referencia o nº de aviso', oninput: (e) => {
+    const q = e.target.value;
+    const rs = q.trim() ? buscar(avisos, q).slice(0, 20) : [];
+    resultados.replaceChildren(...(q.trim() && !rs.length ? [h('div', { class: 'card muted' }, 'Sin resultados.')] : rs.map(({ registro: r, expediente }) =>
+      h('a', { class: 'tarjeta', href: `#/aviso/${r.id}` },
+        h('div', { class: 'tarjeta-cab' }, h('span', { class: 'mono' }, r.data.numero), expediente ? h('span', { class: 'insignia ok' }, 'Expediente') : h('span', { class: 'etiqueta' }, 'Aviso')),
+        h('b', {}, r.data.cliente?.nombre || '(sin nombre)'), h('div', { class: 'muted' }, direccionCompleta(r.data.suministro))))));
+  } });
+
+  // Bandeja «Qué toca hoy»
+  const filtro = sessionStorageGet('bandeja') || 'todo';
+  const items = bandeja(avisos, citas, filtro);
+  const chips = h('div', { class: 'chips' }, ...FILTROS_BANDEJA.map((f) => h('button', { class: 'chip' + (f.id === filtro ? ' activo' : ''), type: 'button', onclick: () => { sessionStorageSet('bandeja', f.id); render(); } }, f.label)));
+  const tarjetas = items.length ? items.map((i) => h('div', { class: 'tarjeta' },
+    h('div', { class: 'tarjeta-cab' }, h('span', { class: 'mono' }, i.numero + (i.refCondiciones ? ' · ' + i.refCondiciones : '')), i.tramite ? h('span', { class: 'etiqueta' }, i.tramite) : null),
+    h('b', {}, i.cliente), h('div', { class: 'muted' }, i.direccion || 'Sin dirección'),
+    i.seguimiento ? h('div', { class: 'seg' + (i.vencido ? ' vencido' : '') }, `${i.vencido ? 'Vencido' : i.hoy ? 'Hoy' : 'Próximo'}: ${i.seguimiento.texto || 'Seguimiento'} · ${i.seguimiento.fecha}${i.seguimiento.hora ? ' ' + i.seguimiento.hora : ''}${i.seguimiento.responsable ? ' · ' + i.seguimiento.responsable : ''}`) : null,
+    i.faltan.length ? h('div', { class: 'faltan' }, 'Faltan: ' + i.faltan.map((f) => f.etiqueta).join(', ')) : null,
+    i.docs.length ? h('div', { class: 'faltan' }, 'Documentación pendiente: ' + i.docs.join(', ')) : null,
+    i.firma ? h('div', { class: 'faltan' }, 'Firma del cliente por recibir') : null,
+    h('div', { class: 'fila' },
+      i.faltan.length ? h('a', { class: 'btn peq prim', href: `#/aviso/${i.registro.id}?campo=${i.faltan[0].campo}` }, 'Completar datos') : null,
+      h('a', { class: 'btn peq', href: `#/aviso/${i.registro.id}` }, 'Abrir'))))
+    : [h('div', { class: 'card muted' }, avisos.length ? 'Nada pendiente con este filtro.' : 'Todavía no hay avisos. Crea el primero desde Avisos.')];
+
   const [, txt] = textoEstado();
   return h('div', {},
-    h('h1', {}, 'Inicio'),
     h('div', { class: 'cifras' },
-      h('div', { class: 'cifra' }, h('b', {}, avisos.length - exp), h('span', {}, 'Avisos')),
-      h('div', { class: 'cifra' }, h('b', {}, exp), h('span', {}, 'Expedientes')),
-      h('div', { class: 'cifra' }, h('b', {}, proximas), h('span', {}, 'Citas próximas'))),
+      h('a', { class: 'cifra', href: '#/avisos' }, h('b', {}, avisos.length - exp), h('span', {}, 'Avisos')),
+      h('a', { class: 'cifra', href: '#/expedientes' }, h('b', {}, exp), h('span', {}, 'Expedientes')),
+      h('a', { class: 'cifra', href: '#/agenda' }, h('b', {}, proximas), h('span', {}, 'Citas próximas'))),
+    h('h2', {}, 'Buscar'), busca, resultados,
+    h('h2', {}, 'Qué toca hoy'), chips, h('div', { class: 'lista' }, ...tarjetas),
     h('h2', {}, 'Sincronización con el PC'),
     h('div', { class: 'card' },
       h('div', {}, txt),
       app.estado.error ? h('div', { class: 'aviso err' }, app.estado.error) : null,
       h('div', { class: 'fila' },
         h('button', { class: 'btn prim', onclick: async () => { await sincronizar(); render(); } }, 'Sincronizar ahora'),
-        h('a', { class: 'btn', href: '#/ajustes', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Configurar'))),
-    h('div', { class: 'aviso info' }, 'Versión en construcción: las pantallas de avisos, expedientes y agenda llegan en la capa 6. La V1.35 sigue funcionando aparte.'));
+        h('a', { class: 'btn', href: '#/ajustes' }, 'Configurar'))));
 }
 
-const enConstruccion = (titulo, texto) => async () => h('div', {}, h('h1', {}, titulo), h('div', { class: 'card muted' }, texto));
-async function vistaAvisos() { return enConstruccion('Avisos', 'Esta pantalla llega en la capa 6: listado, ficha compacta con desplegables, datos pendientes y duplicados.')(); }
-async function vistaExpedientes() { return enConstruccion('Expedientes', 'Esta pantalla llega en la capa 6: avisos con referencia o PDF de condiciones, con sus versiones.')(); }
-async function vistaAgenda() { return enConstruccion('Agenda', 'Esta pantalla llega en la capa 6: citas y seguimientos de los avisos en un mismo calendario.')(); }
+function sessionStorageGet(k) { try { return sessionStorage.getItem('soltec_' + k); } catch { return null; } }
+function sessionStorageSet(k, v) { try { sessionStorage.setItem('soltec_' + k, v); } catch { /* sin almacenamiento de sesión */ } }
+
+async function vistaAgenda() {
+  return h('div', {}, h('h1', {}, 'Agenda'), h('div', { class: 'card muted' }, 'La agenda con citas y seguimientos de los avisos llega en el siguiente paso.'));
+}
 
 async function vistaAjustes() {
   const cfg = await app.sync.config();
@@ -369,6 +371,7 @@ export async function iniciar() {
   window.soltec = app; // acceso para diagnóstico desde la consola
 
   app.storage.subscribe((c) => {
+    if (c.sync && (c.sync.bajados || c.sync.conflictos) && ['inicio', 'avisos', 'expedientes'].includes(rutaActual())) render();
     if (c.sync || c.type === '*') return;
     refrescarEstado();
     programarSync(8000);

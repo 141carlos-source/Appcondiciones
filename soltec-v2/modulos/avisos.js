@@ -1,0 +1,317 @@
+// SOLTEC V2 · Capa 6 · Avisos y Expedientes: listados y ficha.
+// Un expediente es un aviso con referencia o PDF de condiciones: misma ficha, distinto listado.
+
+import { h, toast, fecha, fechaHora, abrirBlob, compartir, ir } from '../ui.js';
+import {
+  nuevoAviso, siguienteNumero, isExpediente, conPdfCondiciones, pdfCondicionesActual, datosPendientes,
+  docsPendientes, direccionCompleta, FASES_TRAMITE, DOCUMENTOS, ESTADOS_DOC, ESTADOS_AVISO, EVENTOS, EVENTOS_MANUALES, DESTINOS,
+} from '../core/model.js';
+import { buscar, duplicados } from '../core/search.js';
+import { provinciaDeCp, formatearIban, validarCups } from '../core/validate.js';
+
+const faseLabel = (id) => FASES_TRAMITE.find((f) => f.id === id)?.label || '';
+const leer = (o, ruta) => ruta.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
+const escribir = (o, ruta, v) => { const ks = ruta.split('.'); let x = o; for (const k of ks.slice(0, -1)) x = x[k] ??= {}; x[ks.at(-1)] = v; };
+const clonar = (o) => structuredClone(o);
+
+// ---------------------------------------------------------------- listados
+function tarjetaAviso(r) {
+  const a = r.data;
+  const faltan = datosPendientes(a).length;
+  const docs = docsPendientes(a).length;
+  return h('a', { class: 'tarjeta', href: `#/aviso/${r.id}` },
+    h('div', { class: 'tarjeta-cab' }, h('span', { class: 'mono' }, a.numero || 'Sin número'), h('span', { class: 'etiqueta' }, a.estado || '')),
+    h('b', {}, a.cliente?.nombre || '(sin nombre)'),
+    h('div', { class: 'muted' }, direccionCompleta(a.suministro) || 'Sin dirección'),
+    h('div', { class: 'insignias' },
+      a.tramite ? h('span', { class: 'insignia' }, faseLabel(a.tramite)) : null,
+      faltan ? h('span', { class: 'insignia pend' }, `${faltan} dato${faltan > 1 ? 's' : ''} pendiente${faltan > 1 ? 's' : ''}`) : null,
+      docs ? h('span', { class: 'insignia pend' }, `${docs} doc. pendiente${docs > 1 ? 's' : ''}`) : null));
+}
+
+function tarjetaExpediente(r) {
+  const a = r.data;
+  const ind = (ok, txt) => h('span', { class: 'insignia' + (ok ? ' ok' : ' pend') }, (ok ? '✓ ' : '✗ ') + txt);
+  return h('a', { class: 'tarjeta exp', href: `#/aviso/${r.id}` },
+    h('div', { class: 'exp-cab' },
+      h('div', {},
+        h('div', { class: 'etq' }, 'AVISO'), h('div', { class: 'mono' }, a.numero || '—'),
+        h('div', { class: 'etq' }, 'REF. CONDICIONES'), h('div', { class: 'mono' }, a.condiciones?.ref || (a.condiciones?.pdfs?.length ? 'Solo PDF' : '—'))),
+      h('img', { class: 'logo-edist', src: './assets/logo_e-distribucion.jpg', alt: 'e-distribución' })),
+    h('b', {}, a.cliente?.nombre || '(sin nombre)'),
+    h('div', { class: 'muted' }, direccionCompleta(a.suministro)),
+    h('div', { class: 'insignias' },
+      ind(!validarCups(a.suministro?.cups), 'CUPS'),
+      ind(a.docs?.contrato === 'recibido' || a.docs?.contrato === 'na', 'Contrato'),
+      ind(!!String(a.cliente?.iban || '').trim(), 'IBAN'),
+      a.tramite ? h('span', { class: 'insignia' }, faseLabel(a.tramite)) : null));
+}
+
+async function listado(app, { expedientes }) {
+  const params = new URLSearchParams(location.hash.split('?')[1] || '');
+  const papelera = params.get('ver') === 'papelera';
+  const todos = await app.storage.list('aviso', papelera ? { onlyDeleted: true } : {});
+  const base = papelera ? todos : todos.filter((r) => isExpediente(r.data) === expedientes);
+  const ruta = expedientes ? 'expedientes' : 'avisos';
+  const lista = h('div', { class: 'lista' });
+  const pintar = (q) => {
+    const regs = q.trim() ? buscar(base, q).map((x) => x.registro) : base;
+    const orden = [...regs].sort((a, b) => (b.data.numero || '').localeCompare(a.data.numero || '') || b.updatedAt.localeCompare(a.updatedAt));
+    lista.replaceChildren(...(orden.length ? orden.map((r) => (expedientes && !papelera ? tarjetaExpediente(r) : tarjetaAviso(r)))
+      : [h('div', { class: 'card muted' }, q.trim() ? 'Sin resultados.' : papelera ? 'La papelera está vacía.' : expedientes ? 'Todavía no hay expedientes. Un aviso pasa aquí al tener referencia o PDF de condiciones.' : 'Todavía no hay avisos.')]));
+  };
+  const busca = h('input', { type: 'search', class: 'buscador', placeholder: 'Buscar: cliente, teléfono, dirección, CUPS, referencia…', oninput: (e) => pintar(e.target.value) });
+  pintar('');
+  return h('div', {},
+    h('div', { class: 'titulo-fila' },
+      h('h1', {}, papelera ? 'Papelera' : expedientes ? 'Expedientes' : 'Avisos'),
+      expedientes || papelera ? null : h('a', { class: 'btn prim', href: '#/aviso/nuevo' }, '+ Nuevo aviso')),
+    busca,
+    h('div', { class: 'chips' },
+      h('a', { class: 'chip' + (papelera ? '' : ' activo'), href: `#/${ruta}` }, expedientes ? 'Expedientes' : 'Activos'),
+      h('a', { class: 'chip' + (papelera ? ' activo' : ''), href: `#/${ruta}?ver=papelera` }, 'Papelera')),
+    lista);
+}
+
+export const vistaAvisos = (app) => listado(app, { expedientes: false });
+export const vistaExpedientes = (app) => listado(app, { expedientes: true });
+
+// ---------------------------------------------------------------- ficha
+// [ruta, etiqueta, tipo, opciones]  · tipo: text|tel|email|select|textarea|numero
+const CAMPOS_CLIENTE = [
+  ['cliente.nombre', 'Cliente o razón social', 'text', { ancho: 2 }],
+  ['cliente.contacto', 'Persona de contacto', 'text'],
+  ['cliente.nif', 'DNI / NIF / CIF', 'text', { mayus: true }],
+  ['cliente.telefono', 'Teléfono', 'tel'],
+  ['suministro.provincia', 'Provincia', 'text'],
+  ['suministro.poblacion', 'Población', 'text'],
+  ['suministro.cp', 'Código postal', 'text', { inputmode: 'numeric' }],
+  ['cliente.email', 'Correo electrónico', 'email', { ancho: 2 }],
+  ['cliente.iban', 'IBAN', 'text', { ancho: 2, mayus: true }],
+  ['suministro.direccion', 'Dirección del suministro', 'text', { ancho: 2 }],
+  ['suministro.piso', 'Piso', 'text'],
+  ['suministro.puerta', 'Puerta', 'text'],
+  ['suministro.cups', 'CUPS', 'text', { ancho: 2, mayus: true, mono: true }],
+  ['suministro.refCatastral', 'Referencia catastral', 'text', { ancho: 2, mayus: true, mono: true }],
+  ['suministro.lat', 'Latitud', 'text', { inputmode: 'decimal' }],
+  ['suministro.lon', 'Longitud', 'text', { inputmode: 'decimal' }],
+];
+const CAMPOS_ELEC = [
+  ['electrico.potenciaKw', 'Potencia (kW)', 'text', { inputmode: 'decimal' }],
+  ['electrico.tension', 'Tensión', 'select', { opciones: [['', '—'], ['230', '230 V (monofásico)'], ['400', '400 V (trifásico)']] }],
+  ['electrico.uso', 'Uso', 'select', { opciones: [['', '—'], ['vivienda', 'Vivienda'], ['local', 'Local comercial'], ['comunes', 'Servicios comunes'], ['garaje', 'Garaje / recarga'], ['otro', 'Otro']] }],
+];
+const CAMPOS_OBRA = [
+  ['fecha', 'Fecha del aviso', 'date'],
+  ['estado', 'Estado general', 'select', { opciones: ESTADOS_AVISO.map((e) => [e, e]) }],
+  ['obra', 'Nombre de obra', 'text', { ancho: 2 }],
+  ['concepto', 'Concepto', 'text', { ancho: 2 }],
+  ['observaciones', 'Observaciones', 'textarea', { ancho: 2 }],
+];
+
+export async function vistaFicha(app, id) {
+  const esNuevo = id === 'nuevo' || id === 'duplicar';
+  let registro = null;
+  let draft;
+  if (id === 'duplicar') {
+    const origen = await app.storage.get(new URLSearchParams(location.hash.split('?')[1] || '').get('de'));
+    if (!origen) { ir('avisos'); return h('div'); }
+    const o = origen.data;
+    draft = nuevoAviso({ cliente: clonar(o.cliente), facturacion: clonar(o.facturacion), suministro: clonar(o.suministro), electrico: clonar(o.electrico), obra: o.obra });
+  } else if (esNuevo) {
+    draft = nuevoAviso();
+  } else {
+    registro = await app.storage.get(id);
+    if (!registro) return h('div', {}, h('h1', {}, 'Aviso no encontrado'), h('a', { class: 'btn', href: '#/avisos' }, 'Volver a avisos'));
+    draft = clonar(registro.data);
+  }
+  const original = clonar(draft);
+  let cambiado = false;
+  const todos = await app.storage.list('aviso');
+
+  // --- datos pendientes y duplicados, recalculados en cada cambio
+  const resumen = h('div');
+  const avisoDup = h('div');
+  const marcarPendientes = () => {
+    const pend = datosPendientes(draft);
+    const porCampo = new Map(pend.map((p) => [p.campo, p.problema]));
+    for (const w of cont.querySelectorAll('.campo[data-campo]')) {
+      const p = porCampo.get(w.dataset.campo);
+      w.classList.toggle('pend', !!p);
+      w.querySelector('.msg-pend').textContent = p || '';
+    }
+    const destinos = Object.entries(DESTINOS).map(([k, label]) => [label, datosPendientes(draft, k).length]);
+    resumen.replaceChildren(pend.length
+      ? h('div', { class: 'aviso err' },
+        h('b', {}, `Faltan o hay que revisar ${pend.length} dato${pend.length > 1 ? 's' : ''}`),
+        h('div', { class: 'destinos' }, ...destinos.map(([l, n]) => h('span', { class: 'insignia' + (n ? ' pend' : ' ok') }, `${l}: ${n ? n + ' pendiente' + (n > 1 ? 's' : '') : 'completo'}`))),
+        h('div', { class: 'enlaces-pend' }, ...pend.map((p) => h('button', { class: 'enlace', type: 'button', onclick: () => irACampo(p.campo) }, p.etiqueta))))
+      : h('div', { class: 'aviso ok' }, 'Datos completos para ficha, contrato y boletín.'));
+  };
+  const comprobarDuplicados = () => {
+    const d = duplicados(draft, todos, registro?.id);
+    avisoDup.replaceChildren(d.length ? h('div', { class: 'aviso info' },
+      h('b', {}, 'Posible duplicado: '),
+      ...d.map((x) => h('div', {}, `${x.registro.data.numero || 'Sin número'} · ${x.registro.data.cliente?.nombre || ''} (${x.motivos.join(' y ')}) `,
+        h('a', { href: `#/aviso/${x.registro.id}`, target: '_blank' }, 'Ver')))) : '');
+    return d;
+  };
+  const irACampo = (campo) => {
+    const w = cont.querySelector(`.campo[data-campo="${campo}"]`);
+    if (!w) return;
+    const det = w.closest('details');
+    if (det) det.open = true;
+    w.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    w.querySelector('input,select,textarea')?.focus({ preventScroll: true });
+  };
+  const alCambiar = () => { cambiado = true; marcarPendientes(); };
+
+  // --- un campo del formulario
+  const campo = ([ruta, etiqueta, tipo, o = {}]) => {
+    const idc = 'f-' + ruta.replace('.', '-');
+    let ctrl;
+    const valor = leer(draft, ruta) ?? '';
+    const on = (e) => {
+      let v = e.target.value;
+      if (o.mayus && v !== v.toUpperCase()) {
+        const pos = e.target.selectionStart;
+        v = v.toUpperCase();
+        e.target.value = v;
+        try { e.target.setSelectionRange(pos, pos); } catch { /* select no tiene cursor */ }
+      }
+      escribir(draft, ruta, v);
+      if (ruta === 'suministro.cp' && /^\d{5}$/.test(v) && !draft.suministro.provincia) {
+        draft.suministro.provincia = provinciaDeCp(v);
+        const p = cont.querySelector('#f-suministro-provincia');
+        if (p) p.value = draft.suministro.provincia;
+      }
+      if (['suministro.cups', 'suministro.direccion', 'suministro.piso', 'suministro.puerta', 'suministro.cp'].includes(ruta)) comprobarDuplicados();
+      alCambiar();
+    };
+    if (tipo === 'select') ctrl = h('select', { id: idc, onchange: on }, ...o.opciones.map(([v, t]) => h('option', { value: v, selected: String(valor) === v || null }, t)));
+    else if (tipo === 'textarea') ctrl = h('textarea', { id: idc, rows: 3, oninput: on, value: valor });
+    else ctrl = h('input', { id: idc, type: tipo === 'date' ? 'date' : tipo === 'email' ? 'email' : tipo === 'tel' ? 'tel' : 'text', value: valor, inputmode: o.inputmode, class: o.mono ? 'mono' : null, autocomplete: 'off', oninput: on,
+      onblur: ruta === 'cliente.iban' ? (e) => { const f = formatearIban(e.target.value); if (f) { e.target.value = f; escribir(draft, ruta, f); } } : null });
+    return h('div', { class: 'campo' + (o.ancho === 2 ? ' ancho' : ''), 'data-campo': ruta }, h('label', { for: idc }, etiqueta), ctrl, h('div', { class: 'msg-pend' }));
+  };
+  const seccion = (titulo, abierta, ...hijos) => h('details', { class: 'card', open: abierta || null }, h('summary', {}, titulo), h('div', { class: 'cuerpo' }, ...hijos));
+
+  // --- condiciones y trámite
+  const listaPdfs = h('div');
+  const pintarPdfs = () => {
+    const pdfs = draft.condiciones.pdfs || [];
+    listaPdfs.replaceChildren(pdfs.length ? h('ul', { class: 'lista-chk' }, ...[...pdfs].reverse().map((p, i) => h('li', {},
+      h('span', { class: 'ico' }, i === 0 ? '●' : '○'),
+      h('span', { style: 'flex:1;min-width:0' }, h('div', { class: 'cortar' }, p.name), h('div', { class: 'muted' }, `${i === 0 ? 'Actual' : 'Versión anterior'} · ${fechaHora(p.addedAt)} · ${Math.round(p.size / 1024)} KB`)),
+      h('button', { class: 'btn peq', type: 'button', onclick: async () => { const b = await app.storage.getFileBlob(p.hash); b ? abrirBlob(b) : toast('El PDF aún no está en este dispositivo: sincroniza.', true); } }, 'Ver'),
+      h('button', { class: 'btn peq', type: 'button', onclick: async () => { const b = await app.storage.getFileBlob(p.hash); b ? compartir(b, p.name) : toast('El PDF aún no está en este dispositivo: sincroniza.', true); } }, 'Compartir'))))
+      : h('p', { class: 'muted' }, 'Sin PDF de condiciones.'));
+  };
+  const pdfsNuevos = [];
+  const subirPdf = h('input', { type: 'file', accept: 'application/pdf,.pdf', style: 'display:none', onchange: async (e) => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    const ficha = await app.storage.putFile(f);
+    const antes = draft.condiciones.pdfs.length;
+    Object.assign(draft, conPdfCondiciones(draft, ficha));
+    if (draft.condiciones.pdfs.length === antes) { toast('Ese PDF ya estaba guardado'); return; }
+    pdfsNuevos.push(ficha);
+    pintarPdfs();
+    alCambiar();
+    toast('PDF añadido. Pulsa Guardar.');
+  } });
+  pintarPdfs();
+
+  // --- documentación
+  const docsCtrl = h('div', { class: 'grid2' }, ...DOCUMENTOS.map((d) => {
+    const sel = h('select', { id: 'doc-' + d.id, onchange: (e) => { draft.docs[d.id] = e.target.value; sel.parentElement.classList.toggle('pend', e.target.value === 'pendiente'); alCambiar(); } },
+      ...ESTADOS_DOC.map((s) => h('option', { value: s.id, selected: (draft.docs?.[d.id] || 'revisar') === s.id || null }, s.label)));
+    return h('div', { class: 'campo' + (draft.docs?.[d.id] === 'pendiente' ? ' pend' : '') }, h('label', { for: 'doc-' + d.id }, d.label), sel);
+  }));
+
+  // --- historial
+  const histLista = h('div');
+  const pintarHistorial = async () => {
+    if (!registro) { histLista.replaceChildren(h('p', { class: 'muted' }, 'El historial empieza al guardar el aviso.')); return; }
+    const ev = (await app.storage.history(registro.id)).reverse();
+    histLista.replaceChildren(h('ul', { class: 'lista-chk' }, ...ev.map((e) => h('li', {},
+      h('span', { class: 'ico muted' }, '•'),
+      h('span', {}, h('b', {}, EVENTOS[e.data.kind] || e.data.kind), e.data.text && e.data.text !== EVENTOS[e.data.kind] ? h('div', {}, e.data.text) : null, h('div', { class: 'muted' }, fechaHora(e.data.at)))))));
+  };
+  const tipoMov = h('select', { id: 'mov-tipo' }, ...EVENTOS_MANUALES.map((k) => h('option', { value: k }, EVENTOS[k])));
+  const textoMov = h('input', { type: 'text', id: 'mov-texto', placeholder: 'Detalle (opcional)' });
+  pintarHistorial();
+
+  // --- guardar
+  const guardar = async () => {
+    const nuevoReg = !registro;
+    if (nuevoReg) {
+      const d = comprobarDuplicados();
+      if (d.length && !confirm(`Hay ${d.length} aviso(s) con el mismo CUPS o la misma dirección.\n\n${d.map((x) => `· ${x.registro.data.numero} ${x.registro.data.cliente?.nombre || ''}`).join('\n')}\n\n¿Es otra actuación y quieres crear el aviso igualmente?`)) return;
+      draft.numero = siguienteNumero(await app.storage.list('aviso', { includeDeleted: true }));
+    }
+    // Eventos del historial según lo que cambió
+    const eventos = [];
+    if (!nuevoReg) {
+      if (original.tramite !== draft.tramite) eventos.push({ kind: 'tramite', text: `${faseLabel(original.tramite)} → ${faseLabel(draft.tramite)}` });
+      for (const d of DOCUMENTOS) {
+        const a = original.docs?.[d.id], b = draft.docs?.[d.id];
+        if (a !== b) eventos.push({ kind: 'documento', text: `${d.label}: ${ESTADOS_DOC.find((s) => s.id === b)?.label}` });
+      }
+      if (original.docs?.firmado !== 'recibido' && draft.docs?.firmado === 'recibido') eventos.push({ kind: 'firma_recibida', text: 'PDF firmado del cliente recibido' });
+    }
+    for (const p of pdfsNuevos) eventos.push({ kind: 'condiciones_pdf', text: p.name });
+    const r = await app.storage.save('aviso', draft, { id: registro?.id, event: nuevoReg ? { kind: 'creado', text: `Aviso ${draft.numero} creado` } : eventos.length ? null : { kind: 'actualizado', text: 'Datos actualizados' } });
+    for (const ev of eventos) await app.storage.addEvent(r.id, ev.kind, ev.text);
+    cambiado = false;
+    toast(nuevoReg ? `Aviso ${draft.numero} creado` : 'Guardado');
+    if (nuevoReg) ir('aviso/' + r.id);
+    else { registro = r; Object.assign(original, clonar(draft)); pdfsNuevos.length = 0; pintarHistorial(); }
+  };
+
+  const titulo = registro ? `Aviso ${draft.numero}` : id === 'duplicar' ? 'Nuevo aviso (copia)' : 'Nuevo aviso';
+  const cont = h('form', { class: 'ficha', onsubmit: (e) => { e.preventDefault(); guardar(); } },
+    h('div', { class: 'titulo-fila' },
+      h('div', {}, h('h1', {}, titulo), registro && isExpediente(draft) ? h('span', { class: 'insignia ok' }, 'Expediente') : null),
+      h('a', { class: 'btn', href: registro && isExpediente(draft) ? '#/expedientes' : '#/avisos', onclick: (e) => { if (cambiado && !confirm('Hay cambios sin guardar. ¿Salir sin guardar?')) e.preventDefault(); } }, 'Volver')),
+    registro?.deleted ? h('div', { class: 'aviso err' }, 'Este aviso está en la papelera. ', h('button', { class: 'btn peq', type: 'button', onclick: async () => { await app.storage.restore(registro.id); toast('Recuperado'); window.dispatchEvent(new HashChangeEvent('hashchange')); } }, 'Recuperar')) : null,
+    resumen, avisoDup,
+    seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.map(campo))),
+    seccion('Condiciones y trámite', false,
+      h('div', { class: 'grid2' },
+        campo(['condiciones.ref', 'Referencia de condiciones', 'text', { mono: true, mayus: true }]),
+        campo(['tramite', 'Estado del trámite', 'select', { opciones: FASES_TRAMITE.map((f) => [f.id, f.label]) }])),
+      h('label', {}, 'PDF de condiciones (se guardan todas las versiones)'), listaPdfs,
+      h('div', { class: 'fila' }, h('button', { class: 'btn', type: 'button', onclick: () => subirPdf.click() }, 'Añadir PDF de condiciones'), subirPdf)),
+    seccion('Documentación', false, docsCtrl, h('p', { class: 'muted' }, 'Marcar «Recibido» registra la recepción; no adjunta ningún archivo.')),
+    seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
+    seccion('Obra, fecha y observaciones', false, h('div', { class: 'grid2' }, ...CAMPOS_OBRA.map(campo),
+      campo(['presupuesto.numero', 'Nº de presupuesto (si corresponde)', 'text']))),
+    seccion('Historial', false, histLista,
+      registro ? h('div', { class: 'grid2', style: 'margin-top:8px' },
+        h('div', { class: 'campo' }, h('label', { for: 'mov-tipo' }, 'Registrar movimiento'), tipoMov),
+        h('div', { class: 'campo' }, h('label', { for: 'mov-texto' }, 'Detalle'), textoMov),
+        h('div', { class: 'fila ancho' }, h('button', { class: 'btn', type: 'button', onclick: async () => {
+          await app.storage.addEvent(registro.id, tipoMov.value, textoMov.value.trim() || EVENTOS[tipoMov.value]);
+          textoMov.value = '';
+          pintarHistorial();
+          toast('Movimiento registrado');
+        } }, 'Añadir al historial'))) : null),
+    registro && !registro.deleted ? h('div', { class: 'fila' },
+      h('a', { class: 'btn', href: `#/aviso/duplicar?de=${registro.id}` }, 'Duplicar con los mismos datos'),
+      h('button', { class: 'btn', type: 'button', onclick: async () => {
+        if (!confirm('¿Enviar este aviso a la papelera? Podrás recuperarlo.')) return;
+        await app.storage.trash(registro.id);
+        toast('Enviado a la papelera');
+        ir('avisos');
+      } }, 'Enviar a la papelera')) : null,
+    h('div', { class: 'barra-guardar' }, h('button', { class: 'btn prim ancho', type: 'submit', id: 'guardar' }, registro ? 'Guardar cambios' : 'Crear aviso')));
+
+  marcarPendientes();
+  comprobarDuplicados();
+  // «Completar datos» desde Inicio: abre el desplegable y lleva al campo
+  const pedido = new URLSearchParams(location.hash.split('?')[1] || '').get('campo');
+  if (pedido) setTimeout(() => irACampo(pedido), 60);
+  return cont;
+}
