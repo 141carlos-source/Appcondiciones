@@ -59,6 +59,8 @@ try {
   ok('Desplegables cerrados al abrir (solo se abre la sincronización porque falta configurarla)');
 
   // Configurar y probar contra el servidor real
+  assert.equal(await page.inputValue('#sync-url'), 'http://127.0.0.1:8766');
+  ok('En el propio PC la dirección del servidor viene rellenada');
   await page.fill('#sync-url', `http://127.0.0.1:${pSync}`);
   await page.fill('#sync-clave', 'mala');
   await page.click('text=Probar conexión');

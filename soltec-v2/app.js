@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-0.5.0';
+export const VERSION = 'V2-0.5.1';
 
 // ---------------------------------------------------------------- utilidades DOM
 function h(tag, attrs = {}, ...children) {
@@ -182,9 +182,12 @@ async function vistaAjustes() {
   const msg = h('div');
   const pon = (cls, t) => msg.replaceChildren(h('div', { class: 'aviso ' + cls }, t));
 
-  const fUrl = h('input', { type: 'url', id: 'sync-url', placeholder: 'https://carlos25.tail970b93.ts.net:8443', value: cfg.url, autocomplete: 'off', inputmode: 'url' });
+  // Abierta desde el propio PC (prueba local): la dirección del servidor es la de este equipo.
+  const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const urlInicial = cfg.url || (local ? 'http://127.0.0.1:8766' : '');
+  const fUrl = h('input', { type: 'url', id: 'sync-url', placeholder: 'Ejemplo: https://carlos25.tail970b93.ts.net:8443', value: urlInicial, autocomplete: 'off', inputmode: 'url' });
   const fClave = h('input', { type: 'password', id: 'sync-clave', value: cfg.clave, autocomplete: 'off' });
-  const fNombre = h('input', { type: 'text', id: 'sync-nombre', placeholder: 'MÓVIL, TABLET, PC CASA…', value: cfg.nombre });
+  const fNombre = h('input', { type: 'text', id: 'sync-nombre', placeholder: 'Ejemplo: MÓVIL, TABLET, PC CASA', value: cfg.nombre });
   const guardar = async () => { await app.sync.guardarConfig({ url: fUrl.value, clave: fClave.value, nombre: fNombre.value }); await refrescarEstado(); };
 
   const persistente = navigator.storage?.persisted ? await navigator.storage.persisted() : false;
@@ -213,8 +216,8 @@ async function vistaAjustes() {
     h('details', { class: 'card', open: !cfg.url || null },
       h('summary', {}, 'Sincronización con el PC'),
       h('div', { class: 'cuerpo' },
-        h('label', { for: 'sync-url' }, 'Dirección del PC (Tailscale, termina en :8443)'), fUrl,
-        h('label', { for: 'sync-clave' }, 'Clave de sincronización'), fClave,
+        h('label', { for: 'sync-url' }, local ? 'Dirección del servidor (en este PC)' : 'Dirección del PC (Tailscale, termina en :8443)'), fUrl,
+        h('label', { for: 'sync-clave' }, 'Clave de sincronización (la muestra la ventana del servidor en el PC)'), fClave,
         h('label', { for: 'sync-nombre' }, 'Nombre de este dispositivo'), fNombre,
         h('div', { class: 'fila' },
           h('button', { class: 'btn', onclick: async () => {
