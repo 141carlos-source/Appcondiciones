@@ -237,6 +237,66 @@ export class Storage {
     return items.map((o, i) => ({ ...o, record: recs[i] }));
   }
 
+  // ---------- Uso exclusivo de la sincronización (capa 4) ----------
+  /** El PC aceptó el registro: anota su revisión. Si se editó mientras subía, sigue pendiente. */
+  async _ackPushed(id, sentRev, serverRev) {
+    const tx = this.db.transaction(['records', 'outbox'], 'readwrite');
+    const recs = tx.objectStore('records');
+    const rec = await req(recs.get(id));
+    if (rec) {
+      rec.serverRev = serverRev;
+      recs.put(rec);
+      if (rec.rev === sentRev) tx.objectStore('outbox').delete(id);
+      else tx.objectStore('outbox').put({ id, baseServerRev: serverRev, queuedAt: now() });
+    } else tx.objectStore('outbox').delete(id);
+    await done(tx);
+  }
+
+  /** Cambia la revisión de partida de un pendiente (p. ej. el PC perdió el registro). */
+  async _rebase(id, baseServerRev) {
+    const tx = this.db.transaction('outbox', 'readwrite');
+    const o = await req(tx.objectStore('outbox').get(id));
+    if (o) tx.objectStore('outbox').put({ ...o, baseServerRev });
+    await done(tx);
+  }
+
+  /** Guarda tal cual un registro que viene del PC, sin encolarlo. */
+  async _applyRemote(remote, { dropPending = false } = {}) {
+    const tx = this.db.transaction(['records', 'outbox'], 'readwrite');
+    tx.objectStore('records').put(remote);
+    if (dropPending) tx.objectStore('outbox').delete(remote.id);
+    await done(tx);
+  }
+
+  async _hasPending(id) {
+    const tx = this.db.transaction('outbox');
+    return (await req(tx.objectStore('outbox').get(id))) || null;
+  }
+
+  async _listBlobOutbox() {
+    const tx = this.db.transaction('blobOutbox');
+    return (await req(tx.objectStore('blobOutbox').getAllKeys()));
+  }
+
+  async _dropBlobOutbox(hash) {
+    const tx = this.db.transaction('blobOutbox', 'readwrite');
+    tx.objectStore('blobOutbox').delete(hash);
+    await done(tx);
+  }
+
+  /** Guarda un archivo bajado del PC (ya verificado), sin encolarlo. */
+  async _putRemoteFile(hash, mime, bytes) {
+    if ((await sha256Hex(bytes)) !== hash) throw new Error('Archivo recibido dañado');
+    const tx = this.db.transaction('blobs', 'readwrite');
+    tx.objectStore('blobs').put({ hash, mime, size: bytes.byteLength, bytes, storedAt: now() });
+    await done(tx);
+  }
+
+  async _hasFile(hash) {
+    const tx = this.db.transaction('blobs');
+    return (await req(tx.objectStore('blobs').count(hash))) > 0;
+  }
+
   // ---------- Volcado completo (base de la copia de seguridad, capa 2) ----------
   async dumpAll() {
     const tx = this.db.transaction(['records', 'blobs']);
