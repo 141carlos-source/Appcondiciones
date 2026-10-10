@@ -9,6 +9,7 @@ import {
 import { buscar, duplicados } from '../core/search.js';
 import { provinciaDeCp, formatearIban, validarCups } from '../core/validate.js';
 import { bloqueSeguimiento } from './agenda.js';
+import { bloqueComunicaciones, listaArchivos } from './comunicaciones.js';
 
 const faseLabel = (id) => FASES_TRAMITE.find((f) => f.id === id)?.label || '';
 const leer = (o, ruta) => ruta.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
@@ -285,6 +286,7 @@ export async function vistaFicha(app, id) {
   };
 
   const seguimiento = registro ? await bloqueSeguimiento(app, registro.id) : null;
+  const comunicaciones = registro ? await bloqueComunicaciones(app, registro.id) : null;
   const titulo = registro ? `Aviso ${draft.numero}` : id === 'duplicar' ? 'Nuevo aviso (copia)' : 'Nuevo aviso';
   const cont = h('form', { class: 'ficha', onsubmit: (e) => { e.preventDefault(); guardar(); } },
     h('div', { class: 'titulo-fila' },
@@ -299,7 +301,8 @@ export async function vistaFicha(app, id) {
         campo(['tramite', 'Estado del trámite', 'select', { opciones: FASES_TRAMITE.map((f) => [f.id, f.label]) }])),
       h('label', {}, 'PDF de condiciones (se guardan todas las versiones)'), listaPdfs,
       h('div', { class: 'fila' }, h('button', { class: 'btn', type: 'button', onclick: () => subirPdf.click() }, 'Añadir PDF de condiciones'), subirPdf)),
-    seccion('Documentación', false, docsCtrl, h('p', { class: 'muted' }, 'Marcar «Recibido» registra la recepción; no adjunta ningún archivo.')),
+    seccion('Documentación', false, docsCtrl, h('p', { class: 'muted' }, 'Marcar «Recibido» registra la recepción; no adjunta ningún archivo.'), listaArchivos(app, draft)),
+    registro ? seccion('Solicitudes y comunicaciones', false, comunicaciones) : null,
     seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
     seccion('Obra, fecha y observaciones', false, h('div', { class: 'grid2' }, ...CAMPOS_OBRA.map(campo),
       campo(['presupuesto.numero', 'Nº de presupuesto (si corresponde)', 'text']))),

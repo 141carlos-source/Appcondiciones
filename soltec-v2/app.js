@@ -6,11 +6,13 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-0.7.0';
+export const VERSION = 'V2-0.8.0';
 
 import { h, toast, hace, descargar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
 import { vistaAgenda, vistaCita, iniciarAlarmas } from './modulos/agenda.js';
+import { vistaEmpresa } from './modulos/empresa.js';
+import { vistaFirma } from './modulos/comunicaciones.js';
 import { bandeja, buscar, FILTROS_BANDEJA } from './core/search.js';
 import { direccionCompleta, hoyLocal, numerosRepetidos, siguienteNumero } from './core/model.js';
 
@@ -34,6 +36,8 @@ const RUTAS = {
   aviso: { titulo: 'Aviso', vista: (id) => vistaFicha(app, id), nav: 'avisos' },
   agenda: { titulo: 'Agenda', vista: () => vistaAgenda(app) },
   cita: { titulo: 'Cita', vista: (id) => vistaCita(app, id), nav: 'agenda' },
+  empresa: { titulo: 'Empresa', vista: () => vistaEmpresa(app), nav: 'ajustes' },
+  firma: { titulo: 'Firma', vista: (id) => vistaFirma(app, id), nav: 'avisos' },
   ajustes: { titulo: 'Ajustes', vista: vistaAjustes },
   salir: { titulo: 'Salir', vista: vistaSalir },
 };
@@ -244,6 +248,7 @@ async function vistaAjustes() {
   return h('div', {},
     h('h1', {}, 'Ajustes'),
     nConf ? h('div', { class: 'aviso err' }, `${nConf} conflicto(s) de sincronización por revisar`) : null,
+    h('a', { class: 'card enlace-card', href: '#/empresa' }, h('b', {}, 'Empresa'), h('span', { class: 'muted' }, 'Nombre, logo, técnico, solicitante y correos ›')),
 
     h('details', { class: 'card', open: !cfg.url || null },
       h('summary', {}, 'Sincronización con el PC'),

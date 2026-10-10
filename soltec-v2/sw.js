@@ -2,11 +2,11 @@
 // Solo guarda los archivos de la aplicación. Los datos viven en IndexedDB y nunca se tocan aquí.
 // Una versión nueva se instala en segundo plano y espera a que pulses «Actualizar».
 
-const VERSION = 'V2-0.7.0';
+const VERSION = 'V2-0.8.0';
 const CACHE = 'SOLTEC-V2-' + VERSION;
 const SHELL = [
   './', './index.html', './app.css', './app.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',
-  './core/db.js', './core/storage.js', './core/model.js', './core/validate.js', './core/search.js', './core/backup.js', './core/sync.js', './ui.js', './modulos/avisos.js', './modulos/agenda.js', './assets/logo_e-distribucion.jpg',
+  './core/db.js', './core/storage.js', './core/model.js', './core/validate.js', './core/search.js', './core/backup.js', './core/sync.js', './ui.js', './modulos/avisos.js', './modulos/agenda.js', './modulos/empresa.js', './modulos/comunicaciones.js', './core/empresa.js', './core/documentos.js', './vendor/pdf-lib.min.js', './assets/logo_e-distribucion.jpg',
 ];
 
 self.addEventListener('install', (e) => {
