@@ -81,7 +81,8 @@ export function nuevoAviso(extra = {}) {
     condiciones: { ref: '', pdfs: [] }, // pdfs: versiones {hash,name,mime,size,addedAt}, la última es la actual
     tramite: 'datos',
     docs: Object.fromEntries(DOCUMENTOS.map((d) => [d.id, 'revisar'])),
-    fotos: [],
+    fotos: [], // {hash, name, mime, size, addedAt, nombre, cgp}
+    plano: null, // plano de situación (ficha de archivo)
     archivos: [], // documentos guardados en el aviso (p. ej. ficha firmada): {tipo, hash, name, mime, size, addedAt}
     ...extra,
   };
@@ -100,6 +101,7 @@ export function normalizarAviso(d = {}) {
   out.condiciones.pdfs = Array.isArray(out.condiciones.pdfs) ? out.condiciones.pdfs : [];
   out.fotos = Array.isArray(d.fotos) ? d.fotos : [];
   out.archivos = Array.isArray(d.archivos) ? d.archivos : [];
+  out.plano = d.plano && d.plano.hash ? d.plano : null;
   return out;
 }
 

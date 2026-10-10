@@ -10,6 +10,8 @@ import { buscar, duplicados } from '../core/search.js';
 import { provinciaDeCp, formatearIban, validarCups } from '../core/validate.js';
 import { bloqueSeguimiento } from './agenda.js';
 import { bloqueComunicaciones, listaArchivos } from './comunicaciones.js';
+import { bloqueMemoria } from './memoria.js';
+import { bloqueUbicacion, bloquePlano, bloqueFotos } from './ubicacion.js';
 
 const faseLabel = (id) => FASES_TRAMITE.find((f) => f.id === id)?.label || '';
 const leer = (o, ruta) => ruta.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
@@ -169,6 +171,14 @@ export async function vistaFicha(app, id) {
     w.querySelector('input,select,textarea')?.focus({ preventScroll: true });
   };
   const alCambiar = () => { cambiado = true; marcarPendientes(); };
+  /** Escribe un dato desde otro módulo (localización, catastro…) en el aviso y en su campo. */
+  const poner = (ruta, valor) => {
+    escribir(draft, ruta, valor);
+    const el = cont.querySelector('#f-' + ruta.replace('.', '-'));
+    if (el) el.value = valor;
+    if (ruta.startsWith('suministro.')) comprobarDuplicados();
+    alCambiar();
+  };
 
   // --- un campo del formulario
   const campo = ([ruta, etiqueta, tipo, o = {}]) => {
@@ -294,7 +304,7 @@ export async function vistaFicha(app, id) {
       h('a', { class: 'btn', href: registro && isExpediente(draft) ? '#/expedientes' : '#/avisos' }, 'Volver')),
     registro?.deleted ? h('div', { class: 'aviso err' }, 'Este aviso está en la papelera. ', h('button', { class: 'btn peq', type: 'button', onclick: async () => { await app.storage.restore(registro.id); toast('Recuperado'); window.dispatchEvent(new HashChangeEvent('hashchange')); } }, 'Recuperar')) : null,
     resumen, avisoDup,
-    seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.map(campo))),
+    seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.map(campo)), bloqueUbicacion(app, draft, poner, alCambiar)),
     seccion('Condiciones y trámite', false,
       h('div', { class: 'grid2' },
         campo(['condiciones.ref', 'Referencia de condiciones', 'text', { mono: true, mayus: true }]),
@@ -304,6 +314,8 @@ export async function vistaFicha(app, id) {
     seccion('Documentación', false, docsCtrl, h('p', { class: 'muted' }, 'Marcar «Recibido» registra la recepción; no adjunta ningún archivo.'), listaArchivos(app, draft)),
     registro ? seccion('Solicitudes y comunicaciones', false, comunicaciones) : null,
     seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
+    seccion('Plano de situación y fotografías', false, h('label', {}, 'Plano de situación'), bloquePlano(app, draft, alCambiar), h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
+    seccion('Memoria técnica CNMC', false, bloqueMemoria(app, draft, alCambiar, registro?.id)),
     seccion('Obra, fecha y observaciones', false, h('div', { class: 'grid2' }, ...CAMPOS_OBRA.map(campo),
       campo(['presupuesto.numero', 'Nº de presupuesto (si corresponde)', 'text']))),
     registro ? seccion('Seguimiento', false, seguimiento) : null,
