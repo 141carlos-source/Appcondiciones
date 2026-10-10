@@ -8,6 +8,7 @@ import {
 } from '../core/model.js';
 import { buscar, duplicados } from '../core/search.js';
 import { provinciaDeCp, formatearIban, validarCups } from '../core/validate.js';
+import { bloqueSeguimiento } from './agenda.js';
 
 const faseLabel = (id) => FASES_TRAMITE.find((f) => f.id === id)?.label || '';
 const leer = (o, ruta) => ruta.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
@@ -283,6 +284,7 @@ export async function vistaFicha(app, id) {
     else { registro = r; Object.assign(original, clonar(draft)); pdfsNuevos.length = 0; pintarHistorial(); }
   };
 
+  const seguimiento = registro ? await bloqueSeguimiento(app, registro.id) : null;
   const titulo = registro ? `Aviso ${draft.numero}` : id === 'duplicar' ? 'Nuevo aviso (copia)' : 'Nuevo aviso';
   const cont = h('form', { class: 'ficha', onsubmit: (e) => { e.preventDefault(); guardar(); } },
     h('div', { class: 'titulo-fila' },
@@ -301,6 +303,7 @@ export async function vistaFicha(app, id) {
     seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
     seccion('Obra, fecha y observaciones', false, h('div', { class: 'grid2' }, ...CAMPOS_OBRA.map(campo),
       campo(['presupuesto.numero', 'Nº de presupuesto (si corresponde)', 'text']))),
+    registro ? seccion('Seguimiento', false, seguimiento) : null,
     seccion('Historial', false, histLista,
       registro ? h('div', { class: 'grid2', style: 'margin-top:8px' },
         h('div', { class: 'campo' }, h('label', { for: 'mov-tipo' }, 'Registrar movimiento'), tipoMov),

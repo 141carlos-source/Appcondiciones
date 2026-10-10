@@ -6,10 +6,11 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-0.6.1';
+export const VERSION = 'V2-0.7.0';
 
 import { h, toast, hace, descargar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
+import { vistaAgenda, vistaCita, iniciarAlarmas } from './modulos/agenda.js';
 import { bandeja, buscar, FILTROS_BANDEJA } from './core/search.js';
 import { direccionCompleta, hoyLocal, numerosRepetidos, siguienteNumero } from './core/model.js';
 
@@ -31,7 +32,8 @@ const RUTAS = {
   avisos: { titulo: 'Avisos', vista: () => vistaAvisos(app) },
   expedientes: { titulo: 'Expedientes', vista: () => vistaExpedientes(app) },
   aviso: { titulo: 'Aviso', vista: (id) => vistaFicha(app, id), nav: 'avisos' },
-  agenda: { titulo: 'Agenda', vista: vistaAgenda },
+  agenda: { titulo: 'Agenda', vista: () => vistaAgenda(app) },
+  cita: { titulo: 'Cita', vista: (id) => vistaCita(app, id), nav: 'agenda' },
   ajustes: { titulo: 'Ajustes', vista: vistaAjustes },
   salir: { titulo: 'Salir', vista: vistaSalir },
 };
@@ -202,9 +204,6 @@ async function vistaInicio() {
 function sessionStorageGet(k) { try { return sessionStorage.getItem('soltec_' + k); } catch { return null; } }
 function sessionStorageSet(k, v) { try { sessionStorage.setItem('soltec_' + k, v); } catch { /* sin almacenamiento de sesión */ } }
 
-async function vistaAgenda() {
-  return h('div', {}, h('h1', {}, 'Agenda'), h('div', { class: 'card muted' }, 'La agenda con citas y seguimientos de los avisos llega en el siguiente paso.'));
-}
 
 async function vistaAjustes() {
   const cfg = await app.sync.config();
@@ -402,7 +401,7 @@ export async function iniciar() {
   window.soltec = app; // acceso para diagnóstico desde la consola
 
   app.storage.subscribe((c) => {
-    if (c.sync && (c.sync.bajados || c.sync.conflictos) && ['inicio', 'avisos', 'expedientes'].includes(rutaActual())) render();
+    if (c.sync && (c.sync.bajados || c.sync.conflictos) && ['inicio', 'avisos', 'expedientes', 'agenda'].includes(rutaActual())) render();
     if (c.sync || c.type === '*') return;
     refrescarEstado();
     programarSync(8000);
@@ -422,6 +421,7 @@ export async function iniciar() {
 
   await refrescarEstado();
   await render();
+  app.revisarAlarmas = iniciarAlarmas(app);
   registrarSW().catch((e) => console.warn('Service worker no registrado:', e));
   if (app.estado.configurado) programarSync(500);
 }
