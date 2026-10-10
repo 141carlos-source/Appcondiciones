@@ -12,6 +12,7 @@ import { bloqueSeguimiento } from './agenda.js';
 import { bloqueComunicaciones, listaArchivos } from './comunicaciones.js';
 import { bloqueMemoria } from './memoria.js';
 import { bloqueUbicacion, bloquePlano, bloqueFotos } from './ubicacion.js';
+import { bloquePartes } from './partes.js';
 
 const faseLabel = (id) => FASES_TRAMITE.find((f) => f.id === id)?.label || '';
 const leer = (o, ruta) => ruta.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
@@ -297,6 +298,7 @@ export async function vistaFicha(app, id) {
 
   const seguimiento = registro ? await bloqueSeguimiento(app, registro.id) : null;
   const comunicaciones = registro ? await bloqueComunicaciones(app, registro.id) : null;
+  const partes = registro ? await bloquePartes(app, registro.id) : null;
   const titulo = registro ? `Aviso ${draft.numero}` : id === 'duplicar' ? 'Nuevo aviso (copia)' : 'Nuevo aviso';
   const cont = h('form', { class: 'ficha', onsubmit: (e) => { e.preventDefault(); guardar(); } },
     h('div', { class: 'titulo-fila' },
@@ -315,10 +317,14 @@ export async function vistaFicha(app, id) {
     registro ? seccion('Solicitudes y comunicaciones', false, comunicaciones) : null,
     seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
     seccion('Plano de situación y fotografías', false, h('label', {}, 'Plano de situación'), bloquePlano(app, draft, alCambiar), h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
-    seccion('Memoria técnica CNMC', false, bloqueMemoria(app, draft, alCambiar, registro?.id)),
+    seccion('Memoria técnica CNMC', false, bloqueMemoria(app, draft, alCambiar, registro?.id, async (ficha) => {
+      if (!draft.archivos.some((x) => x.hash === ficha.hash)) draft.archivos.push(ficha);
+      await guardar();
+    })),
     seccion('Obra, fecha y observaciones', false, h('div', { class: 'grid2' }, ...CAMPOS_OBRA.map(campo),
       campo(['presupuesto.numero', 'Nº de presupuesto (si corresponde)', 'text']))),
     registro ? seccion('Seguimiento', false, seguimiento) : null,
+    registro ? seccion('Partes de trabajo', false, partes) : null,
     seccion('Historial', false, histLista,
       registro ? h('div', { class: 'grid2', style: 'margin-top:8px' },
         h('div', { class: 'campo' }, h('label', { for: 'mov-tipo' }, 'Registrar movimiento'), tipoMov),

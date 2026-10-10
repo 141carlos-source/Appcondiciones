@@ -12,7 +12,7 @@ const opciones = (lista, valor, vacio = '—') => [h('option', { value: '' }, va
  * Bloque editable. Modifica draft.memoria y avisa con alCambiar().
  * Si el aviso no tiene potencia, toma el total A+B+C+D.
  */
-export function bloqueMemoria(app, draft, alCambiar, avisoId) {
+export function bloqueMemoria(app, draft, alCambiar, avisoId, guardarArchivo) {
   draft.memoria = normalizarMemoria(draft.memoria);
   const m = draft.memoria;
   const totalBox = h('div', { class: 'total-cnmc', id: 'total-cnmc' });
@@ -60,9 +60,8 @@ export function bloqueMemoria(app, draft, alCambiar, avisoId) {
           h('button', { class: 'btn peq', type: 'button', id: 'descargar-memoria', onclick: () => descargar(blob, nombre) }, 'Descargar'),
           h('button', { class: 'btn peq prim', type: 'button', onclick: async (e) => {
             const ficha = await app.storage.putFile({ name: nombre, mime: 'application/pdf', bytes: new Uint8Array(await blob.arrayBuffer()) });
-            const a = normalizarAviso((await app.storage.get(avisoId)).data);
-            if (!a.archivos.some((x) => x.hash === ficha.hash)) a.archivos.push({ tipo: 'memoria', ...ficha });
-            await app.storage.save('aviso', a, { id: avisoId });
+            // Se guarda a través de la ficha abierta, para no pisar ni duplicar cambios
+            await guardarArchivo({ tipo: 'memoria', ...ficha });
             e.target.disabled = true; e.target.textContent = 'Guardada en el aviso';
           } }, 'Guardar copia en el aviso'))));
     } catch (err) { toast(err.message, true); }

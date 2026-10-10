@@ -47,7 +47,8 @@ try {
   const errores = [];
   page.on('pageerror', (e) => errores.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errores.push(m.text()); });
-  page.on('dialog', (d) => d.accept());
+  const dialogos = [];
+  page.on('dialog', (d) => { dialogos.push(d.message()); d.accept(); });
   const base = `http://localhost:${pWeb}/index.html`;
 
   await page.goto(base + '#/inicio');
@@ -107,6 +108,18 @@ try {
   assert.equal(doc.getPageCount(), 5);
   ok('Memoria CNMC en PDF (5 páginas: datos, técnicos, plano y CGP, anexo, firma y sello)');
   await page.screenshot({ path: join(raiz, 'tests/captura-memoria.png'), fullPage: false });
+
+  // Guardar la copia en el aviso y seguir editando: sin avisos falsos y sin perder la copia
+  await page.click('text=Guardar copia en el aviso');
+  await page.waitForSelector('text=Guardada en el aviso');
+  await page.$eval('details:has(#f-observaciones)', (d) => { d.open = true; });
+  await page.fill('#f-observaciones', 'Acometida subterránea');
+  await page.click('#guardar');
+  await page.waitForTimeout(500);
+  assert.ok(!dialogos.some((m) => /otro dispositivo/.test(m)), 'sin aviso falso de edición simultánea');
+  const archivos = await page.evaluate(async (aid) => (await window.soltec.storage.get(aid)).data.archivos.map((a) => a.tipo), id);
+  assert.deepEqual(archivos, ['memoria']);
+  ok('La copia de la memoria se guarda en el aviso y se conserva al seguir editando');
 
   // Sin servicios: se puede seguir a mano
   await ctx.unroute('https://ovc.catastro.meh.es/**');

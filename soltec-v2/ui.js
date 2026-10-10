@@ -58,3 +58,42 @@ export async function compartir(blob, nombre) {
 }
 
 export const ir = (ruta) => { location.hash = '#/' + ruta; };
+/** Va a la pantalla; si ya estás en ella, la vuelve a pintar con los datos nuevos. */
+export const irORepintar = (ruta) => {
+  if (location.hash === '#/' + ruta) window.dispatchEvent(new HashChangeEvent('hashchange'));
+  else ir(ruta);
+};
+
+/**
+ * Recuadro para firmar con el dedo o el ratón.
+ * @returns {{el: HTMLCanvasElement, vacio: () => boolean, borrar: () => void, png: () => Promise<Uint8Array>}}
+ */
+export function lienzoFirma(id = 'lienzo-firma') {
+  const el = h('canvas', { class: 'firma-lienzo', id });
+  let ctx = null, dibujando = false, ultimo = null, trazos = 0;
+  const preparar = () => {
+    const r = el.getBoundingClientRect();
+    const k = window.devicePixelRatio || 1;
+    el.width = Math.round(r.width * k); el.height = Math.round(r.height * k);
+    const c = el.getContext('2d');
+    c.scale(k, k); c.lineWidth = 2.4; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = '#14213d';
+    return c;
+  };
+  const punto = (e) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  el.addEventListener('pointerdown', (e) => { ctx ??= preparar(); dibujando = true; ultimo = punto(e); el.setPointerCapture(e.pointerId); e.preventDefault(); });
+  el.addEventListener('pointermove', (e) => {
+    if (!dibujando) return;
+    const p = punto(e);
+    ctx.beginPath(); ctx.moveTo(...ultimo); ctx.lineTo(...p); ctx.stroke();
+    ultimo = p; trazos++;
+  });
+  const fin = () => { dibujando = false; };
+  el.addEventListener('pointerup', fin);
+  el.addEventListener('pointercancel', fin);
+  return {
+    el,
+    vacio: () => trazos < 5,
+    borrar: () => { ctx = preparar(); trazos = 0; },
+    png: async () => new Uint8Array(await (await new Promise((ok) => el.toBlob(ok, 'image/png'))).arrayBuffer()),
+  };
+}

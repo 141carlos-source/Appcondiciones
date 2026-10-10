@@ -6,7 +6,8 @@ import { nombreEmpresa } from './empresa.js';
 
 // ---------------------------------------------------------------- utilidades
 /** Las fuentes estándar del PDF (WinAnsi) no admiten todos los caracteres: se limpian. */
-export const textoPdf = (s) => String(s ?? '').normalize('NFC').replace(/[^\x20-\x7E\xA0-\xFF€\n]/g, '').replace(/\n/g, ' ');
+// Se conservan también los signos tipográficos que WinAnsi sí tiene: – — ‘ ’ “ ” • … €
+export const textoPdf = (s) => String(s ?? '').normalize('NFC').replace(/\t/g, ' ').replace(/[^\x20-\x7E\xA0-\xFF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026\u20AC\n]/g, '').replace(/\n/g, ' ');
 
 export const nombreFicha = (aviso, firmada = false) => {
   const s = aviso.suministro || {};

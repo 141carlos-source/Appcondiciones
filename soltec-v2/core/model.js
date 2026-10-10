@@ -46,6 +46,9 @@ export const EVENTOS = {
   seguimiento_reabierto: 'Seguimiento reabierto',
   papelera: 'Enviado a la papelera',
   restaurado: 'Recuperado de la papelera',
+  parte_creado: 'Parte de trabajo creado',
+  parte_cerrado: 'Parte de trabajo cerrado',
+  parte_reabierto: 'Parte de trabajo reabierto',
   // Manuales
   solicitud_presentada: 'Solicitud presentada',
   condiciones_recibidas: 'Condiciones recibidas',

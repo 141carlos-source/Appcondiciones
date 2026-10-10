@@ -1,7 +1,7 @@
 // SOLTEC V2 · Ficha PDF del cliente, firma con el dedo, resumen de WhatsApp y correos.
 // Preparar una comunicación no es enviarla: el historial lo distingue.
 
-import { h, toast, abrirBlob, compartir, descargar, ir, fecha } from '../ui.js';
+import { h, toast, abrirBlob, compartir, descargar, fecha, lienzoFirma } from '../ui.js';
 import { generarFicha, nombreFicha, resumenWhatsApp, enlaceWhatsApp, telefonoWhatsApp, correo, enlaceCorreo, TIPOS_CORREO } from '../core/documentos.js';
 import { faltaParaFormulario } from '../core/empresa.js';
 import { datosPendientes, normalizarAviso, hoyLocal } from '../core/model.js';
@@ -145,35 +145,14 @@ export async function vistaFirma(app, avisoId) {
   const aviso = normalizarAviso(reg.data);
   const empresa = await leerEmpresa(app);
   const falta = faltaParaFormulario(empresa);
-  const lienzo = h('canvas', { class: 'firma-lienzo', id: 'lienzo-firma' });
-  let trazos = 0;
-  const preparar = () => {
-    const r = lienzo.getBoundingClientRect();
-    const k = window.devicePixelRatio || 1;
-    lienzo.width = Math.round(r.width * k); lienzo.height = Math.round(r.height * k);
-    const ctx = lienzo.getContext('2d');
-    ctx.scale(k, k); ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#14213d';
-    return ctx;
-  };
-  let ctx = null, dibujando = false, ultimo = null;
-  const punto = (e) => { const r = lienzo.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-  lienzo.addEventListener('pointerdown', (e) => { ctx ??= preparar(); dibujando = true; ultimo = punto(e); lienzo.setPointerCapture(e.pointerId); e.preventDefault(); });
-  lienzo.addEventListener('pointermove', (e) => {
-    if (!dibujando) return;
-    const p = punto(e);
-    ctx.beginPath(); ctx.moveTo(...ultimo); ctx.lineTo(...p); ctx.stroke();
-    ultimo = p; trazos++;
-  });
-  const fin = () => { dibujando = false; };
-  lienzo.addEventListener('pointerup', fin);
-  lienzo.addEventListener('pointercancel', fin);
+  const lienzo = lienzoFirma('lienzo-firma');
   const nombre = h('input', { type: 'text', id: 'firmante', value: aviso.cliente?.contacto || aviso.cliente?.nombre || '' });
   const resultado = h('div');
 
   const generar = async () => {
-    if (trazos < 5) { toast('Falta la firma', true); return; }
+    if (lienzo.vacio()) { toast('Falta la firma', true); return; }
     if (!nombre.value.trim()) { toast('Escribe el nombre de quien firma', true); nombre.focus(); return; }
-    const png = new Uint8Array(await (await new Promise((ok) => lienzo.toBlob(ok, 'image/png'))).arrayBuffer());
+    const png = await lienzo.png();
     const hoy = hoyLocal().split('-').reverse().join('/');
     try {
       const blob = await crearFichaPdf(app, aviso, { png, nombre: nombre.value.trim(), fecha: hoy });
@@ -200,8 +179,8 @@ export async function vistaFirma(app, avisoId) {
     h('div', { class: 'card' },
       h('div', {}, h('b', {}, `Aviso ${aviso.numero}`), ' · ', aviso.cliente?.nombre || ''),
       h('p', { class: 'muted' }, 'El cliente firma con el dedo en el recuadro. Se genera la ficha con sus datos y la firma.'),
-      lienzo,
-      h('div', { class: 'fila' }, h('button', { class: 'btn peq', type: 'button', onclick: () => { ctx = preparar(); trazos = 0; } }, 'Borrar firma')),
+      lienzo.el,
+      h('div', { class: 'fila' }, h('button', { class: 'btn peq', type: 'button', onclick: () => lienzo.borrar() }, 'Borrar firma')),
       h('label', { for: 'firmante' }, 'Nombre de quien firma'), nombre,
       h('div', { class: 'fila' }, h('button', { class: 'btn prim ancho', type: 'button', id: 'generar-firmada', disabled: falta.length ? true : null, onclick: generar }, 'Generar ficha firmada'))),
     resultado);

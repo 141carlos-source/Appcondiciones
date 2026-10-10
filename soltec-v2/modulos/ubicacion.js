@@ -190,7 +190,7 @@ export async function reducirImagen(file, max = 1600, calidad = 0.82) {
   } catch { return file; } // formato que el navegador no sabe leer: se guarda tal cual
 }
 
-export function bloqueFotos(app, draft, alCambiar) {
+export function bloqueFotos(app, draft, alCambiar, { cgp = true } = {}) {
   const lista = h('div', { class: 'fotos' });
   const pintar = async () => {
     const items = await Promise.all(draft.fotos.map(async (f, i) => {
@@ -198,7 +198,7 @@ export function bloqueFotos(app, draft, alCambiar) {
       return h('div', { class: 'foto' + (f.cgp ? ' cgp' : '') },
         b ? h('img', { src: URL.createObjectURL(b), alt: f.nombre || f.name }) : h('div', { class: 'muted' }, 'Sin descargar'),
         h('input', { type: 'text', value: f.nombre || '', placeholder: 'Descripción', 'aria-label': 'Descripción de la foto', oninput: (e) => { f.nombre = e.target.value; alCambiar(); } }),
-        h('label', { class: 'check-linea' }, h('input', { type: 'radio', name: 'foto-cgp', checked: f.cgp || null, onchange: () => { draft.fotos.forEach((x) => { x.cgp = x === f; }); alCambiar(); pintar(); } }), ' Ubicación CGP'),
+        cgp ? h('label', { class: 'check-linea' }, h('input', { type: 'radio', name: 'foto-cgp', checked: f.cgp || null, onchange: () => { draft.fotos.forEach((x) => { x.cgp = x === f; }); alCambiar(); pintar(); } }), ' Ubicación CGP') : null,
         h('button', { class: 'btn peq', type: 'button', onclick: () => { draft.fotos.splice(i, 1); alCambiar(); pintar(); } }, 'Quitar'));
     }));
     lista.replaceChildren(...(items.length ? items : [h('p', { class: 'muted' }, 'Sin fotografías.')]));
@@ -219,6 +219,6 @@ export function bloqueFotos(app, draft, alCambiar) {
     h('div', { class: 'fila' },
       h('button', { class: 'btn peq prim', type: 'button', onclick: () => camara.click() }, 'Hacer foto'),
       h('button', { class: 'btn peq', type: 'button', onclick: () => galeria.click() }, 'Añadir de la galería'), camara, galeria),
-    h('p', { class: 'muted' }, 'Marca la foto de la ubicación propuesta de la CGP: irá en el apartado 7 de la memoria; las demás, en el anexo.'),
+    cgp ? h('p', { class: 'muted' }, 'Marca la foto de la ubicación propuesta de la CGP: irá en el apartado 7 de la memoria; las demás, en el anexo.') : null,
     lista);
 }

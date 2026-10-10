@@ -6,13 +6,14 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-0.9.0';
+export const VERSION = 'V2-1.0.0';
 
 import { h, toast, hace, descargar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
 import { vistaAgenda, vistaCita, iniciarAlarmas } from './modulos/agenda.js';
 import { vistaEmpresa } from './modulos/empresa.js';
 import { vistaFirma } from './modulos/comunicaciones.js';
+import { vistaPartes, vistaParte } from './modulos/partes.js';
 import { bandeja, buscar, FILTROS_BANDEJA } from './core/search.js';
 import { direccionCompleta, hoyLocal, numerosRepetidos, siguienteNumero } from './core/model.js';
 
@@ -38,6 +39,8 @@ const RUTAS = {
   cita: { titulo: 'Cita', vista: (id) => vistaCita(app, id), nav: 'agenda' },
   empresa: { titulo: 'Empresa', vista: () => vistaEmpresa(app), nav: 'ajustes' },
   firma: { titulo: 'Firma', vista: (id) => vistaFirma(app, id), nav: 'avisos' },
+  partes: { titulo: 'Partes', vista: () => vistaPartes(app), nav: 'inicio' },
+  parte: { titulo: 'Parte', vista: (id) => vistaParte(app, id), nav: 'inicio' },
   ajustes: { titulo: 'Ajustes', vista: vistaAjustes },
   salir: { titulo: 'Salir', vista: vistaSalir },
 };
@@ -143,6 +146,7 @@ async function vistaInicio() {
   const exp = avisos.filter((r) => isExpediente(r.data)).length;
   const hoy = hoyLocal();
   const proximas = citas.filter((c) => !c.data.hecho && (c.data.fecha || '') >= hoy).length;
+  const partesAbiertos = (await app.storage.list('parte')).filter((r) => !r.data.cerrado).length;
 
   // Buscador único: avisos y expedientes, activos y finalizados (sin papelera)
   const resultados = h('div', { class: 'lista' });
@@ -194,6 +198,10 @@ async function vistaInicio() {
       h('a', { class: 'cifra', href: '#/avisos' }, h('b', {}, avisos.length - exp), h('span', {}, 'Avisos')),
       h('a', { class: 'cifra', href: '#/expedientes' }, h('b', {}, exp), h('span', {}, 'Expedientes')),
       h('a', { class: 'cifra', href: '#/agenda' }, h('b', {}, proximas), h('span', {}, 'Citas próximas'))),
+    h('div', { class: 'accesos' },
+      h('a', { class: 'btn', href: '#/partes', id: 'acceso-partes' }, `Partes de trabajo${partesAbiertos ? ` (${partesAbiertos} abiertos)` : ''}`),
+      h('a', { class: 'btn', href: '#/aviso/nuevo' }, '+ Nuevo aviso'),
+      h('a', { class: 'btn', href: '#/empresa' }, 'Empresa')),
     h('h2', {}, 'Buscar'), busca, resultados,
     h('h2', {}, 'Qué toca hoy'), chips, h('div', { class: 'lista' }, ...tarjetas),
     h('h2', {}, 'Sincronización con el PC'),

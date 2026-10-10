@@ -37,7 +37,7 @@ test('ficha firmada: incluye la firma y fija los datos', async () => {
 });
 
 test('caracteres que el PDF no admite no rompen el documento', async () => {
-  assert.equal(textoPdf('Obra 🔌 «Norte» – ok'), 'Obra  «Norte»  ok');
+  assert.equal(textoPdf('Obra 🔌 «Norte» – ok — €'), 'Obra  «Norte» – ok — €');
   const raro = { ...aviso, cliente: { ...aviso.cliente, nombre: 'Ĉliente ✓ 😀' } };
   await generarFicha(PDFLib, { aviso: raro, empresa });
 });
