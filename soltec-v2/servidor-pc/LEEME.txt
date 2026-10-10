@@ -1,0 +1,36 @@
+SOLTEC V2 · SERVIDOR DEL PC DE CASA
+===================================
+
+Qué hace
+--------
+Guarda en el PC la copia central de avisos, citas, historial, partes y archivos
+de SOLTEC V2, y la sincroniza con el móvil y la tablet registro a registro.
+
+Es independiente del servidor de la V1.35: puede funcionar a la vez.
+  V1.35 -> puerto 8765, dirección https://carlos25.tail970b93.ts.net
+  V2    -> puerto 8766, dirección https://carlos25.tail970b93.ts.net:8443
+
+Puesta en marcha
+----------------
+1. Copia esta carpeta en el PC de casa (por ejemplo C:\SOLTEC_V2_SERVIDOR).
+2. Doble clic en INICIAR_SOLTEC_V2.bat.
+3. Se abre la ventana "SOLTEC V2 - NO CERRAR" con la CLAVE.
+4. En SOLTEC V2, Configuración > Sincronización, escribe la dirección :8443 y la clave.
+
+Qué se guarda en esta carpeta
+-----------------------------
+  soltec-v2-config.json   La clave. Se crea una sola vez. Si se daña, el servidor
+                          no arranca y avisa: la clave nunca se cambia sola.
+  datos\soltec-v2.sqlite3 Los registros.
+  datos\archivos\         Los PDF, fotos y firmas, identificados por su huella.
+  copias\                 Copia de la base al arrancar y cada 6 horas (se guardan
+                          las 30 últimas) y las copias completas que envíen los
+                          dispositivos.
+
+Conflictos
+----------
+Si dos dispositivos cambian el mismo aviso sin sincronizar entre medias, el PC
+acepta el primero y guarda el segundo en la tabla de conflictos. La app avisará
+para que elijas qué versión se queda. Nada se pierde.
+
+Haz copia de esta carpeta entera (por ejemplo en Drive) de vez en cuando.
