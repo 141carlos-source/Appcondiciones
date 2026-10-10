@@ -99,7 +99,7 @@ try {
 
   // Firma con el dedo
   await page.goto(base + '#/firma/' + id);
-  const caja = await (await page.$('#lienzo-firma')).boundingBox();
+  const caja = await (await page.waitForSelector('#lienzo-firma')).boundingBox();
   await page.mouse.move(caja.x + 30, caja.y + 120);
   await page.mouse.down();
   for (let i = 0; i < 25; i++) await page.mouse.move(caja.x + 30 + i * 10, caja.y + 120 - Math.sin(i / 3) * 40);

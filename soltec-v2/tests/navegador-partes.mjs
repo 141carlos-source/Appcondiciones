@@ -60,7 +60,7 @@ try {
   ok('No deja cerrar sin la firma del cliente');
 
   await page.$eval('details:has(#lienzo-parte)', (d) => { d.open = true; });
-  const caja = await (await page.$('#lienzo-parte')).boundingBox();
+  const caja = await (await page.waitForSelector('#lienzo-parte')).boundingBox();
   await page.mouse.move(caja.x + 30, caja.y + 100); await page.mouse.down();
   for (let i = 0; i < 20; i++) await page.mouse.move(caja.x + 30 + i * 12, caja.y + 100 - Math.sin(i / 2) * 30);
   await page.mouse.up();

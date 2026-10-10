@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.0.0';
+export const VERSION = 'V2-1.1.0';
 
 import { h, toast, hace, descargar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -192,7 +192,23 @@ async function vistaInicio() {
     } }, 'Renumerar'))) : null;
 
   const [, txt] = textoEstado();
+  // Cabecera del día: lo primero que se ve es qué hay que hacer hoy
+  const ahora = new Date();
+  const diaSemana = ahora.toLocaleDateString('es-ES', { weekday: 'long' });
+  const pendientesHoy = bandeja(avisos, citas, 'todo').length;
+  const segHoy = bandeja(avisos, citas, 'hoy').length;
+  const vencidos = bandeja(avisos, citas, 'vencidos').length;
+  const resumen = pendientesHoy
+    ? [h('b', {}, pendientesHoy), pendientesHoy === 1 ? ' aviso necesita atención' : ' avisos necesitan atención',
+      segHoy ? [', ', h('b', {}, segHoy), segHoy === 1 ? ' seguimiento hoy' : ' seguimientos hoy'] : null,
+      vencidos ? [' y ', h('b', { style: 'color:var(--rojo-oscuro)' }, vencidos), vencidos === 1 ? ' vencido' : ' vencidos'] : null, '.']
+    : [avisos.length ? 'Nada pendiente por ahora.' : 'Empieza creando tu primer aviso.'];
   return h('div', {},
+    h('section', { class: 'hoy' },
+      h('p', { class: 'hoy-dia' }, diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1)),
+      h('h1', {}, ahora.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })),
+      h('p', { class: 'hoy-resumen' }, ...resumen)),
+    busca, resultados,
     avisoRepetidos,
     h('div', { class: 'cifras' },
       h('a', { class: 'cifra', href: '#/avisos' }, h('b', {}, avisos.length - exp), h('span', {}, 'Avisos')),
@@ -202,7 +218,6 @@ async function vistaInicio() {
       h('a', { class: 'btn', href: '#/partes', id: 'acceso-partes' }, `Partes de trabajo${partesAbiertos ? ` (${partesAbiertos} abiertos)` : ''}`),
       h('a', { class: 'btn', href: '#/aviso/nuevo' }, '+ Nuevo aviso'),
       h('a', { class: 'btn', href: '#/empresa' }, 'Empresa')),
-    h('h2', {}, 'Buscar'), busca, resultados,
     h('h2', {}, 'Qué toca hoy'), chips, h('div', { class: 'lista' }, ...tarjetas),
     h('h2', {}, 'Sincronización con el PC'),
     h('div', { class: 'card' },
@@ -396,7 +411,7 @@ function carcasa() {
     h('a', { href: '#/salir', 'data-ruta': 'salir', class: 'salir' }, icono('salir'), h('span', {}, 'Salir')));
   document.body.replaceChildren(
     h('header', { class: 'top' },
-      h('div', { class: 'marca' }, h('div', {}, h('b', {}, 'SOLTEC'), h('small', {}, 'AVISOS V2'))),
+      h('div', { class: 'marca' }, h('div', {}, h('b', {}, 'SOLTEC'), h('small', {}, 'Avisos y expedientes'))),
       h('button', { class: 'estado', onclick: () => sincronizar() })),
     h('main', { id: 'contenido' }),
     nav);
