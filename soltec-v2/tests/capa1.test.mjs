@@ -208,3 +208,9 @@ test('bandeja «Qué toca hoy»', () => {
   assert.deepEqual(bandeja(avisos, citas, 'docs', ahora).map((i) => i.numero), ['3']);
   assert.equal(bandeja(avisos, citas, 'datos', ahora).length, 0);
 });
+
+test('la versión de la app y la del service worker coinciden', async () => {
+  const { readFileSync } = await import('node:fs');
+  const v = (f, re) => re.exec(readFileSync(new URL('../' + f, import.meta.url), 'utf8'))[1];
+  assert.equal(v('app.js', /VERSION = '([^']+)'/), v('sw.js', /VERSION = '([^']+)'/));
+});

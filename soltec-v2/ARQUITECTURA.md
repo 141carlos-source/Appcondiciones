@@ -18,7 +18,7 @@ Reconstrucción de SOLTEC desde cero en `soltec-v2/`. La V1.35 (`avisos-v134/`) 
 | 2 | Copia de seguridad (exportar/importar, huella) | `core/backup.js` | Hecha |
 | 3 | Servidor del PC (SQLite, puerto 8766, HTTPS 8443) | `servidor-pc/server.py` | Hecha |
 | 4 | Sincronización | `core/sync.js` | Hecha (probada contra el servidor real) |
-| 5 | Carcasa PWA (navegación, salida segura, actualización) | `index.html`, `sw.js`, `app.js` | Pendiente |
+| 5 | Carcasa PWA (navegación, salida segura, actualización) | `index.html`, `sw.js`, `app.js` | Hecha (probada en Chromium móvil) |
 | 6 | Módulos de pantalla | `modulos/*.js` | Pendiente |
 
 ## Modelo de datos
