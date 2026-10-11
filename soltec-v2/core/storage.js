@@ -10,6 +10,9 @@
 import { openDB, req, done } from './db.js';
 
 const now = () => new Date().toISOString();
+// Orden estable de eventos creados en el mismo milisegundo
+let ultimoOrden = 0;
+const siguienteOrden = () => { ultimoOrden = Math.max(Date.now() * 1000, ultimoOrden + 1); return ultimoOrden; };
 
 /** Identificador ordenable por tiempo y único entre dispositivos. */
 export function newId(prefix = '') {
@@ -85,7 +88,7 @@ export class Storage {
   /** Historial cronológico de un registro. */
   async history(ref) {
     const ev = await this.listByRef(ref, 'evento');
-    return ev.sort((a, b) => (a.data.at < b.data.at ? -1 : a.data.at > b.data.at ? 1 : 0));
+    return ev.sort((a, b) => (a.data.at < b.data.at ? -1 : a.data.at > b.data.at ? 1 : (a.data.orden || 0) - (b.data.orden || 0)));
   }
 
   // ---------- Escritura ----------
@@ -140,7 +143,7 @@ export class Storage {
     const t = now();
     return {
       id: newId('evt'), type: 'evento', ref,
-      data: { at: t, kind, text, ...clone(extra) },
+      data: { at: t, orden: siguienteOrden(), kind, text, ...clone(extra) },
       rev: 1, serverRev: 0, createdAt: t, updatedAt: t, deviceId: this.deviceId, deleted: false, deletedAt: null,
     };
   }

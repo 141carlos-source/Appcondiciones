@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.1.0';
+export const VERSION = 'V2-1.2.0';
 
 import { h, toast, hace, descargar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -14,6 +14,7 @@ import { vistaAgenda, vistaCita, iniciarAlarmas } from './modulos/agenda.js';
 import { vistaEmpresa } from './modulos/empresa.js';
 import { vistaFirma } from './modulos/comunicaciones.js';
 import { vistaPartes, vistaParte } from './modulos/partes.js';
+import { vistaImportar, hayV1Local } from './modulos/importar.js';
 import { bandeja, buscar, FILTROS_BANDEJA } from './core/search.js';
 import { direccionCompleta, hoyLocal, numerosRepetidos, siguienteNumero } from './core/model.js';
 
@@ -40,6 +41,7 @@ const RUTAS = {
   empresa: { titulo: 'Empresa', vista: () => vistaEmpresa(app), nav: 'ajustes' },
   firma: { titulo: 'Firma', vista: (id) => vistaFirma(app, id), nav: 'avisos' },
   partes: { titulo: 'Partes', vista: () => vistaPartes(app), nav: 'inicio' },
+  importar: { titulo: 'Importar V1.35', vista: () => vistaImportar(app), nav: 'ajustes' },
   parte: { titulo: 'Parte', vista: (id) => vistaParte(app, id), nav: 'inicio' },
   ajustes: { titulo: 'Ajustes', vista: vistaAjustes },
   salir: { titulo: 'Salir', vista: vistaSalir },
@@ -208,6 +210,7 @@ async function vistaInicio() {
       h('p', { class: 'hoy-dia' }, diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1)),
       h('h1', {}, ahora.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })),
       h('p', { class: 'hoy-resumen' }, ...resumen)),
+    !avisos.length && hayV1Local() ? h('a', { class: 'card enlace-card', href: '#/importar' }, h('b', {}, 'Hay datos de la V1.35 en este navegador'), h('span', { class: 'muted' }, 'Tráelos a la V2 sin tocar la V1.35 ›')) : null,
     busca, resultados,
     avisoRepetidos,
     h('div', { class: 'cifras' },
@@ -272,6 +275,7 @@ async function vistaAjustes() {
     h('h1', {}, 'Ajustes'),
     nConf ? h('div', { class: 'aviso err' }, `${nConf} conflicto(s) de sincronización por revisar`) : null,
     h('a', { class: 'card enlace-card', href: '#/empresa' }, h('b', {}, 'Empresa'), h('span', { class: 'muted' }, 'Nombre, logo, técnico, solicitante y correos ›')),
+    h('a', { class: 'card enlace-card', href: '#/importar', id: 'enlace-importar' }, h('b', {}, 'Traer datos de la V1.35'), h('span', { class: 'muted' }, 'Avisos, expedientes, PDF, fotos, planos, agenda y partes ›')),
 
     h('details', { class: 'card', open: !cfg.url || null },
       h('summary', {}, 'Sincronización con el PC'),

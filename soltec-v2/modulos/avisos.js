@@ -104,6 +104,10 @@ const CAMPOS_CLIENTE = [
 const CAMPOS_ELEC = [
   ['electrico.potenciaKw', 'Potencia (kW)', 'text', { inputmode: 'decimal' }],
   ['electrico.tension', 'Tensión', 'select', { opciones: [['', '—'], ['230', '230 V (monofásico)'], ['400', '400 V (trifásico)']] }],
+  ['electrico.potenciaCalculada', 'Potencia calculada (kW)', 'text', { inputmode: 'decimal' }],
+  ['electrico.iga', 'IGA (A)', 'text', { inputmode: 'numeric' }],
+  ['electrico.contador', 'Contador', 'text'],
+  ['electrico.contadorCercano', 'Contador cercano', 'text'],
   ['electrico.uso', 'Uso', 'select', { opciones: [['', '—'], ['vivienda', 'Vivienda'], ['local', 'Local comercial'], ['comunes', 'Servicios comunes'], ['garaje', 'Garaje / recarga'], ['otro', 'Otro']] }],
 ];
 const CAMPOS_OBRA = [
@@ -302,7 +306,7 @@ export async function vistaFicha(app, id) {
   const titulo = registro ? `Aviso ${draft.numero}` : id === 'duplicar' ? 'Nuevo aviso (copia)' : 'Nuevo aviso';
   const cont = h('form', { class: 'ficha', onsubmit: (e) => { e.preventDefault(); guardar(); } },
     h('div', { class: 'titulo-fila' },
-      h('div', {}, h('h1', {}, titulo), registro && isExpediente(draft) ? h('span', { class: 'insignia ok' }, 'Expediente') : null),
+      h('div', {}, h('h1', {}, titulo), registro && isExpediente(draft) ? h('span', { class: 'insignia ok' }, 'Expediente') : null, draft.v1?.id ? h('span', { class: 'insignia', style: 'margin-left:6px' }, `V1.35 nº ${draft.v1.id}`) : null),
       h('a', { class: 'btn', href: registro && isExpediente(draft) ? '#/expedientes' : '#/avisos' }, 'Volver')),
     registro?.deleted ? h('div', { class: 'aviso err' }, 'Este aviso está en la papelera. ', h('button', { class: 'btn peq', type: 'button', onclick: async () => { await app.storage.restore(registro.id); toast('Recuperado'); window.dispatchEvent(new HashChangeEvent('hashchange')); } }, 'Recuperar')) : null,
     resumen, avisoDup,

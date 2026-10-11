@@ -325,3 +325,4 @@ nav.inferior .salir::before { content: ''; position: absolute; left: 0; top: 14p
 @keyframes aparecer { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 @media (max-width: 340px) { .grid2 { grid-template-columns: 1fr; } }
+.resumen-import { margin: 10px 0; padding-left: 18px; } .resumen-import li { margin: 4px 0; }

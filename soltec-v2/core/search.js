@@ -19,7 +19,7 @@ const digitos = (s) => String(s ?? '').replace(/\D/g, '');
 
 function textoBusqueda(a) {
   const c = a.cliente || {}, s = a.suministro || {};
-  return [c.nombre, c.contacto, s.direccion, s.piso, s.puerta, s.poblacion, a.numero, a.condiciones?.ref, s.cups, a.obra].map(norm).join(' | ');
+  return [c.nombre, c.contacto, s.direccion, s.piso, s.puerta, s.poblacion, a.numero, a.condiciones?.ref, s.cups, a.obra, a.v1?.id].map(norm).join(' | ');
 }
 
 /**
@@ -37,7 +37,7 @@ export function buscar(registros, consulta) {
     const t = textoBusqueda(a);
     if (palabras.every((p) => t.includes(p))) return true;
     if (qDig.length >= 6 && digitos(a.cliente?.telefono).includes(qDig)) return true;
-    if (qComp.length >= 6 && [a.suministro?.cups, a.condiciones?.ref, a.numero].some((x) => compacto(x).includes(qComp))) return true;
+    if (qComp.length >= 6 && [a.suministro?.cups, a.condiciones?.ref, a.numero, a.v1?.id].some((x) => compacto(x).includes(qComp))) return true;
     return false;
   }).map((r) => ({ registro: r, expediente: isExpediente(r.data) }));
 }

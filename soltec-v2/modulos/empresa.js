@@ -23,7 +23,7 @@ function leerV1Local() {
   } catch { return null; }
 }
 
-async function aplicarImportacion(app, d, imp) {
+export async function aplicarImportacion(app, d, imp) {
   for (const [k, v] of Object.entries(imp.datos)) {
     if (k === 'logo' || k === 'firma' || k === 'sello') continue;
     // Solo rellena lo que está vacío: nunca pisa lo que ya escribiste en la V2
