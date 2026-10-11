@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.3.1';
+export const VERSION = 'V2-1.4.0';
 
 import { h, toast, hace, descargar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -86,6 +86,7 @@ async function refrescarEstado() {
   app.estado.archivos = c.files;
   app.estado.ultima = (await app.storage.getMeta('ultimaSync'))?.fin || null;
   app.estado.configurado = !!(cfg.url && cfg.clave);
+  app.estado.ultimoContacto = (await app.storage.getMeta('ultimoContactoPC')) || app.estado.ultimo;
   pintarEstado();
 }
 
@@ -105,6 +106,58 @@ function pintarEstado() {
   const [cls, txt] = textoEstado();
   b.replaceChildren(h('span', {}, txt), h('span', { class: 'punto ' + cls }));
   b.title = app.estado.error || txt;
+  pintarBanda();
+}
+
+/** Registro abierto ahora en pantalla (para avisar si otro dispositivo tiene el mismo). */
+function registroAbierto() {
+  const [ruta, id] = partesRuta();
+  return ['aviso', 'cita', 'parte', 'firma'].includes(ruta) && id && !/^nuev[oa]$/.test(id) ? id : null;
+}
+
+const SIN_CONTACTO_MIN = 60;
+/** Banda bajo la cabecera: aviso de edición a la vez en otro dispositivo y de cambios que llevan tiempo sin subir. */
+function pintarBanda() {
+  const banda = document.getElementById('banda-sync');
+  if (!banda) return;
+  const e = app.estado;
+  const partes = [];
+  const abierto = registroAbierto();
+  const otros = abierto ? (e.otros || []).filter((o) => o.abierto === abierto) : [];
+  if (otros.length) {
+    partes.push(h('div', { class: 'aviso info aviso-sync', id: 'aviso-otro-dispositivo' },
+      h('b', {}, 'Abierto también en ' + otros.map((o) => `«${o.nombre || 'otro dispositivo'}»`).join(' y ') + '. '),
+      'Si cambiáis lo mismo en los dos, la app te pedirá elegir qué versión se queda. Mejor termina en uno y sigue en el otro.'));
+  }
+  const n = (e.pendientes || 0) + (e.archivos || 0);
+  const minutos = e.ultimoContacto ? (Date.now() - new Date(e.ultimoContacto).getTime()) / 60000 : Infinity;
+  if (e.configurado && n && minutos > SIN_CONTACTO_MIN) {
+    partes.push(h('div', { class: 'aviso err aviso-sync', id: 'aviso-sin-subir' },
+      h('b', {}, !e.ultimoContacto ? 'Este dispositivo aún no ha conectado con el PC: '
+        : minutos < 1440 ? `Llevas ${minutos < 120 ? Math.round(minutos) + ' min' : Math.round(minutos / 60) + ' h'} sin conectar con el PC: `
+          : `Sin conectar con el PC desde el ${new Date(e.ultimoContacto).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}: `),
+      `${n} cambio${n === 1 ? '' : 's'} solo está${n === 1 ? '' : 'n'} en este dispositivo. No los continúes en otro aparato hasta que se sincronicen. `,
+      h('button', { class: 'btn peq', type: 'button', onclick: () => sincronizar() }, 'Sincronizar ahora')));
+  }
+  banda.replaceChildren(...partes);
+}
+
+/** Latido: cada 25 s con la app visible. Si en el PC hay algo nuevo (o aquí hay algo sin subir), sincroniza. */
+const LATIDO_MS = 25 * 1000;
+async function latido() {
+  if (!app.estado.configurado || document.visibilityState !== 'visible' || !navigator.onLine || app.estado.sincronizando) return;
+  try {
+    const r = await app.sync.latido(registroAbierto());
+    app.estado.otros = r.otros;
+    app.estado.ultimoContacto = new Date().toISOString();
+    if (app.estado.error) app.estado.error = null;
+    if (r.hayCambios || app.estado.pendientes || app.estado.archivos) await sincronizar({ silencioso: true });
+    else pintarEstado();
+  } catch (e) {
+    app.estado.error = e.message;
+    app.estado.otros = [];
+    pintarEstado();
+  }
 }
 
 async function sincronizar({ silencioso = false } = {}) {
@@ -135,7 +188,8 @@ async function sincronizar({ silencioso = false } = {}) {
   }
 }
 
-/** Sincronización automática: tras cambios, al recuperar conexión y cada 5 min con la app visible. */
+/** Sincronización automática: 2 s después de guardar, al recuperar conexión, al volver a la app,
+ *  y con el latido (cada 25 s) en cuanto el PC tiene algo nuevo. */
 function programarSync(ms) {
   clearTimeout(app.timer);
   app.timer = setTimeout(() => sincronizar({ silencioso: true }), ms);
@@ -422,6 +476,7 @@ function carcasa() {
     h('header', { class: 'top' },
       h('div', { class: 'marca' }, h('div', {}, h('b', {}, 'SOLTEC'), h('small', {}, 'Avisos y expedientes'))),
       h('button', { class: 'estado', onclick: () => sincronizar() })),
+    h('div', { id: 'banda-sync', 'aria-live': 'polite' }),
     h('main', { id: 'contenido' }),
     nav);
 }
@@ -441,7 +496,7 @@ export async function iniciar() {
     if (c.sync && (c.sync.bajados || c.sync.conflictos) && ['inicio', 'avisos', 'expedientes', 'agenda'].includes(rutaActual())) render();
     if (c.sync || c.type === '*') return;
     refrescarEstado();
-    programarSync(8000);
+    programarSync(2000);
   });
   window.addEventListener('hashchange', alCambiarHash);
   window.addEventListener('beforeunload', (e) => { if (app.guardia?.()) { e.preventDefault(); e.returnValue = ''; } });
@@ -451,7 +506,11 @@ export async function iniciar() {
     if (document.visibilityState === 'hidden' && app.estado.pendientes) sincronizar({ silencioso: true });
     if (document.visibilityState === 'visible') { programarSync(1000); buscarActualizacion(false); }
   });
+  setInterval(latido, LATIDO_MS);
+  // Por si el latido falla en silencio: sincronización completa cada 5 min con la app visible.
   setInterval(() => { if (document.visibilityState === 'visible') sincronizar({ silencioso: true }); }, 5 * 60 * 1000);
+  // Al cambiar de pantalla se avisa al momento de qué registro está abierto
+  window.addEventListener('hashchange', () => setTimeout(latido, 300));
 
   // Pedir al navegador que no borre los datos (en la PWA instalada suele concederlo sin preguntar)
   navigator.storage?.persist?.().catch(() => {});

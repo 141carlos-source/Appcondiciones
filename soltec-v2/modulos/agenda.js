@@ -1,7 +1,8 @@
 // SOLTEC V2 · Capa 6 · Agenda: citas y seguimientos de avisos (un único tipo de registro, «cita»).
 // Un seguimiento es una cita con ref = id del aviso; completarla o reabrirla queda en el historial del aviso.
 
-import { h, toast, ir } from '../ui.js';
+import { h, toast, ir, descargar } from '../ui.js';
+import { ANTELACIONES, debeSonar, momentoAlarma, enlaceGoogle, icsCita, nombreIcs } from '../core/calendario.js';
 import { hoyLocal, direccionCompleta } from '../core/model.js';
 import { buscar } from '../core/search.js';
 
@@ -71,7 +72,7 @@ export async function vistaAgenda(app) {
       h('a', { class: 'chip' + (verHechas ? '' : ' activo'), href: '#/agenda' }, 'Pendientes'),
       h('a', { class: 'chip' + (verHechas ? ' activo' : ''), href: '#/agenda?ver=hechas' }, 'Hechas')),
     lista,
-    h('p', { class: 'muted' }, 'Las alarmas solo suenan con SOLTEC abierto en este dispositivo.'));
+    h('p', { class: 'muted' }, 'Los avisos suenan con SOLTEC abierta. Para que suenen siempre, abre la cita y añádela al calendario del teléfono.'));
 }
 
 /** Ficha de cita: nueva, desde un aviso (?aviso=id) o editar. */
@@ -80,7 +81,7 @@ export async function vistaCita(app, id) {
   const nueva = id === 'nueva';
   let cita = nueva ? null : await app.storage.get(id);
   if (!nueva && !cita) return h('div', {}, h('h1', {}, 'Cita no encontrada'), h('a', { class: 'btn', href: '#/agenda' }, 'Volver'));
-  const d = cita ? { ...cita.data } : { titulo: '', fecha: hoyLocal(), hora: '', responsable: '', notas: '', alarma: false, hecho: false };
+  const d = cita ? { antelacion: 0, ...cita.data } : { titulo: '', fecha: hoyLocal(), hora: '', responsable: '', notas: '', alarma: true, antelacion: 15, hecho: false };
   let avisoId = cita ? cita.ref : params.get('aviso');
   const avisos = await app.storage.list('aviso');
   let cambiado = false;
@@ -111,12 +112,22 @@ export async function vistaCita(app, id) {
   };
   pintarAviso();
 
+  const selAnt = h('select', { id: 'c-antelacion', 'aria-label': 'Cuándo avisar', disabled: !d.alarma || null, onchange: (e) => { d.antelacion = Number(e.target.value); marca(); } },
+    ...ANTELACIONES.map((a) => h('option', { value: a.min, selected: Number(d.antelacion || 0) === a.min || null }, a.texto)));
+
   const guardar = async () => {
     if (!d.titulo.trim()) { toast('Escribe qué hay que hacer', true); document.getElementById('c-titulo')?.focus(); return; }
     if (!d.fecha) { toast('Indica la fecha', true); return; }
-    if (nueva) await crearCita(app, d, avisoId);
-    else await app.storage.save('cita', d, { id: cita.id });
+    let guardada;
+    if (nueva) guardada = await crearCita(app, d, avisoId);
+    else guardada = await app.storage.save('cita', d, { id: cita.id });
     cambiado = false;
+    if (nueva) {
+      // Se abre la cita guardada para ofrecer «Añadir al calendario del teléfono»
+      toast('Cita guardada. Añádela al calendario para que suene siempre.');
+      ir(`cita/${guardada.id}${avisoId && params.get('aviso') ? '?aviso=' + avisoId : ''}`);
+      return;
+    }
     toast('Cita guardada');
     if (avisoId && params.get('aviso')) ir('aviso/' + avisoId); else ir('agenda');
   };
@@ -124,6 +135,7 @@ export async function vistaCita(app, id) {
   return h('form', { class: 'ficha', onsubmit: (e) => { e.preventDefault(); guardar(); } },
     h('div', { class: 'titulo-fila' }, h('h1', {}, nueva ? (avisoId ? 'Nuevo seguimiento' : 'Nueva cita') : 'Cita'),
       h('a', { class: 'btn', href: avisoId && params.get('aviso') ? `#/aviso/${avisoId}` : '#/agenda' }, 'Volver')),
+    cita && !d.hecho ? bloqueCalendario(cita, avisos.find((r) => r.id === avisoId)) : null,
     h('div', { class: 'card' },
       h('div', { class: 'grid2' },
         inp('titulo', 'text', 'Qué hay que hacer', { ancho: true, placeholder: 'Ejemplo: Llamar para pedir el IBAN' }),
@@ -132,8 +144,11 @@ export async function vistaCita(app, id) {
         inp('responsable', 'text', 'Responsable', { ancho: true }),
         h('div', { class: 'campo ancho' }, h('label', { for: 'c-notas' }, 'Notas'),
           h('textarea', { id: 'c-notas', rows: 3, value: d.notas || '', oninput: (e) => { d.notas = e.target.value; marca(); } }))),
-      h('label', { class: 'check-linea' }, h('input', { type: 'checkbox', id: 'c-alarma', checked: d.alarma || null, onchange: (e) => { d.alarma = e.target.checked; marca(); if (e.target.checked) pedirPermisoNotificaciones(); } }),
-        ' Avisarme a la hora (solo con SOLTEC abierto)'),
+      h('div', { class: 'fila alarma-fila' },
+        h('label', { class: 'check-linea' }, h('input', { type: 'checkbox', id: 'c-alarma', checked: d.alarma || null, onchange: (e) => { d.alarma = e.target.checked; marca(); selAnt.disabled = !d.alarma; if (e.target.checked) prepararAvisos(); } }),
+          ' Avisar con sonido'),
+        selAnt),
+      h('p', { class: 'muted' }, 'Con SOLTEC abierta suena aquí. Para que suene siempre, aunque el móvil esté bloqueado, añádela al calendario del teléfono al guardar.'),
       h('label', {}, 'Aviso'), avisoSel),
     cita ? h('div', { class: 'fila' },
       h('button', { class: 'btn', type: 'button', onclick: async () => { await cambiarHecho(app, cita, !d.hecho); cambiado = false; toast(d.hecho ? 'Reabierta' : 'Hecha'); ir('agenda'); } }, d.hecho ? 'Reabrir' : 'Marcar como hecha'),
@@ -157,32 +172,130 @@ export async function bloqueSeguimiento(app, avisoId) {
   return cont;
 }
 
-// ---------------------------------------------------------------- alarmas (solo con la app abierta)
-function pedirPermisoNotificaciones() {
+// ---------------------------------------------------------------- calendario del teléfono
+function bloqueCalendario(cita, aviso) {
+  const lugar = aviso ? direccionCompleta(aviso.data.suministro) : '';
+  const google = enlaceGoogle(cita.data, { aviso, lugar });
+  if (!google) return null;
+  return h('div', { class: 'card', id: 'bloque-calendario' },
+    h('b', {}, 'Añadir al calendario del teléfono'),
+    h('p', { class: 'muted' }, 'El calendario del teléfono avisa con su sonido aunque SOLTEC esté cerrada y el móvil bloqueado.'
+      + (cita.data.alarma ? '' : ' Activa «Avisar con sonido» para incluir el aviso.')),
+    h('div', { class: 'fila' },
+      h('a', { class: 'btn prim', id: 'cal-google', href: google, target: '_blank', rel: 'noopener' }, 'Google Calendar (Android)'),
+      h('button', { class: 'btn', type: 'button', id: 'cal-ics', onclick: () => {
+        const datos = { ...cita.data, ...(cita.data.alarma ? {} : { antelacion: 0 }) };
+        descargar(new Blob([icsCita(datos, { id: cita.id, aviso, lugar })], { type: 'text/calendar;charset=utf-8' }), nombreIcs(cita.data));
+      } }, 'Archivo de calendario (iPhone, Outlook)')),
+    h('p', { class: 'muted' }, 'En Google Calendar revisa que la notificación esté puesta antes de pulsar Guardar. Si cambias la fecha u hora aquí, vuelve a añadirla.'));
+}
+
+// ---------------------------------------------------------------- alarmas con la app abierta
+let audio = null;
+/** Prepara sonido y notificaciones (el navegador solo lo permite tras pulsar algo). */
+export function prepararAvisos() {
+  try {
+    if (!audio) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) audio = new AC(); }
+    audio?.resume?.();
+  } catch { /* sin sonido */ }
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
 }
 
-/** Revisa cada minuto las citas con alarma. Devuelve la función que hace una revisión (para pruebas). */
+/** Tres pitidos dobles, bien audibles. */
+export function sonar() {
+  try {
+    if (!audio) prepararAvisos();
+    if (!audio) return;
+    const t0 = audio.currentTime + 0.05;
+    for (let i = 0; i < 6; i++) {
+      const o = audio.createOscillator();
+      const g = audio.createGain();
+      o.type = 'square';
+      o.frequency.value = i % 2 ? 1320 : 990;
+      const t = t0 + Math.floor(i / 2) * 0.7 + (i % 2) * 0.18;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+      o.connect(g).connect(audio.destination);
+      o.start(t);
+      o.stop(t + 0.16);
+    }
+  } catch { /* sin sonido */ }
+}
+
+async function notificar(titulo, cuerpo, tag) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+  const opciones = { body: cuerpo, tag, renotify: true, requireInteraction: true, vibrate: [300, 150, 300, 150, 300], icon: './icon-192.png', badge: './icon-192.png' };
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration?.();
+    if (reg?.showNotification) { await reg.showNotification(titulo, opciones); return true; }
+    new Notification(titulo, opciones);
+    return true;
+  } catch { return false; }
+}
+
+function ventanaAlarma(app, c, posponer) {
+  document.querySelector('.alarma-ventana')?.remove();
+  const cerrar = () => v.remove();
+  const v = h('div', { class: 'alarma-ventana', role: 'alertdialog', 'aria-label': 'Aviso de agenda' },
+    h('div', { class: 'alarma-caja' },
+      h('div', { class: 'alarma-hora' }, '⏰ ' + (c.data.hora || 'Hoy')),
+      h('b', {}, c.data.titulo || 'Cita'),
+      c.data.notas ? h('p', { class: 'muted' }, c.data.notas) : null,
+      h('div', { class: 'fila' },
+        h('button', { class: 'btn prim', type: 'button', onclick: async () => { cerrar(); await cambiarHecho(app, c, true); toast('Hecha'); } }, 'Hecha'),
+        h('button', { class: 'btn', type: 'button', onclick: () => { cerrar(); posponer(c, 10); toast('Te aviso en 10 min'); } }, 'Dentro de 10 min'),
+        h('a', { class: 'btn', href: `#/cita/${c.id}`, onclick: cerrar }, 'Ver'),
+        h('button', { class: 'btn', type: 'button', onclick: cerrar }, 'Cerrar'))));
+  document.body.append(v);
+}
+
+/** Revisa cada 30 s las citas con aviso. Devuelve la función que hace una revisión (para pruebas). */
 export function iniciarAlarmas(app) {
+  // El navegador solo deja sonar después de una pulsación: se prepara con la primera.
+  const desbloquear = () => { prepararAvisos(); window.removeEventListener('pointerdown', desbloquear); };
+  window.addEventListener('pointerdown', desbloquear);
+
+  const posponer = async (c, min) => {
+    const pos = (await app.storage.getMeta('alarmasPospuestas')) || {};
+    pos[c.id] = new Date(Date.now() + min * 60000).toISOString();
+    await app.storage.setMeta('alarmasPospuestas', pos);
+  };
+
   const revisar = async () => {
     const ahora = new Date();
-    const hoy = hoyLocal(ahora);
-    const hhmm = ahora.toTimeString().slice(0, 5);
     const avisadas = (await app.storage.getMeta('alarmasAvisadas')) || {};
+    const pos = (await app.storage.getMeta('alarmasPospuestas')) || {};
+    let cambio = false;
     for (const c of await app.storage.list('cita')) {
-      if (!c.data.alarma || c.data.hecho || !c.data.fecha || !c.data.hora) continue;
-      if (c.data.fecha !== hoy || c.data.hora > hhmm) continue;
-      const clave = `${c.id}@${c.data.fecha} ${c.data.hora}`;
-      if (avisadas[clave]) continue;
+      let clave = null;
+      if (pos[c.id] && new Date(pos[c.id]) <= ahora) {
+        clave = `${c.id}@pospuesta ${pos[c.id]}`;
+        delete pos[c.id];
+        cambio = true;
+        if (c.data.hecho) continue;
+      } else if (debeSonar(c.data, ahora) && momentoAlarma(c.data).getTime() >= new Date(c.updatedAt || 0).getTime() - 60000) {
+        // (si al guardar la cita la hora del aviso ya había pasado, no suena)
+        clave = `${c.id}@${momentoAlarma(c.data).toISOString()}`;
+      }
+      if (!clave || avisadas[clave]) continue;
       avisadas[clave] = ahora.toISOString();
-      const texto = `${c.data.hora} · ${c.data.titulo}`;
-      if ('Notification' in window && Notification.permission === 'granted') {
-        try { new Notification('SOLTEC · Agenda', { body: texto, tag: clave }); } catch { toast('⏰ ' + texto); }
-      } else toast('⏰ ' + texto);
+      cambio = true;
+      const texto = `${c.data.hora || 'Hoy'} · ${c.data.titulo || 'Cita'}`;
+      sonar();
+      navigator.vibrate?.([300, 150, 300, 150, 300]);
+      await notificar('SOLTEC · Agenda', texto, clave);
+      ventanaAlarma(app, c, posponer);
     }
-    await app.storage.setMeta('alarmasAvisadas', avisadas);
+    if (cambio) {
+      // Se guardan solo las de las últimas 2 semanas
+      const limite = Date.now() - 14 * 86400000;
+      for (const [k, v] of Object.entries(avisadas)) if (new Date(v).getTime() < limite) delete avisadas[k];
+      await app.storage.setMeta('alarmasAvisadas', avisadas);
+      await app.storage.setMeta('alarmasPospuestas', pos);
+    }
   };
-  setInterval(revisar, 60 * 1000);
+  setInterval(revisar, 30 * 1000);
   setTimeout(revisar, 3000);
   return revisar;
 }

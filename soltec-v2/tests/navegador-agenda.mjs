@@ -45,6 +45,18 @@ try {
   await page.fill('#c-hora', '09:00');
   await page.fill('#c-responsable', 'Carlos');
   await page.click('#guardar-cita');
+  // Al guardar se abre la cita con «Añadir al calendario del teléfono»
+  await page.waitForSelector('#bloque-calendario');
+  const g = new URL(await page.getAttribute('#cal-google', 'href'));
+  assert.equal(g.searchParams.get('text'), 'SOLTEC · Llamar para pedir el IBAN');
+  assert.match(g.searchParams.get('details'), /Aviso 2026-0001 · Ana Gil/);
+  assert.equal(g.searchParams.get('location'), 'Calle Sol 3');
+  const [desc] = await Promise.all([page.waitForEvent('download'), page.click('#cal-ics')]);
+  const ics = await (await import('node:fs/promises')).readFile(await desc.path(), 'utf8');
+  assert.match(desc.suggestedFilename(), /^SOLTEC_.*Llamar_para_pedir_el_IBAN\.ics$/);
+  assert.match(ics, /BEGIN:VALARM[\s\S]*TRIGGER:-PT15M/);
+  ok('Al guardar la cita se ofrece Google Calendar y archivo .ics con aviso 15 min antes');
+  await page.click('a.btn:has-text("Volver")');
   await page.waitForSelector('h1:has-text("Aviso 2026-0001")');
   await page.click('summary:has-text("Seguimiento")');
   await page.waitForSelector('text=Llamar para pedir el IBAN');
@@ -65,6 +77,8 @@ try {
   await page.fill('#c-titulo', 'Revisar cuadro en obra');
   await page.fill('#c-fecha', ayerIso);
   await page.click('#guardar-cita');
+  await page.waitForSelector('#bloque-calendario');
+  await page.click('a.btn:has-text("Volver")');
   await page.waitForSelector('h2:has-text("Vencidas")');
   const grupos = await page.$$eval('main h2', (hs) => hs.map((x) => x.textContent));
   assert.deepEqual(grupos, ['Vencidas', 'Hoy']);
@@ -81,17 +95,37 @@ try {
   ok('Marcar como hecha la pasa a «Hechas» y lo anota en el aviso');
 
   // Alarma con la app abierta
-  const t = new Date(Date.now() - 60000);
+  const t = new Date(); // el minuto actual: la hora del aviso llega justo después de guardar
   await page.evaluate(async ({ fecha, hora }) => {
     await window.soltec.storage.save('cita', { titulo: 'Recoger material', fecha, hora, alarma: true, hecho: false });
     await window.soltec.revisarAlarmas();
   }, { fecha: hoy(), hora: t.toTimeString().slice(0, 5) });
-  await page.waitForSelector('.toast:has-text("Recoger material")');
-  await page.evaluate(() => document.querySelector('.toast')?.remove());
+  await page.waitForSelector('.alarma-ventana:has-text("Recoger material")');
+  await page.click('.alarma-ventana button:has-text("Cerrar")');
   await page.evaluate(() => window.soltec.revisarAlarmas());
   await page.waitForTimeout(300);
-  assert.equal(await page.$('.toast'), null, 'no se repite');
-  ok('La alarma avisa una sola vez con la app abierta');
+  assert.equal(await page.$('.alarma-ventana'), null, 'no se repite');
+  ok('La alarma avisa una sola vez con la app abierta (ventana con Hecha / Dentro de 10 min)');
+
+  // Posponer 10 min: vuelve a sonar pasado ese tiempo
+  await page.evaluate(async ({ fecha }) => {
+    const hora = new Date().toTimeString().slice(0, 5);
+    await window.soltec.storage.save('cita', { titulo: 'Revisar CGP', fecha, hora, alarma: true, antelacion: 0, hecho: false });
+    await window.soltec.revisarAlarmas();
+  }, { fecha: hoy() });
+  await page.waitForSelector('.alarma-ventana:has-text("Revisar CGP")');
+  await page.click('.alarma-ventana button:has-text("Dentro de 10 min")');
+  for (let i = 0; i < 20 && !(await page.evaluate(async () => Object.keys((await window.soltec.storage.getMeta('alarmasPospuestas')) || {}).length === 1)); i++) await page.waitForTimeout(100);
+  await page.evaluate(async () => {
+    const pos = await window.soltec.storage.getMeta('alarmasPospuestas');
+    for (const k of Object.keys(pos)) pos[k] = new Date(Date.now() - 1000).toISOString();
+    await window.soltec.storage.setMeta('alarmasPospuestas', pos);
+    await window.soltec.revisarAlarmas();
+  });
+  await page.waitForSelector('.alarma-ventana:has-text("Revisar CGP")');
+  await page.click('.alarma-ventana button:has-text("Hecha")');
+  await page.waitForFunction(() => !document.querySelector('.alarma-ventana'));
+  ok('«Dentro de 10 min» vuelve a avisar y «Hecha» la completa');
 
   assert.deepEqual(errores, []);
   ok('Sin errores en la consola');

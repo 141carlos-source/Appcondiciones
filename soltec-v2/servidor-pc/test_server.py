@@ -152,5 +152,16 @@ class MigracionTest(unittest.TestCase):
             self.assertTrue((antigua / "soltec-v2-config.json").exists())  # el original no se toca
             self.assertFalse(server.migrar_datos_antiguos(nueva, antigua))  # solo una vez
 
+
+class LatidoTest(unittest.TestCase):
+    def test_presencia_entre_dos_dispositivos(self):
+        with tempfile.TemporaryDirectory() as d:
+            st = server.Store(Path(d) / "db.sqlite3", Path(d) / "archivos", Path(d) / "copias")
+            r1 = st.latido("movil", "Móvil", "aviso-1")
+            self.assertEqual(r1["presencia"], [])
+            r2 = st.latido("pc", "PC CASA", None)
+            self.assertEqual([(p["nombre"], p["abierto"]) for p in r2["presencia"]], [("Móvil", "aviso-1")])
+            self.assertEqual(r2["seq"], 0)
+
 if __name__ == "__main__":
     unittest.main()

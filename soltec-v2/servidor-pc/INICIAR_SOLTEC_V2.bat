@@ -23,7 +23,7 @@ if not defined PYCMD (
 )
 
 echo [1/2] Iniciando el servidor SOLTEC V2...
-start "SOLTEC V2 - NO CERRAR" cmd /k "cd /d ""%~dp0"" && %PYCMD% server.py"
+start "SOLTEC V2 - SERVIDOR - NO CERRAR" cmd /c ""%~dp0ARRANQUE_SERVIDOR.cmd""
 timeout /t 2 /nobreak >nul
 
 echo [2/2] Publicando SOLO dentro de tu red privada Tailscale...
@@ -49,8 +49,11 @@ echo ==============================================================
 echo  En SOLTEC V2 ^> Configuracion ^> Sincronizacion escribe:
 echo   - Direccion: la HTTPS de Tailscale terminada en :8443
 echo     (por ejemplo https://carlos25.tail970b93.ts.net:8443)
-echo   - Clave: la que muestra la ventana "SOLTEC V2 - NO CERRAR"
-echo     o el archivo soltec-v2-config.json de esta carpeta.
+echo   - Clave: la que muestra la ventana "SOLTEC V2 - SERVIDOR - NO CERRAR"
+echo     o %USERPROFILE%\SOLTEC_V2_DATOS\soltec-v2-config.json
+echo.
+echo  Para que arranque solo al encender el PC:
+echo     INSTALAR_ARRANQUE_AUTOMATICO.bat
 echo ==============================================================
 pause
 endlocal

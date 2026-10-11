@@ -92,12 +92,12 @@ export class SyncManager {
       });
     } catch (e) {
       throw new SyncError(e?.name === 'AbortError'
-        ? 'El PC no responde (tiempo agotado). Comprueba que la ventana «SOLTEC V2 - NO CERRAR» está abierta en el PC.'
-        : `No se puede conectar con el PC. Comprueba: 1) en el PC está abierta la ventana «SOLTEC V2 - NO CERRAR» y se arrancó con INICIAR_SOLTEC_V2.bat; 2) Tailscale está conectado en el PC y en este dispositivo; 3) abre ${cfg.url}/ en el navegador: debe salir «SOLTEC V2».`);
+        ? 'El PC no responde (tiempo agotado). Comprueba que el PC está encendido y la ventana «SOLTEC V2 - SERVIDOR» abierta.'
+        : `No se puede conectar con el PC. Comprueba: 1) el PC está encendido y con la ventana «SOLTEC V2 - SERVIDOR» abierta (con el arranque automático instalado se abre sola); 2) Tailscale está conectado en el PC y en este dispositivo; 3) abre ${cfg.url}/ en el navegador: debe salir «SOLTEC V2».`);
     } finally {
       if (t) clearTimeout(t);
     }
-    if (res.status === 401) throw new SyncError('La clave de sincronización no es correcta. Cópiala de la ventana «SOLTEC V2 - NO CERRAR» del PC (o del archivo soltec-v2-config.json).');
+    if (res.status === 401) throw new SyncError('La clave de sincronización no es correcta. Cópiala de la ventana «SOLTEC V2 - SERVIDOR» del PC (o del archivo SOLTEC_V2_DATOS\\soltec-v2-config.json de tu carpeta de usuario).');
     if (res.status === 404) throw new SyncError('En esa dirección responde un servidor que no es el de la V2 (¿el de la V1.35?). Revisa que termine en :8443 y que el PC se arrancó con INICIAR_SOLTEC_V2.bat.');
     if (raw) {
       if (!res.ok) throw new SyncError(`El PC respondió ${res.status}.`);
@@ -111,6 +111,18 @@ export class SyncManager {
   async probar() {
     const st = await this._call('GET', '/api/v2/status');
     return { ok: true, version: st.version, registros: st.records, archivos: st.blobs };
+  }
+
+  /**
+   * Latido ligero (cada ~25 s con la app abierta): dice si en el PC hay algo nuevo y qué
+   * otros dispositivos están conectados y con qué aviso abierto. No sube ni baja registros.
+   */
+  async latido(abierto = null) {
+    const cfg = await this.config();
+    const r = await this._call('POST', '/api/v2/latido', { json: { deviceId: this.s.deviceId, nombre: cfg.nombre || '', abierto } });
+    const cursor = (await this.s.getMeta('cursor')) || 0;
+    await this.s.setMeta('ultimoContactoPC', new Date().toISOString());
+    return { hayCambios: r.seq !== cursor, otros: r.presencia || [] };
   }
 
   // ---------- Conflictos ----------
@@ -160,6 +172,7 @@ export class SyncManager {
     await this._bajarArchivos(inf);
     inf.fin = new Date().toISOString();
     await this.s.setMeta('ultimaSync', inf);
+    await this.s.setMeta('ultimoContactoPC', inf.fin);
     this.s._emit({ type: '*', sync: inf });
     return inf;
   }

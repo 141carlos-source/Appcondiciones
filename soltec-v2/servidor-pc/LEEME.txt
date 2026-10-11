@@ -34,6 +34,26 @@ Qué hay en SOLTEC_V2_DATOS
                           las 30 últimas) y las copias completas que envíen los
                           dispositivos.
 
+Arranque automático (recomendado)
+---------------------------------
+Doble clic en INSTALAR_ARRANQUE_AUTOMATICO.bat (una sola vez):
+  - El servidor arranca solo al entrar en Windows, en una ventana minimizada
+    "SOLTEC V2 - SERVIDOR - NO CERRAR". Si se para, vuelve a arrancar a los 10 s
+    (queda anotado en SOLTEC_V2_DATOS\reinicios.log).
+  - Deja publicado el puerto 8443 en Tailscale (Tailscale lo recuerda).
+  - Si quieres, evita que el PC se suspenda mientras esté enchufado.
+Para quitarlo: QUITAR_ARRANQUE_AUTOMATICO.bat. Si mueves esta carpeta, vuelve a
+ejecutar INSTALAR_ARRANQUE_AUTOMATICO.bat desde el sitio nuevo.
+Si se abre el servidor dos veces, el segundo detecta que ya hay uno y se cierra.
+
+Cómo se mantienen al día los dispositivos
+-----------------------------------------
+Con la app abierta, cada 25 s pregunta al PC si hay algo nuevo (cuesta muy poco)
+y, si lo hay, lo baja. Lo que guardas se sube a los 2 s. Así puedes empezar en el
+móvil y seguir en el PC sin pulsar nada. Si un dispositivo lleva más de una hora
+con cambios sin subir, la app lo avisa. Si el mismo aviso está abierto en dos
+dispositivos, también avisa.
+
 Conflictos
 ----------
 Si dos dispositivos cambian el mismo aviso sin sincronizar entre medias, el PC

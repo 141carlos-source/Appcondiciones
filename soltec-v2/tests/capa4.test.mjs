@@ -157,3 +157,22 @@ test('la dirección mal puesta se explica antes de conectar', async () => {
   assert.match(problemaDireccion('http://192.168.1.20:8766', movil), /https:\/\//);
   assert.match(problemaDireccion('no es una url', movil), /no es válida/);
 });
+
+test('latido: avisa de cambios nuevos en el PC y de quién tiene abierto el mismo aviso', async () => {
+  const movil = await dispositivo('movil');
+  const pc = await dispositivo('pc');
+  await pc.sync.sincronizar();
+  assert.equal((await pc.sync.latido()).hayCambios, false);
+
+  const a = await movil.s.save('aviso', nuevoAviso({ numero: 'L1' }));
+  await movil.sync.sincronizar();
+  const l1 = await movil.sync.latido(a.id); // el móvil tiene el aviso abierto
+  assert.equal(l1.hayCambios, false); // lo suyo ya está al día
+
+  const l2 = await pc.sync.latido(null);
+  assert.equal(l2.hayCambios, true); // el PC ve que hay algo nuevo sin bajar
+  assert.ok(l2.otros.some((o) => o.abierto === a.id && o.nombre === 'movil'));
+  await pc.sync.sincronizar();
+  assert.equal((await pc.sync.latido(null)).hayCambios, false);
+  assert.ok(await pc.s.getMeta('ultimoContactoPC'));
+});

@@ -10,6 +10,7 @@ Sincronización registro a registro. Sin dependencias: solo Python 3.8+.
   PUT  /api/v2/blob/<sha256>             subir un archivo (se verifica la huella)
   GET  /api/v2/blob/<sha256>             bajar un archivo
   POST /api/v2/backup                    guardar una copia completa enviada por un dispositivo
+  POST /api/v2/latido                    {deviceId, nombre, abierto} -> {seq, presencia:[otros dispositivos]}
 
 Reglas:
   - Un cambio se acepta solo si parte de la revisión que tiene el PC (baseServerRev).
@@ -34,7 +35,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "V2-SERVIDOR-2"
+VERSION = "V2-SERVIDOR-3"
 LEGACY_ROOT = Path(__file__).resolve().parent  # versiones anteriores guardaban todo junto a server.py
 # Los datos y la clave viven fuera de la carpeta del programa: al descomprimir una versión
 # nueva en otra carpeta se conservan la misma clave y los mismos datos.
@@ -120,6 +121,22 @@ class Store:
     def _seq(self):
         row = self.db.execute("SELECT v FROM meta WHERE k='seq'").fetchone()
         return int(row[0]) if row else 0
+
+    PRESENCIA_SEG = 75
+
+    def latido(self, device_id, nombre, abierto):
+        """Presencia en memoria: qué dispositivo está conectado y qué aviso tiene abierto."""
+        ahora = datetime.now(timezone.utc).timestamp()
+        with self.lock:
+            if not hasattr(self, "_presencia"):
+                self._presencia = {}
+            if device_id:
+                self._presencia[device_id] = {"nombre": nombre[:60], "abierto": abierto, "t": ahora}
+            for k in [k for k, v in self._presencia.items() if ahora - v["t"] > self.PRESENCIA_SEG]:
+                del self._presencia[k]
+            otros = [{"deviceId": k, "nombre": v["nombre"], "abierto": v["abierto"], "hace": round(ahora - v["t"])}
+                     for k, v in self._presencia.items() if k != device_id]
+            return {"seq": self._seq(), "presencia": otros}
 
     def status(self):
         with self.lock:
@@ -340,6 +357,11 @@ def make_handler(store, key):
                         return self.send_json(400, {"ok": False, "error": "Falta la lista de cambios"})
                     res = store.push(str(payload.get("deviceId") or ""), changes)
                     return self.send_json(200, {"ok": True, **res})
+                if u.path == "/api/v2/latido":
+                    ab = payload.get("abierto")
+                    res = store.latido(str(payload.get("deviceId") or self.headers.get("X-Soltec-Device") or ""),
+                                       str(payload.get("nombre") or ""), ab if isinstance(ab, str) and len(ab) < 200 else None)
+                    return self.send_json(200, {"ok": True, **res})
                 if u.path == "/api/v2/blobs/missing":
                     hashes = [h for h in payload.get("hashes", []) if isinstance(h, str) and HASH_RE.match(h)]
                     return self.send_json(200, {"ok": True, "missing": [h for h in hashes if not store.has_blob(h)]})
@@ -373,6 +395,22 @@ def backup_loop(store, stop, hours=6):
             print("[AVISO] No se pudo hacer la copia automática:", e)
 
 
+class ServidorSoltec(ThreadingHTTPServer):
+    # En Windows SO_REUSEADDR deja abrir dos servidores en el mismo puerto: se desactiva
+    # para que un segundo arranque lo detecte en vez de quedarse a medias.
+    allow_reuse_address = os.name != "nt"
+    daemon_threads = True
+
+
+def ya_funciona(port):
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=3) as r:
+            return json.loads(r.read().decode("utf-8")).get("app") == "SOLTEC V2"
+    except Exception:
+        return False
+
+
 def main():
     try:
         if migrar_datos_antiguos():
@@ -382,11 +420,19 @@ def main():
         print("[ERROR]", e)
         sys.exit(2)
     port = int(os.environ.get("SOLTEC_V2_PORT", cfg.get("port") or DEFAULT_PORT))
+    try:
+        httpd = ServidorSoltec(("127.0.0.1", port), None)
+    except OSError:
+        if ya_funciona(port):
+            print(f"[INFO] Ya hay un servidor SOLTEC V2 funcionando en este PC (puerto {port}). No hace falta otro.")
+            sys.exit(3)
+        print(f"[ERROR] El puerto {port} lo está usando otro programa. Ciérralo y vuelve a arrancar.")
+        sys.exit(4)
     store = Store()
     dest = store.backup_db("inicio")
     stop = threading.Event()
     threading.Thread(target=backup_loop, args=(store, stop), daemon=True).start()
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(store, cfg["key"]))
+    httpd.RequestHandlerClass = make_handler(store, cfg["key"])
     print("=" * 62)
     print(f" SOLTEC V2 · servidor del PC ({VERSION})")
     print(f" Escuchando en http://127.0.0.1:{port} (solo este PC)")

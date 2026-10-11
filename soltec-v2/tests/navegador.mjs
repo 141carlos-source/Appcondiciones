@@ -78,8 +78,9 @@ try {
     const f = await s.putFile({ name: 'c.pdf', mime: 'application/pdf', bytes: new TextEncoder().encode('%PDF prueba') });
     await s.save('aviso', { numero: '2026-0001', cliente: { nombre: 'Prueba' }, condiciones: { ref: '0001', pdfs: [f] } }, { event: { kind: 'creado' } });
   });
-  await page.waitForFunction(() => document.querySelector('.estado')?.textContent.includes('sin subir'));
-  ok('Al guardar, la cabecera muestra los cambios sin subir');
+  // La subida automática llega a los 2 s: se comprueba que la cabecera lo mostró antes de subir
+  await page.waitForFunction(() => /sin subir|Sincronizando|Sincronizado hace un momento/.test(document.querySelector('.estado')?.textContent || ''));
+  ok('Al guardar, la cabecera muestra los cambios sin subir (y se suben solos a los 2 s)');
   await page.click('text=Guardar y sincronizar');
   await page.waitForFunction(() => document.querySelector('.estado')?.textContent.startsWith('Sincronizado'));
   const st = await (await fetch(`http://127.0.0.1:${pSync}/api/v2/status`, { headers: { 'X-Soltec-Key': clave } })).json();
