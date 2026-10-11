@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.2.1';
+export const VERSION = 'V2-1.3.0';
 
 import { h, toast, hace, descargar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -275,7 +275,7 @@ async function vistaAjustes() {
     h('h1', {}, 'Ajustes'),
     nConf ? h('div', { class: 'aviso err' }, `${nConf} conflicto(s) de sincronización por revisar`) : null,
     h('a', { class: 'card enlace-card', href: '#/empresa' }, h('b', {}, 'Empresa'), h('span', { class: 'muted' }, 'Nombre, logo, técnico, solicitante y correos ›')),
-    h('a', { class: 'card enlace-card', href: '#/importar', id: 'enlace-importar' }, h('b', {}, 'Traer datos de la V1.35'), h('span', { class: 'muted' }, 'Avisos, expedientes, PDF, fotos, planos, agenda y partes ›')),
+    h('a', { class: 'card enlace-card', href: '#/importar', id: 'enlace-importar' }, h('b', {}, 'Traer datos de la V1.35'), h('span', { class: 'muted' }, 'Avisos, expedientes, PDF, fotos, planos, agenda y partes. Repítelo para traer los cambios ›')),
 
     h('details', { class: 'card', open: !cfg.url || null },
       h('summary', {}, 'Sincronización con el PC'),

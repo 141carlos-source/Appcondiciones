@@ -99,8 +99,64 @@ test('importar dos veces no duplica ni pisa lo cambiado en la V2', async () => {
   const inf = await importar(s);
   assert.deepEqual(inf.nuevos, { avisos: 0, papelera: 0, citas: 0, partes: 0 });
   assert.equal(inf.yaEstaban, 6);
+  assert.equal(inf.actualizados, 0);
   assert.equal((await s.get('v1-' + IDS.A)).data.observaciones, 'Cambiado en la V2');
   assert.equal((await s.list('aviso', { includeDeleted: true })).length, 4);
+});
+
+test('uso en paralelo: reimportar actualiza lo no tocado en la V2 y conserva lo editado', async () => {
+  const s = await Storage.open({ name: 'imp_' + n++ });
+  await importar(s);
+  const numA = (await s.get('v1-' + IDS.A)).data.numero;
+  await s.patch('v1-' + IDS.C, { observaciones: 'Editado en la V2' }); // C se toca en la V2
+  await s.patch('v1-' + IDS.A, { tramite: 'presentado' }); // trámite: solo existe en la V2
+
+  // En la V1.35 cambian A, B y C, se mueve B a la papelera y aparece un aviso nuevo
+  const central = centralDePrueba();
+  const ls = central.snapshot.localStorage;
+  const main = JSON.parse(ls.APP_AVISOS_WEB_DATOS_V116_PERSISTENTE);
+  main.avisos[2].telefono = '699999999'; // C
+  const b = main.avisos.splice(1, 1)[0]; b.eliminadoEn = '2026-10-10T10:00:00Z'; main.papelera.push(b);
+  main.avisos.push({ ...main.avisos[0], id: 1788600000005, cliente: 'Cliente Nuevo', creado: '2026-10-09T10:00:00Z' });
+  ls.APP_AVISOS_WEB_DATOS_V116_PERSISTENTE = JSON.stringify(main);
+  ls.APP_AVISOS_FLAGS_V120 = JSON.stringify({ [IDS.A]: { iban: 'ES7620770024003102575766', condicionesSuministro: true, contratoElectricidad: true } }); // A
+
+  const inf = await importar(s, central);
+  assert.equal(inf.nuevos.avisos, 1);
+  const A = (await s.get('v1-' + IDS.A)).data, C = (await s.get('v1-' + IDS.C)).data;
+  assert.ok(inf.conservados.includes(C.numero), 'C cambiado en las dos: se conserva');
+  assert.equal(C.observaciones, 'Editado en la V2');
+  assert.equal(C.cliente.telefono, '');
+  assert.ok(inf.conservados.includes(A.numero), 'A también se tocó en la V2 (trámite)');
+  assert.equal(A.cliente.iban, 'ES9121000418450200051332');
+  assert.equal(A.numero, numA);
+  // B no se tocó en la V2: se actualiza y pasa a la papelera
+  assert.equal((await s.get('v1-' + IDS.B)).deleted, true);
+  assert.ok(inf.actualizados >= 1);
+  // El nuevo continúa la numeración sin huecos
+  const nuevo = (await s.get('v1-1788600000005')).data;
+  assert.equal(nuevo.numero, '2026-0005');
+  // Una tercera vez sin cambios en la V1.35: nada que hacer
+  const inf3 = await importar(s, central);
+  assert.equal(inf3.actualizados, 0);
+  assert.equal(inf3.nuevos.avisos, 0);
+});
+
+test('reimportar actualiza un aviso no tocado en la V2', async () => {
+  const s = await Storage.open({ name: 'imp_' + n++ });
+  await importar(s);
+  const central = centralDePrueba();
+  const ls = central.snapshot.localStorage;
+  const main = JSON.parse(ls.APP_AVISOS_WEB_DATOS_V116_PERSISTENTE);
+  main.avisos[0].telefono = '611222333';
+  ls.APP_AVISOS_WEB_DATOS_V116_PERSISTENTE = JSON.stringify(main);
+  const inf = await importar(s, central);
+  assert.equal(inf.actualizados, 1);
+  assert.deepEqual(inf.conservados, []);
+  const A = await s.get('v1-' + IDS.A);
+  assert.equal(A.data.cliente.telefono, '611222333');
+  assert.equal(A.data.condiciones.pdfs.length, 2, 'sin duplicar archivos');
+  assert.ok((await s.history('v1-' + IDS.A)).some((e) => /Actualizado con los cambios de la V1.35/.test(e.data.text)));
 });
 
 test('el número de la V1.35 sirve para buscar', async () => {

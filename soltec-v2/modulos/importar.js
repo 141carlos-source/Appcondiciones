@@ -58,7 +58,7 @@ export async function vistaImportar(app) {
         fila(r.pdfs, 'PDF de condiciones'), fila(r.fotos, 'fotografías'), fila(r.planos, 'planos de situación'),
         fila(r.citas, 'citas de la agenda'), fila(r.partes, 'partes de trabajo'),
         r.empresa ? h('li', {}, 'Datos de empresa (solo se rellenan los campos vacíos)') : null),
-      yaImportados ? h('div', { class: 'aviso info' }, `${yaImportados} de estos avisos ya se importaron antes: no se duplican ni se cambian.`) : null,
+      yaImportados ? h('div', { class: 'aviso info' }, `${yaImportados} de estos avisos ya se importaron antes: no se duplican. Los que hayan cambiado en la V1.35 se actualizan, salvo los que hayas modificado en la V2, que se conservan como están.`) : null,
       h('p', { class: 'muted' }, 'La V1.35 no se modifica. Los avisos reciben número de la V2 y conservan el de la V1.35, que también sirve para buscarlos.'),
       h('div', { class: 'fila' }, h('button', { class: 'btn rojo ancho', type: 'button', id: 'confirmar-importar', onclick: async (e) => {
         e.target.disabled = true;
@@ -75,8 +75,10 @@ export async function vistaImportar(app) {
           const n = inf.nuevos;
           panel.replaceChildren(h('div', { class: 'aviso ok', id: 'resultado-importar' },
             h('b', {}, 'Importación terminada. '),
-            `${n.avisos} avisos, ${n.papelera} a la papelera, ${n.citas} citas, ${n.partes} partes y ${inf.archivos} archivos.`,
-            inf.yaEstaban ? ` ${inf.yaEstaban} ya estaban y no se han tocado.` : '',
+            `${n.avisos} avisos, ${n.papelera} a la papelera, ${n.citas} citas, ${n.partes} partes y ${inf.archivos} archivos nuevos.`,
+            inf.actualizados ? ` ${inf.actualizados} actualizados con los cambios de la V1.35.` : '',
+            inf.yaEstaban ? ` ${inf.yaEstaban} sin cambios.` : '',
+            inf.conservados.length ? h('div', { class: 'aviso info' }, `Cambiados en las dos apps (se conserva lo de la V2): ${inf.conservados.join(', ')}.`) : null,
             inf.errores.length ? h('div', {}, `${inf.errores.length} archivo(s) no se pudieron leer: ${inf.errores.slice(0, 3).join('; ')}`) : null,
             h('div', { class: 'fila' }, h('a', { class: 'btn prim', href: '#/inicio' }, 'Ver Inicio'), h('a', { class: 'btn', href: '#/expedientes' }, 'Ver Expedientes'))),
           h('div', { class: 'aviso info' }, 'Revisa en cada aviso el estado del trámite y la documentación: la V1.35 no los guardaba igual y empiezan como «Pendiente de datos» y «Por revisar».'));
