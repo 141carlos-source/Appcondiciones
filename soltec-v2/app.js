@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.4.1';
+export const VERSION = 'V2-1.4.2';
 
 import { h, toast, hace, descargar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -352,6 +352,9 @@ async function vistaAjustes() {
       h('summary', {}, `Conflictos (${nConf})`),
       h('div', { class: 'cuerpo' },
         h('p', { class: 'muted' }, 'El mismo registro cambió aquí y en otro dispositivo. Ahora se ve la versión del PC; la de este dispositivo está guardada. Elige cuál se queda.'),
+        nConf > 1 ? h('div', { class: 'fila', id: 'conflictos-todos' },
+          h('button', { class: 'btn', type: 'button', onclick: async () => { if (!confirm(`¿Quedarte con la versión del PC en los ${nConf}?`)) return; await app.sync.resolverTodos('servidor'); toast('Conflictos resueltos con lo del PC'); render(); } }, `Todos: la del PC (${nConf})`),
+          h('button', { class: 'btn', type: 'button', onclick: async () => { if (!confirm(`¿Quedarte con la versión de este dispositivo en los ${nConf}?`)) return; await app.sync.resolverTodos('local'); await refrescarEstado(); programarSync(500); toast('Conflictos resueltos con lo de este dispositivo'); render(); } }, `Todos: la de aquí (${nConf})`)) : null,
         ...Object.entries(conflictos).map(([id, c]) => h('div', { class: 'card' },
           h('b', {}, c.local.data?.numero || c.local.data?.titulo || c.local.type), h('div', { class: 'muted mono' }, id),
           h('div', { class: 'muted' }, `Este dispositivo: ${hace(c.local.updatedAt)} · PC: ${hace(c.servidor.updatedAt)}`),

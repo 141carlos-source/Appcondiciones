@@ -16,6 +16,18 @@ const LOTE = 200;
 
 export class SyncError extends Error {}
 
+const canon = (v) => {
+  if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
+  return JSON.stringify(v ?? null);
+};
+/** ¿Dos versiones de un registro dicen lo mismo? (aunque se guardaran en dispositivos u horas distintas) */
+export function mismoContenido(a, b) {
+  if (!a || !b) return false;
+  const f = (r) => canon({ type: r.type, ref: r.ref ?? null, deleted: !!r.deleted, data: r.data });
+  return f(a) === f(b);
+}
+
 const esLocal = (host) => ['localhost', '127.0.0.1', '::1', '[::1]'].includes(host);
 
 /**
@@ -32,6 +44,9 @@ export function problemaDireccion(url, pagina = globalThis.location) {
   }
   if (pagina?.protocol === 'https:' && u.protocol === 'http:' && !esLocal(u.hostname)) {
     return 'Desde la app publicada hay que usar https://. Usa la dirección de Tailscale: https://carlos25.tail970b93.ts.net:8443';
+  }
+  if (u.hostname.endsWith('.ts.net') && u.hostname.split('.').length < 4) {
+    return `Falta el nombre del PC delante: debe ser https://carlos25.${u.hostname}:8443 (el nombre lo ves en Tailscale, en la lista de equipos).`;
   }
   if (u.hostname.endsWith('.ts.net') && u.port !== '8443') {
     return 'Falta «:8443» al final de la dirección. Sin él se conecta con el servidor de la V1.35, no con el de la V2.';
@@ -126,7 +141,23 @@ export class SyncManager {
   }
 
   // ---------- Conflictos ----------
-  async conflictos() { return (await this.s.getMeta('conflictos')) || {}; }
+  async conflictos() {
+    const c = (await this.s.getMeta('conflictos')) || {};
+    // Los que en realidad dicen lo mismo en los dos lados no son conflictos: se quitan solos.
+    const iguales = Object.keys(c).filter((id) => mismoContenido(c[id].local, c[id].servidor));
+    if (iguales.length) {
+      for (const id of iguales) delete c[id];
+      await this.s.setMeta('conflictos', c);
+    }
+    return c;
+  }
+
+  /** Resolver todos a la vez: 'servidor' (lo del PC) o 'local' (lo de este dispositivo). */
+  async resolverTodos(eleccion) {
+    const ids = Object.keys(await this.conflictos());
+    for (const id of ids) await this.resolverConflicto(id, eleccion);
+    return ids.length;
+  }
 
   async _anotarConflicto(local, servidor) {
     const c = await this.conflictos();
@@ -215,6 +246,9 @@ export class SyncManager {
           if (r.server && r.server.rev === p.record.rev && r.server.updatedAt === p.record.updatedAt && r.server.deviceId === p.record.deviceId) {
             // El PC ya tenía exactamente esta versión (p. ej. tras volver a subirlo todo): no es un conflicto.
             await this.s._ackPushed(r.id, p.record.rev, r.serverRev);
+          } else if (r.server && mismoContenido(r.server, p.record)) {
+            // Lo mismo en los dos lados (p. ej. importado de la V1.35 en el PC y en el móvil): se toma el del PC sin preguntar.
+            await this.s._applyRemote(r.server, { dropPending: true });
           } else if (r.server && p.reenvio && r.server.updatedAt >= p.record.updatedAt) {
             // Reenvío tras cambiar de servidor: el PC tiene una versión igual o más nueva y aquí no se tocó.
             await this.s._applyRemote(r.server, { dropPending: true });

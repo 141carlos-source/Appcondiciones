@@ -176,3 +176,41 @@ test('latido: avisa de cambios nuevos en el PC y de quién tiene abierto el mism
   assert.equal((await pc.sync.latido(null)).hayCambios, false);
   assert.ok(await pc.s.getMeta('ultimoContactoPC'));
 });
+
+test('lo mismo importado en dos dispositivos no da conflicto; los iguales guardados se limpian solos', async () => {
+  const { mismoContenido, problemaDireccion } = await import('../core/sync.js');
+  const movil = await dispositivo('movil');
+  const pc = await dispositivo('pc');
+  // El mismo aviso (id fijo, como al importar de la V1.35) creado por separado en los dos
+  await pc.s.save('aviso', nuevoAviso({ numero: 'V1-9' }), { id: 'v1-999' });
+  await movil.s.save('aviso', nuevoAviso({ numero: 'V1-9' }), { id: 'v1-999' });
+  await pc.sync.sincronizar();
+  const i = await movil.sync.sincronizar();
+  assert.equal(i.conflictos, 0);
+  assert.deepEqual(await movil.sync.conflictos(), {});
+  // Conflictos antiguos que en realidad son iguales desaparecen al mirarlos
+  const r = await movil.s.get('v1-999');
+  await movil.s.setMeta('conflictos', { 'v1-999': { local: { ...r, rev: 9, deviceId: 'otro' }, servidor: r } });
+  assert.deepEqual(await movil.sync.conflictos(), {});
+  assert.equal(mismoContenido({ type: 'aviso', data: { a: 1, b: 2 } }, { type: 'aviso', data: { b: 2, a: 1 } }), true);
+  assert.equal(mismoContenido({ type: 'aviso', data: { a: 1 } }, { type: 'aviso', data: { a: 2 } }), false);
+  const movilPag = { hostname: '141carlos-source.github.io', protocol: 'https:' };
+  assert.match(problemaDireccion('https://tail970b93.ts.net:8443', movilPag), /carlos25\.tail970b93\.ts\.net:8443/);
+});
+
+test('resolver todos los conflictos de una vez', async () => {
+  const movil = await dispositivo('movil');
+  const pc = await dispositivo('pc');
+  const ids = [];
+  for (const n of ['T1', 'T2']) ids.push((await movil.s.save('aviso', nuevoAviso({ numero: n, observaciones: 'x' }))).id);
+  await movil.sync.sincronizar();
+  await pc.sync.sincronizar();
+  for (const id of ids) { await movil.s.patch(id, { observaciones: 'móvil' }); await pc.s.patch(id, { observaciones: 'pc' }); }
+  await movil.sync.sincronizar();
+  assert.equal((await pc.sync.sincronizar()).conflictos, 2);
+  assert.equal(await pc.sync.resolverTodos('local'), 2);
+  assert.deepEqual(await pc.sync.conflictos(), {});
+  await pc.sync.sincronizar();
+  await movil.sync.sincronizar();
+  for (const id of ids) assert.equal((await movil.s.get(id)).data.observaciones, 'pc');
+});
