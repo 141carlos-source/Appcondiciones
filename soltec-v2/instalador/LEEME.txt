@@ -1,0 +1,27 @@
+SOLTEC V2 - INSTALACION EN EL PC
+================================
+
+1. Descomprime este ZIP (por ejemplo en Descargas). No lo ejecutes desde
+   dentro del ZIP.
+2. Doble clic en INSTALAR_SOLTEC_V2.bat.
+   Si Windows avisa ("Windows protegio su PC"), pulsa "Mas informacion" y
+   "Ejecutar de todas formas".
+3. Al terminar aparece el icono "SOLTEC V2" en el escritorio y en el menu
+   Inicio. Abre la app en su propia ventana, sin navegador a la vista.
+
+Que hace el instalador
+----------------------
+- Copia el programa en  %LOCALAPPDATA%\SOLTEC_V2
+- El servidor arranca solo al entrar en Windows (ventana minimizada
+  "SOLTEC V2 - SERVIDOR - NO CERRAR") y se reinicia solo si se para.
+- Lo publica para el movil por Tailscale (https://carlos25.tail970b93.ts.net:8443).
+- Opcional: que el PC no se suspenda enchufado.
+
+Tus datos y la clave estan en  %USERPROFILE%\SOLTEC_V2_DATOS
+y NO se tocan al instalar, actualizar ni desinstalar.
+
+Actualizar: descomprime el paquete nuevo y vuelve a ejecutar
+INSTALAR_SOLTEC_V2.bat.
+Quitar: DESINSTALAR_SOLTEC_V2.bat (en %LOCALAPPDATA%\SOLTEC_V2).
+
+Necesita Python 3 (python.org, marcando "Add python.exe to PATH").

@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.4.0';
+export const VERSION = 'V2-1.4.1';
 
 import { h, toast, hace, descargar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -457,7 +457,7 @@ async function registrarSW() {
 async function buscarActualizacion(avisar) {
   if (avisar && ['localhost', '127.0.0.1'].includes(location.hostname)) {
     // Copia del PC: sus archivos salen de la carpeta descomprimida, no de internet
-    toast(`Esta es la copia del PC (${VERSION}). Para actualizarla, descomprime el paquete nuevo encima de esta carpeta y vuelve a abrirla.`);
+    toast(`Esta es la copia del PC (${VERSION}). Para actualizarla, descarga el paquete nuevo, descomprímelo y ejecuta INSTALAR_SOLTEC_V2.bat: tus datos se conservan.`);
     return;
   }
   try {

@@ -10,6 +10,7 @@ Sincronización registro a registro. Sin dependencias: solo Python 3.8+.
   PUT  /api/v2/blob/<sha256>             subir un archivo (se verifica la huella)
   GET  /api/v2/blob/<sha256>             bajar un archivo
   POST /api/v2/backup                    guardar una copia completa enviada por un dispositivo
+  GET  /app/...                          la propia aplicación (para abrirla en el PC sin internet)
   POST /api/v2/latido                    {deviceId, nombre, abierto} -> {seq, presencia:[otros dispositivos]}
 
 Reglas:
@@ -35,7 +36,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "V2-SERVIDOR-3"
+VERSION = "V2-SERVIDOR-4"
 LEGACY_ROOT = Path(__file__).resolve().parent  # versiones anteriores guardaban todo junto a server.py
 # Los datos y la clave viven fuera de la carpeta del programa: al descomprimir una versión
 # nueva en otra carpeta se conservan la misma clave y los mismos datos.
@@ -46,6 +47,22 @@ BACKUPS = ROOT / "copias"
 CONFIG_FILE = ROOT / "soltec-v2-config.json"
 DB_FILE = DATA / "soltec-v2.sqlite3"
 DEFAULT_PORT = 8766
+# Carpeta con la aplicación (index.html...). En la instalación del PC está junto a la del servidor.
+APP_DIR = Path(os.environ.get("SOLTEC_V2_APP") or (LEGACY_ROOT.parent / "app"))
+TIPOS = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
+         ".css": "text/css; charset=utf-8", ".json": "application/json", ".webmanifest": "application/manifest+json",
+         ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".ico": "image/x-icon",
+         ".woff2": "font/woff2", ".pdf": "application/pdf", ".txt": "text/plain; charset=utf-8"}
+
+
+def archivo_app(ruta, app_dir=None):
+    """Ruta segura dentro de la carpeta de la app (o None). '/app/' -> index.html."""
+    base = Path(app_dir or APP_DIR).resolve()
+    rel = ruta[len("/app/"):] or "index.html"
+    destino = (base / rel).resolve()
+    if base != destino and base not in destino.parents:
+        return None
+    return destino if destino.is_file() else None
 MAX_BODY = 60 * 1024 * 1024  # 60 MB por petición
 KEEP_DB_BACKUPS = 30
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -295,13 +312,32 @@ def make_handler(store, key):
 
         def do_GET(self):
             u = urlparse(self.path)
+            if u.path == "/app":
+                self.send_response(301)
+                self.send_header("Location", "/app/")
+                self.end_headers()
+                return
+            if u.path.startswith("/app/"):
+                f = archivo_app(u.path)
+                if f is None:
+                    return self.send_json(404, {"ok": False, "error": "No existe"})
+                data = f.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", TIPOS.get(f.suffix.lower(), "application/octet-stream"))
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(data)
+                return
             if u.path == "/":
                 if "text/html" in (self.headers.get("Accept") or ""):
                     # Para comprobar desde el navegador del móvil que el PC es accesible
                     html = ("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'>"
                             "<title>SOLTEC V2</title><body style='font-family:system-ui;padding:24px'>"
                             f"<h1>SOLTEC V2</h1><p>El servidor del PC funciona ({VERSION}).</p>"
-                            "<p>Usa esta misma dirección en la app: Ajustes &rsaquo; Sincronización.</p></body>").encode("utf-8")
+                            "<p>Usa esta misma dirección en la app: Ajustes &rsaquo; Sincronización.</p>"
+                            + ("<p><a href='/app/'>Abrir SOLTEC V2</a></p>" if (APP_DIR / "index.html").is_file() else "")
+                            + "</body>").encode("utf-8")
                     self.send_response(200)
                     self.cors()
                     self.send_header("Content-Type", "text/html; charset=utf-8")

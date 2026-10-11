@@ -163,5 +163,20 @@ class LatidoTest(unittest.TestCase):
             self.assertEqual([(p["nombre"], p["abierto"]) for p in r2["presencia"]], [("Móvil", "aviso-1")])
             self.assertEqual(r2["seq"], 0)
 
+
+class AppEstaticaTest(unittest.TestCase):
+    def test_sirve_la_app_sin_salirse_de_su_carpeta(self):
+        with tempfile.TemporaryDirectory() as d:
+            app = Path(d) / "app"
+            (app / "core").mkdir(parents=True)
+            (app / "index.html").write_text("<h1>SOLTEC</h1>", encoding="utf-8")
+            (app / "core" / "db.js").write_text("export {}", encoding="utf-8")
+            (Path(d) / "secreto.txt").write_text("no", encoding="utf-8")
+            self.assertEqual(server.archivo_app("/app/", app).name, "index.html")
+            self.assertEqual(server.archivo_app("/app/core/db.js", app).name, "db.js")
+            self.assertIsNone(server.archivo_app("/app/../secreto.txt", app))
+            self.assertIsNone(server.archivo_app("/app/%2e%2e/secreto.txt", app))
+            self.assertIsNone(server.archivo_app("/app/no-existe.js", app))
+
 if __name__ == "__main__":
     unittest.main()
