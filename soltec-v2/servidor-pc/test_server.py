@@ -138,5 +138,19 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(p.read_text(encoding="utf-8"), "{roto")
 
 
+
+class MigracionTest(unittest.TestCase):
+    def test_copia_datos_de_la_carpeta_antigua_una_vez(self):
+        with tempfile.TemporaryDirectory() as d:
+            antigua, nueva = Path(d) / "programa", Path(d) / "SOLTEC_V2_DATOS"
+            (antigua / "datos" / "archivos").mkdir(parents=True)
+            (antigua / "soltec-v2-config.json").write_text('{"key": "clave-antigua"}', encoding="utf-8")
+            (antigua / "datos" / "soltec-v2.sqlite3").write_bytes(b"db")
+            self.assertTrue(server.migrar_datos_antiguos(nueva, antigua))
+            self.assertEqual(server.load_config(nueva / "soltec-v2-config.json")["key"], "clave-antigua")
+            self.assertEqual((nueva / "datos" / "soltec-v2.sqlite3").read_bytes(), b"db")
+            self.assertTrue((antigua / "soltec-v2-config.json").exists())  # el original no se toca
+            self.assertFalse(server.migrar_datos_antiguos(nueva, antigua))  # solo una vez
+
 if __name__ == "__main__":
     unittest.main()

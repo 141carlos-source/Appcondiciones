@@ -34,8 +34,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "V2-SERVIDOR-1"
-ROOT = Path(os.environ.get("SOLTEC_V2_DIR", Path(__file__).resolve().parent))
+VERSION = "V2-SERVIDOR-2"
+LEGACY_ROOT = Path(__file__).resolve().parent  # versiones anteriores guardaban todo junto a server.py
+# Los datos y la clave viven fuera de la carpeta del programa: al descomprimir una versión
+# nueva en otra carpeta se conservan la misma clave y los mismos datos.
+ROOT = Path(os.environ.get("SOLTEC_V2_DIR") or (Path.home() / "SOLTEC_V2_DATOS"))
 DATA = ROOT / "datos"
 BLOBS = DATA / "archivos"
 BACKUPS = ROOT / "copias"
@@ -53,6 +56,22 @@ def now_iso():
 
 class ConfigError(Exception):
     pass
+
+
+def migrar_datos_antiguos(root=None, legacy=None):
+    """Una sola vez: si la carpeta de datos está vacía y junto a server.py hay datos de una
+    versión anterior, se copian (no se mueven: el original queda como estaba)."""
+    root, legacy = Path(root or ROOT), Path(legacy or LEGACY_ROOT)
+    if root.resolve() == legacy.resolve() or (root / "soltec-v2-config.json").exists():
+        return False
+    if not (legacy / "soltec-v2-config.json").exists():
+        return False
+    root.mkdir(parents=True, exist_ok=True)
+    for nombre in ("datos", "copias"):
+        if (legacy / nombre).is_dir() and not (root / nombre).exists():
+            shutil.copytree(legacy / nombre, root / nombre)
+    shutil.copy2(legacy / "soltec-v2-config.json", root / "soltec-v2-config.json")
+    return True
 
 
 def load_config(path=None):
@@ -356,6 +375,8 @@ def backup_loop(store, stop, hours=6):
 
 def main():
     try:
+        if migrar_datos_antiguos():
+            print(f"[INFO] Datos y clave de la versión anterior copiados a {ROOT}")
         cfg = load_config()
     except ConfigError as e:
         print("[ERROR]", e)

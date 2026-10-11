@@ -17,8 +17,15 @@ Puesta en marcha
 3. Se abre la ventana "SOLTEC V2 - NO CERRAR" con la CLAVE.
 4. En SOLTEC V2, Configuración > Sincronización, escribe la dirección :8443 y la clave.
 
-Qué se guarda en esta carpeta
------------------------------
+Dónde se guardan los datos
+--------------------------
+Fuera de la carpeta del programa, en  C:\Users\<tu usuario>\SOLTEC_V2_DATOS
+Así, al descomprimir una versión nueva en otra carpeta se mantienen la misma
+CLAVE y los mismos datos. (Si antes estaban junto a server.py, se copian ahí
+solos la primera vez; el original no se toca.)
+
+Qué hay en SOLTEC_V2_DATOS
+--------------------------
   soltec-v2-config.json   La clave. Se crea una sola vez. Si se daña, el servidor
                           no arranca y avisa: la clave nunca se cambia sola.
   datos\soltec-v2.sqlite3 Los registros.
@@ -33,4 +40,4 @@ Si dos dispositivos cambian el mismo aviso sin sincronizar entre medias, el PC
 acepta el primero y guarda el segundo en la tabla de conflictos. La app avisará
 para que elijas qué versión se queda. Nada se pierde.
 
-Haz copia de esta carpeta entera (por ejemplo en Drive) de vez en cuando.
+Haz copia de la carpeta SOLTEC_V2_DATOS entera (por ejemplo en Drive) de vez en cuando.
