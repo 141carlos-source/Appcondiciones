@@ -260,6 +260,19 @@ def make_handler(store, key):
         def do_GET(self):
             u = urlparse(self.path)
             if u.path == "/":
+                if "text/html" in (self.headers.get("Accept") or ""):
+                    # Para comprobar desde el navegador del móvil que el PC es accesible
+                    html = ("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'>"
+                            "<title>SOLTEC V2</title><body style='font-family:system-ui;padding:24px'>"
+                            f"<h1>SOLTEC V2</h1><p>El servidor del PC funciona ({VERSION}).</p>"
+                            "<p>Usa esta misma dirección en la app: Ajustes &rsaquo; Sincronización.</p></body>").encode("utf-8")
+                    self.send_response(200)
+                    self.cors()
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Length", str(len(html)))
+                    self.end_headers()
+                    self.wfile.write(html)
+                    return
                 return self.send_json(200, {"ok": True, "app": "SOLTEC V2", "version": VERSION})
             if not self.auth():
                 return

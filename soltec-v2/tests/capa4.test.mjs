@@ -145,3 +145,15 @@ test('huellas de archivo en cualquier parte del registro', () => {
   const h = 'a'.repeat(64);
   assert.deepEqual([...huellasDe({ condiciones: { pdfs: [{ hash: h }] }, fotos: [{ hash: 'corto' }] })], [h]);
 });
+
+test('la dirección mal puesta se explica antes de conectar', async () => {
+  const { problemaDireccion } = await import('../core/sync.js');
+  const movil = { hostname: '141carlos-source.github.io', protocol: 'https:' };
+  const pc = { hostname: 'localhost', protocol: 'http:' };
+  assert.match(problemaDireccion('http://127.0.0.1:8766', movil), /solo sirve en el propio PC/);
+  assert.equal(problemaDireccion('http://127.0.0.1:8766', pc), null);
+  assert.match(problemaDireccion('https://carlos25.tail970b93.ts.net', movil), /Falta «:8443»/);
+  assert.equal(problemaDireccion('https://carlos25.tail970b93.ts.net:8443', movil), null);
+  assert.match(problemaDireccion('http://192.168.1.20:8766', movil), /https:\/\//);
+  assert.match(problemaDireccion('no es una url', movil), /no es válida/);
+});

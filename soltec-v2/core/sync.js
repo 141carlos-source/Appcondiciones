@@ -16,6 +16,29 @@ const LOTE = 200;
 
 export class SyncError extends Error {}
 
+const esLocal = (host) => ['localhost', '127.0.0.1', '::1', '[::1]'].includes(host);
+
+/**
+ * Problemas de configuración que se pueden detectar sin conectar.
+ * @param url   dirección configurada
+ * @param pagina  location de la app (para saber si estamos en el móvil o en el propio PC)
+ */
+export function problemaDireccion(url, pagina = globalThis.location) {
+  let u;
+  try { u = new URL(url); } catch { return 'La dirección no es válida. Ejemplo: https://carlos25.tail970b93.ts.net:8443'; }
+  const appLocal = pagina && esLocal(pagina.hostname);
+  if (esLocal(u.hostname) && pagina && !appLocal) {
+    return 'Esa dirección (127.0.0.1) solo sirve en el propio PC. En el móvil usa la de Tailscale terminada en :8443, por ejemplo https://carlos25.tail970b93.ts.net:8443';
+  }
+  if (pagina?.protocol === 'https:' && u.protocol === 'http:' && !esLocal(u.hostname)) {
+    return 'Desde la app publicada hay que usar https://. Usa la dirección de Tailscale: https://carlos25.tail970b93.ts.net:8443';
+  }
+  if (u.hostname.endsWith('.ts.net') && u.port !== '8443') {
+    return 'Falta «:8443» al final de la dirección. Sin él se conecta con el servidor de la V1.35, no con el de la V2.';
+  }
+  return null;
+}
+
 /** Huellas de archivo referenciadas en cualquier parte de un registro. */
 export function huellasDe(obj, out = new Set()) {
   if (Array.isArray(obj)) obj.forEach((x) => huellasDe(x, out));
@@ -41,6 +64,8 @@ export class SyncManager {
   async guardarConfig({ url, clave, nombre }) {
     const limpia = String(url || '').trim().replace(/\/+$/, '');
     if (limpia && !/^https?:\/\//.test(limpia)) throw new SyncError('La dirección debe empezar por https://');
+    const problema = limpia && problemaDireccion(limpia);
+    if (problema) throw new SyncError(problema);
     const antes = await this.config();
     if (antes.url && limpia && antes.url !== limpia) {
       // Otro servidor: hay que bajarlo todo y subirle todo lo de este dispositivo.
@@ -53,6 +78,8 @@ export class SyncManager {
   async _call(method, path, { json, body, headers = {}, raw = false } = {}) {
     const cfg = await this.config();
     if (!cfg.url || !cfg.clave) throw new SyncError('Falta configurar la dirección y la clave del PC.');
+    const problema = problemaDireccion(cfg.url);
+    if (problema) throw new SyncError(problema);
     const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const t = ctrl && setTimeout(() => ctrl.abort(), this.timeoutMs);
     let res;
@@ -64,11 +91,14 @@ export class SyncManager {
         signal: ctrl?.signal,
       });
     } catch (e) {
-      throw new SyncError(e?.name === 'AbortError' ? 'El PC no responde (tiempo agotado).' : 'No se puede conectar con el PC. Comprueba que está encendido y que Tailscale está activo.');
+      throw new SyncError(e?.name === 'AbortError'
+        ? 'El PC no responde (tiempo agotado). Comprueba que la ventana «SOLTEC V2 - NO CERRAR» está abierta en el PC.'
+        : `No se puede conectar con el PC. Comprueba: 1) en el PC está abierta la ventana «SOLTEC V2 - NO CERRAR» y se arrancó con INICIAR_SOLTEC_V2.bat; 2) Tailscale está conectado en el PC y en este dispositivo; 3) abre ${cfg.url}/ en el navegador: debe salir «SOLTEC V2».`);
     } finally {
       if (t) clearTimeout(t);
     }
-    if (res.status === 401) throw new SyncError('La clave de sincronización no es correcta.');
+    if (res.status === 401) throw new SyncError('La clave de sincronización no es correcta. Cópiala de la ventana «SOLTEC V2 - NO CERRAR» del PC (o del archivo soltec-v2-config.json).');
+    if (res.status === 404) throw new SyncError('En esa dirección responde un servidor que no es el de la V2 (¿el de la V1.35?). Revisa que termine en :8443 y que el PC se arrancó con INICIAR_SOLTEC_V2.bat.');
     if (raw) {
       if (!res.ok) throw new SyncError(`El PC respondió ${res.status}.`);
       return res;
