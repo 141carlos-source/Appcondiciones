@@ -54,6 +54,7 @@ export const EVENTOS = {
   condiciones_recibidas: 'Condiciones recibidas',
   doc_preparada: 'Documentación preparada',
   doc_enviada: 'Documentación enviada',
+  doc_recibida: 'Datos del cliente recibidos',
   contrato_tramitado: 'Contrato tramitado',
   cliente_informado: 'Cliente informado',
   firma_recibida: 'Firma recibida',

@@ -2,6 +2,7 @@
 // Funciones puras: reciben pdf-lib (PDFLib) y los datos; no tocan la base de datos.
 
 import { direccionCompleta, calleNumero, nombreArchivo, datosPendientes } from './model.js';
+import { nombreCampoPdf } from './fichaCliente.js';
 import { nombreEmpresa } from './empresa.js';
 
 // ---------------------------------------------------------------- utilidades
@@ -22,13 +23,15 @@ const ROJO = [0.769, 0.086, 0.11], GRAFITO = [0.118, 0.133, 0.149], ACERO = [0.3
  * @param {{aviso, empresa, logo?:{bytes,mime}, edist?:{bytes,mime}, firma?:{png:Uint8Array, nombre:string, fecha:string}}} o
  * @returns {Promise<Uint8Array>}
  */
-export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma }) {
+export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma, datosCliente, aplanar }) {
   const { PDFDocument, StandardFonts, rgb } = PDFLib;
   const c = (a) => rgb(...a);
   const pdf = await PDFDocument.create();
   pdf.setTitle(textoPdf(`Ficha de datos del cliente · Aviso ${aviso.numero || ''}`));
   pdf.setAuthor(textoPdf(nombreEmpresa(empresa)));
   pdf.setCreator('SOLTEC V2');
+  // Datos del cliente codificados (formulario web): la app los lee al recibir el PDF de vuelta
+  if (datosCliente) { pdf.setSubject(datosCliente); pdf.setKeywords([datosCliente]); }
   const page = pdf.addPage([595.28, 841.89]);
   const fuente = await pdf.embedFont(StandardFonts.Helvetica);
   const negrita = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -69,7 +72,7 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma 
   // Instrucciones
   const instr = [
     'Revise los datos. Complete los campos vacíos que necesitamos para el boletín y/o el contrato de electricidad.',
-    'Guarde el PDF después de rellenarlo y devuélvanoslo firmado por WhatsApp o correo electrónico.',
+    'Rellénelo en el móvil o el ordenador (con Adobe Acrobat Reader, gratuito), guárdelo y devuélvanoslo por WhatsApp o correo.',
   ];
   page.drawRectangle({ x: M, y: y - 26, width: W, height: 30, color: c(HUESO) });
   instr.forEach((t, i) => texto(t, M + 8, y - 8 - i * 11, { size: 8, maxW: W - 16 }));
@@ -82,10 +85,11 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma 
     const alto = size === 9 ? 18 : 16, gap = 8;
     const total = campos.reduce((a, f) => a + f[2], 0);
     let x = M;
-    for (const [etiqueta, valor, peso] of campos) {
+    for (const [etiqueta, valor, peso, ruta] of campos) {
       const w = (W - gap * (campos.length - 1)) * (peso / total);
       texto(etiqueta, x, y - 9, { size: 6.5, color: ACERO, maxW: w });
-      const tf = form.createTextField(`f${++n}_${nombreArchivo(etiqueta).slice(0, 30)}`);
+      // Los campos de datos se llaman como su ruta (cliente__nombre…) para poder leerlos al volver
+      const tf = form.createTextField(ruta ? nombreCampoPdf(ruta) : `f${++n}_${nombreArchivo(etiqueta).slice(0, 30)}`);
       tf.setText(textoPdf(valor));
       tf.addToPage(page, { x, y: y - 11 - alto, width: w, height: alto, font: fuente, borderColor: c(LINEA), backgroundColor: valor ? rgb(1, 1, 1) : rgb(0.984, 0.918, 0.918), borderWidth: 0.6 });
       tf.setFontSize(size);
@@ -96,14 +100,14 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma 
 
   const cl = aviso.cliente || {}, su = aviso.suministro || {}, el = aviso.electrico || {};
   seccion('DATOS DEL CLIENTE');
-  fila([['Nombre y apellidos o razón social', cl.nombre, 3], ['DNI / NIF / CIF', cl.nif, 1.2]], 9);
-  fila([['Persona de contacto', cl.contacto, 2], ['Teléfono', cl.telefono, 1.2], ['Correo electrónico', cl.email, 2]], 9);
-  fila([['IBAN (para el contrato)', cl.iban, 1]], 9);
+  fila([['Nombre y apellidos o razón social', cl.nombre, 3, 'cliente.nombre'], ['DNI / NIF / CIF', cl.nif, 1.2, 'cliente.nif']], 9);
+  fila([['Persona de contacto', cl.contacto, 2, 'cliente.contacto'], ['Teléfono', cl.telefono, 1.2, 'cliente.telefono'], ['Correo electrónico', cl.email, 2, 'cliente.email']], 9);
+  fila([['IBAN (para el contrato)', cl.iban, 1, 'cliente.iban']], 9);
   y -= 4;
   seccion('DATOS DEL SUMINISTRO');
-  fila([['Dirección', su.direccion, 3.4], ['Número', su.numero, 0.7], ['Piso', su.piso, 0.7], ['Puerta', su.puerta, 0.7]], 8);
-  fila([['Código postal', su.cp, 1], ['Población', su.poblacion, 2], ['Provincia', su.provincia, 1.6]], 8);
-  fila([['CUPS', su.cups, 2], ['Referencia catastral', su.refCatastral, 2]], 8);
+  fila([['Calle / vía', su.direccion, 3.4, 'suministro.direccion'], ['Número', su.numero, 0.7, 'suministro.numero'], ['Piso', su.piso, 0.7, 'suministro.piso'], ['Puerta', su.puerta, 0.7, 'suministro.puerta']], 8);
+  fila([['Código postal', su.cp, 1, 'suministro.cp'], ['Población', su.poblacion, 2, 'suministro.poblacion'], ['Provincia', su.provincia, 1.6, 'suministro.provincia']], 8);
+  fila([['CUPS', su.cups, 2, 'suministro.cups'], ['Referencia catastral', su.refCatastral, 2, 'suministro.refCatastral']], 8);
   y -= 4;
   seccion('DATOS ELÉCTRICOS');
   const tension = { 230: '230 V (monofásico)', 400: '400 V (trifásico)' }[el.tension] || el.tension || '';
@@ -140,7 +144,7 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma 
   texto(`Documento preparado por ${nombreEmpresa(empresa)}${firma ? ' · Firmado en el dispositivo el ' + firma.fecha : ''}.`, M, Math.max(y, M), { size: 6.5, color: ACERO, maxW: W });
 
   form.updateFieldAppearances(fuente);
-  if (firma?.png) form.flatten(); // firmado: los datos quedan fijados junto a la firma
+  if (firma?.png || aplanar) form.flatten(); // firmado: los datos quedan fijados junto a la firma
   return pdf.save();
 }
 

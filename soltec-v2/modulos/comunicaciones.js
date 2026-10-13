@@ -1,11 +1,12 @@
 // SOLTEC V2 · Ficha PDF del cliente, firma con el dedo, resumen de WhatsApp y correos.
 // Preparar una comunicación no es enviarla: el historial lo distingue.
 
-import { h, toast, abrirBlob, compartir, descargar, fecha, lienzoFirma } from '../ui.js';
+import { h, toast, abrirBlob, compartir, descargar, fecha, lienzoFirma, irORepintar } from '../ui.js';
 import { generarFicha, nombreFicha, resumenWhatsApp, enlaceWhatsApp, telefonoWhatsApp, correo, enlaceCorreo, TIPOS_CORREO } from '../core/documentos.js';
 import { faltaParaFormulario } from '../core/empresa.js';
 import { datosPendientes, normalizarAviso, hoyLocal } from '../core/model.js';
 import { leerEmpresa } from './empresa.js';
+import { paqueteFicha, enlaceFormulario, URL_PUBLICA, leerDatos, datosDePdf, cambiosFicha, aplicarCambios } from '../core/fichaCliente.js';
 
 let cargaPdfLib = null;
 /** Carga pdf-lib solo cuando hace falta (pesa ~500 KB). */
@@ -48,6 +49,8 @@ export async function crearFichaPdf(app, aviso, firma = null) {
   const bytes = await generarFicha(PDFLib, { aviso, empresa, logo, edist, firma });
   return new Blob([bytes], { type: 'application/pdf' });
 }
+
+const nombreEmpresaCorta = (e) => e?.empresa?.nombreComercial || e?.empresa?.nombre || 'su instalador';
 
 const proximoSeguimiento = async (app, avisoId) => {
   const c = (await app.storage.listByRef(avisoId, 'cita')).filter((x) => !x.deleted && !x.data.hecho).sort((a, b) => ((a.data.fecha || '') + (a.data.hora || '')).localeCompare((b.data.fecha || '') + (b.data.hora || '')))[0];
@@ -128,10 +131,88 @@ export async function bloqueComunicaciones(app, avisoId) {
     });
   };
 
+  // --- El cliente rellena la ficha él mismo (formulario web con sus datos dentro del enlace)
+  const enlaceCliente = async () => {
+    if (sinGuardar()) return;
+    const aviso = { ...(await leer()), id: avisoId };
+    const base = /github\.io$/.test(location.hostname) ? location.href.split('#')[0].replace(/[^/]*$/, '') : URL_PUBLICA;
+    const url = enlaceFormulario(paqueteFicha(aviso, empresa), base);
+    const cl = aviso.cliente || {};
+    const saludo = `Hola${cl.contacto || cl.nombre ? ' ' + (cl.contacto || cl.nombre).split(' ')[0] : ''}, le escribimos de ${nombreEmpresaCorta(empresa)}.`;
+    const mensaje = `${saludo}\n\nPara tramitar su suministro${aviso.numero ? ' (aviso ' + aviso.numero + ')' : ''} necesitamos que revise y complete sus datos y firme aquí, desde el móvil:\n${url}\n\nAl terminar, pulse «Preparar ficha firmada» y envíenosla. Gracias.`;
+    const tel = telefonoWhatsApp(cl.telefono);
+    const anotar = (por) => app.storage.addEvent(avisoId, 'doc_preparada', `Enlace del formulario de datos ${por} (el envío se confirma en ${por === 'por correo' ? 'el correo' : 'WhatsApp'})`);
+    panel.replaceChildren(h('div', { class: 'card', id: 'panel-enlace-cliente' },
+      h('b', {}, 'Formulario para el cliente'),
+      h('p', { class: 'muted' }, 'El cliente abre el enlace en su móvil, ve sus datos ya puestos, completa lo que falta, firma con el dedo y le devuelve la ficha firmada. Los datos van dentro del enlace: no pasan por ningún servidor.'),
+      h('input', { type: 'text', readonly: true, id: 'enlace-cliente', value: url, 'data-minusculas': '', onclick: (e) => e.target.select() }),
+      tel ? null : h('div', { class: 'aviso info' }, 'El teléfono del cliente no es un móvil español: WhatsApp se abrirá sin destinatario.'),
+      h('div', { class: 'acciones' },
+        h('button', { class: 'btn prim', type: 'button', id: 'enlace-whatsapp', onclick: async () => { window.open(enlaceWhatsApp(cl.telefono, mensaje), '_blank', 'noopener'); await anotar('por WhatsApp'); marcarEnviado('Formulario de datos por WhatsApp'); } }, 'Enviar por WhatsApp'),
+        h('button', { class: 'btn', type: 'button', onclick: async () => {
+          if (!cl.email) toast('El cliente no tiene correo: escríbelo en el aviso', true);
+          window.location.href = enlaceCorreo({ para: cl.email || '', asunto: `Sus datos para el suministro · Aviso ${aviso.numero || ''}`, cuerpo: mensaje });
+          await anotar('por correo'); marcarEnviado('Formulario de datos por correo');
+        } }, 'Enviar por correo'),
+        h('button', { class: 'btn', type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(url); toast('Enlace copiado'); } catch { toast('Selecciona y copia el enlace', true); } } }, 'Copiar enlace'),
+        h('a', { class: 'btn', href: url, target: '_blank', rel: 'noopener' }, 'Ver como el cliente'))));
+  };
+
+  // --- Leer lo que devuelve el cliente: PDF (formulario web o PDF rellenado) o el texto del mensaje
+  const leerDevuelta = () => {
+    const resultado = h('div');
+    const procesar = async (r, archivo) => {
+      if (!r) { resultado.replaceChildren(h('div', { class: 'aviso err' }, 'No se han encontrado datos de la ficha. Si el cliente rellenó el PDF a mano sin guardarlo, pídele que lo guarde y lo reenvíe.')); return; }
+      if (r.n && r.n !== (await leer()).numero) toast(`Ojo: la ficha es del aviso ${r.n}`, true);
+      const aviso = await leer();
+      const cambios = cambiosFicha(aviso, r.d);
+      const marcas = cambios.map((c) => h('input', { type: 'checkbox', checked: c.problema ? null : true }));
+      const firmada = !!r.firma;
+      resultado.replaceChildren(h('div', { class: 'card', id: 'cambios-ficha' },
+        h('b', {}, cambios.length ? `${cambios.length} dato(s) del cliente para el aviso` : 'Los datos que envía el cliente ya están en el aviso.'),
+        firmada ? h('div', { class: 'muted' }, `Firmada por ${r.firma.nombre} el ${r.firma.fecha}.`) : null,
+        cambios.length ? h('ul', { class: 'lista-chk' }, ...cambios.map((c, i) => h('li', {},
+          h('label', { class: 'check-linea', style: 'flex:1' }, marcas[i],
+            h('span', {}, h('b', {}, c.etiqueta), h('div', { class: 'muted' }, c.antes ? `Antes: ${c.antes}` : 'Estaba vacío'), h('div', {}, `Ahora: ${c.ahora}`),
+              c.problema ? h('div', { class: 'faltan' }, `Revisar: ${c.problema}`) : null))))) : null,
+        h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', id: 'aplicar-ficha', onclick: async (e) => {
+          e.target.disabled = true;
+          const elegidos = cambios.filter((_, i) => marcas[i].checked);
+          const actual = normalizarAviso((await app.storage.get(avisoId)).data);
+          const nuevo = aplicarCambios(actual, elegidos);
+          if (archivo) {
+            const f = await app.storage.putFile({ name: archivo.name, mime: 'application/pdf', bytes: archivo.bytes });
+            if (!nuevo.archivos.some((x) => x.hash === f.hash)) nuevo.archivos.push({ tipo: 'ficha_cliente', hash: f.hash, name: f.name, mime: 'application/pdf', size: f.size, addedAt: new Date().toISOString() });
+          }
+          if (firmada && archivo) nuevo.docs = { ...nuevo.docs, firmado: 'recibido' };
+          await app.storage.save('aviso', nuevo, { id: avisoId, event: { kind: 'doc_recibida', text: `Ficha del cliente recibida: ${elegidos.length} dato(s) actualizados${firmada ? `, firmada por ${r.firma.nombre}` : ''}${archivo ? ' · PDF guardado' : ''}` } });
+          toast('Datos del cliente aplicados al aviso');
+          irORepintar('aviso/' + avisoId);
+        } }, cambios.length ? 'Aplicar al aviso' : (archivo ? 'Guardar el PDF en el aviso' : 'Cerrar')))));
+    };
+    const fichero = h('input', { type: 'file', accept: 'application/pdf,.pdf', style: 'display:none', id: 'ficha-devuelta', onchange: async (e) => {
+      const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+      try {
+        const bytes = new Uint8Array(await f.arrayBuffer());
+        await procesar(await datosDePdf(await cargarPdfLib(), bytes), { name: f.name, bytes });
+      } catch (err) { resultado.replaceChildren(h('div', { class: 'aviso err' }, 'No se puede leer ese PDF: ' + err.message)); }
+    } });
+    const pegado = h('textarea', { rows: 4, id: 'texto-devuelto', 'data-minusculas': '', placeholder: 'O pega aquí el mensaje de WhatsApp o del correo del cliente (el que termina en SOLTEC-DATOS:…)' });
+    panel.replaceChildren(h('div', { class: 'card' },
+      h('b', {}, 'Leer la ficha que devuelve el cliente'),
+      h('p', { class: 'muted' }, 'Elige el PDF que te ha enviado (el del formulario o el PDF rellenado) o pega su mensaje. Verás qué datos cambian antes de aplicarlos.'),
+      h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', onclick: () => fichero.click() }, 'Elegir PDF devuelto'), fichero),
+      pegado,
+      h('div', { class: 'fila' }, h('button', { class: 'btn', type: 'button', id: 'leer-texto', onclick: () => procesar(leerDatos(pegado.value), null) }, 'Leer el mensaje pegado'))),
+      resultado);
+  };
+
   return h('div', {},
     faltaEmpresa.length ? h('div', { class: 'aviso info' }, `Configura ${faltaEmpresa.join(' y ')} de la empresa para la ficha PDF. `, h('a', { href: '#/empresa' }, 'Ir a Empresa')) : null,
     h('div', { class: 'acciones' },
-      h('button', { class: 'btn', type: 'button', id: 'btn-ficha-pdf', onclick: fichaPdf }, 'Ficha PDF para el cliente'),
+      h('button', { class: 'btn prim', type: 'button', id: 'btn-enlace-cliente', onclick: enlaceCliente }, 'Formulario para que el cliente rellene y firme'),
+      h('button', { class: 'btn', type: 'button', id: 'btn-leer-devuelta', onclick: leerDevuelta }, 'Leer ficha devuelta por el cliente'),
+      h('button', { class: 'btn', type: 'button', id: 'btn-ficha-pdf', onclick: fichaPdf }, 'Ficha PDF rellenable'),
       h('a', { class: 'btn', href: `#/firma/${avisoId}` }, 'Firmar en este dispositivo'),
       h('button', { class: 'btn', type: 'button', id: 'btn-whatsapp', onclick: whatsapp }, 'Resumen para WhatsApp'),
       ...Object.entries(TIPOS_CORREO).map(([k, t]) => h('button', { class: 'btn', type: 'button', onclick: enviarCorreo(k) }, 'Correo: ' + t.label.toLowerCase()))),

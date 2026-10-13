@@ -339,3 +339,8 @@ nav.inferior .salir::before { content: ''; position: absolute; left: 0; top: 14p
 .alarma-hora { font-size: 28px; font-weight: 800; color: var(--rojo); }
 .alarma-fila { align-items: center; }
 .alarma-fila select { width: auto; min-width: 150px; }
+
+/* Formulario público para el cliente */
+.pagina-cliente main { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+.pagina-cliente h2 { font-size: 14px; letter-spacing: .04em; color: var(--rojo); margin: 0 0 10px; }
+.pagina-cliente .check-linea { margin: 12px 0; align-items: flex-start; }
