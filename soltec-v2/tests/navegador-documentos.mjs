@@ -78,7 +78,7 @@ try {
   await page.click('#btn-whatsapp');
   const texto = await page.inputValue('#texto-whatsapp');
   assert.match(texto, /le escribimos de M\. A\. SOLTEC/);
-  assert.match(texto, /• IBAN/);
+  assert.match(texto, /^IBAN: +← falta$/m);
   let urlWa = '';
   await ctx.route('https://wa.me/**', (r) => { urlWa = r.request().url(); r.fulfill({ status: 200, body: 'WhatsApp' }); });
   const [pop] = await Promise.all([ctx.waitForEvent('page'), page.click('text=Abrir WhatsApp')]);

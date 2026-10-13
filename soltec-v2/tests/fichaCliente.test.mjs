@@ -60,3 +60,30 @@ test('PDF rellenable completado por el cliente (Acrobat): se leen sus campos', a
   const c = cambiosFicha(aviso, r.d);
   assert.deepEqual(c.map((x) => x.ruta), ['cliente.nif', 'cliente.iban']);
 });
+
+test('el cliente responde en el mismo WhatsApp o correo y la app reconoce sus datos', async () => {
+  const { plantillaRespuesta, leerRespuesta } = await import('../core/fichaCliente.js');
+  const p = plantillaRespuesta(aviso);
+  assert.match(p, /^NOMBRE O RAZÓN SOCIAL: ANA GIL$/m);
+  assert.match(p, /^DNI \/ NIF \/ CIF:   ← falta$/m);
+  assert.match(p, /^CALLE: CALLE MAYOR$/m);
+  // Lo que devuelve el cliente: copia, rellena y cambia cosas a su manera
+  const resp = p
+    .replace('DNI / NIF / CIF:   ← falta', 'DNI / NIF / CIF: 12345678z')
+    .replace('CORREO ELECTRÓNICO:   ← falta', 'correo electronico: ana@correo.es')
+    .replace('IBAN: ', 'Iban = ES91 2100 0418 4502 0005 1332')
+    .replace('CONFORMIDAD (escriba SÍ): ', 'CONFORMIDAD (escriba SÍ): si');
+  const r = leerRespuesta('Hola, aquí van\n' + resp);
+  assert.equal(r.conforme, true);
+  assert.equal(r.d['cliente.nif'], '12345678z');
+  assert.equal(r.d['cliente.email'], 'ana@correo.es');
+  assert.equal(r.d['cliente.iban'], 'ES91 2100 0418 4502 0005 1332');
+  const c = cambiosFicha(aviso, r.d);
+  assert.deepEqual(c.map((x) => [x.ruta, x.ahora]), [['cliente.nif', '12345678Z'], ['cliente.email', 'ana@correo.es'], ['cliente.iban', 'ES91 2100 0418 4502 0005 1332']]);
+  // Respuesta de correo con el original citado: manda lo que escribe el cliente
+  const correoResp = 'DNI: 87654321X\n\nEl 13/10 escribió:\n> DNI / NIF / CIF: 11111111H\n> CALLE: CALLE MAYOR';
+  const r2 = leerRespuesta(correoResp);
+  assert.equal(r2.d['cliente.nif'], '87654321X');
+  assert.equal(r2.d['suministro.direccion'], 'CALLE MAYOR');
+  assert.equal(leerRespuesta('Gracias, ya os llamo'), null);
+});

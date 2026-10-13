@@ -1,6 +1,7 @@
 // SOLTEC V2 · Ficha que rellena el propio cliente (formulario web o PDF rellenable) y lectura
 // automática de lo que devuelve. Los mismos campos sirven para el PDF, el formulario y el lector.
 
+import { datosPendientes } from './model.js';
 import { validarNif, validarTelefono, validarEmail, validarIban, validarCp, validarCups, validarRefCatastral } from './validate.js';
 
 /** URL pública del formulario (GitHub Pages). Desde el PC instalado se usa también esta. */
@@ -128,4 +129,63 @@ export function aplicarCambios(aviso, cambios) {
     a[g] = { ...(a[g] || {}), [k]: c.ahora };
   }
   return a;
+}
+
+// ---------------------------------------------------------------- respuesta dentro del propio chat o correo
+// El cliente no abre nada: copia el mensaje, escribe sus datos detrás de los dos puntos y lo
+// reenvía. La app reconoce las líneas «ETIQUETA: valor» aunque cambie mayúsculas, acentos o
+// use otro nombre habitual (DNI, NIF, E-MAIL, C.P., DIRECCIÓN…).
+const ETIQUETAS_RESP = [
+  ['cliente.nombre', 'NOMBRE O RAZÓN SOCIAL', ['NOMBRE', 'NOMBRE Y APELLIDOS', 'RAZON SOCIAL', 'TITULAR', 'CLIENTE']],
+  ['cliente.nif', 'DNI / NIF / CIF', ['DNI', 'NIF', 'CIF', 'NIE', 'DNI/NIF', 'DNI NIF CIF']],
+  ['cliente.contacto', 'PERSONA DE CONTACTO', ['CONTACTO']],
+  ['cliente.telefono', 'TELÉFONO', ['TELEFONO', 'TLF', 'TFNO', 'MOVIL', 'MÓVIL', 'TEL']],
+  ['cliente.email', 'CORREO ELECTRÓNICO', ['CORREO', 'EMAIL', 'E-MAIL', 'MAIL']],
+  ['cliente.iban', 'IBAN', ['IBAN', 'CUENTA', 'CUENTA BANCARIA', 'NUMERO DE CUENTA']],
+  ['suministro.direccion', 'CALLE', ['CALLE', 'DIRECCION', 'VIA', 'CALLE / VIA', 'DOMICILIO']],
+  ['suministro.numero', 'NÚMERO', ['NUMERO', 'Nº', 'NUM']],
+  ['suministro.piso', 'PISO', ['PISO', 'PLANTA']],
+  ['suministro.puerta', 'PUERTA', ['PUERTA', 'LETRA']],
+  ['suministro.cp', 'CÓDIGO POSTAL', ['CP', 'C.P.', 'C.P', 'CODIGO POSTAL']],
+  ['suministro.poblacion', 'POBLACIÓN', ['POBLACION', 'LOCALIDAD', 'MUNICIPIO']],
+  ['suministro.provincia', 'PROVINCIA', ['PROVINCIA']],
+  ['suministro.cups', 'CUPS', ['CUPS']],
+  ['suministro.refCatastral', 'REFERENCIA CATASTRAL', ['REF CATASTRAL', 'REF. CATASTRAL', 'CATASTRAL', 'REFERENCIA CATASTRAL']],
+];
+const sinAcentos = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9º/ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const MAPA_ETQ = new Map();
+for (const [ruta, etq, alias] of ETIQUETAS_RESP) for (const a of [etq, ...alias]) MAPA_ETQ.set(sinAcentos(a), ruta);
+
+/** Bloque de líneas para rellenar, con lo que ya sabemos puesto y lo que falta vacío. */
+export function plantillaRespuesta(aviso) {
+  const l = [];
+  // «← falta»: lo que falta o está mal para la ficha, el contrato o el boletín
+  const pendientes = new Set(datosPendientes(aviso).map((p) => p.campo));
+  for (const [ruta, etq] of ETIQUETAS_RESP) {
+    const v = limpio(leer(aviso, ruta));
+    const marca = pendientes.has(ruta) || (!v && CAMPOS_FICHA.find(([r]) => r === ruta)?.[2].req) ? '  ← falta' : '';
+    l.push(`${etq}: ${v}${marca}`);
+  }
+  l.push('CONFORMIDAD (escriba SÍ): ');
+  return l.join('\n');
+}
+
+/** Lee una respuesta escrita «ETIQUETA: valor». Devuelve {v, d, conforme} o null si no reconoce nada. */
+export function leerRespuesta(texto) {
+  const propios = {}, citados = {};
+  let conforme = false;
+  for (let linea of String(texto || '').split(/\r?\n/)) {
+    const citado = /^\s*>/.test(linea);
+    linea = linea.replace(/^[\s>*•·\-]+/, '').replace(/\*/g, '');
+    const m = linea.match(/^([^:=]{1,40})[:=]\s*(.*)$/);
+    if (!m) continue;
+    const clave = sinAcentos(m[1]);
+    let valor = m[2].replace(/←\s*falta\s*$/i, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+    if (/^CONFORMIDAD/.test(clave)) { if (/^(SI|SÍ|ACEPTO|CONFORME|OK|DE ACUERDO)\b/i.test(sinAcentos(valor))) conforme = true; continue; }
+    const ruta = MAPA_ETQ.get(clave);
+    if (!ruta || !valor || /^[._\-…\s]+$/.test(valor)) continue;
+    (citado ? citados : propios)[ruta] = valor;
+  }
+  const d = { ...citados, ...propios }; // lo escrito por el cliente manda sobre lo citado
+  return Object.keys(d).length ? { v: 1, d, conforme, origen: 'respuesta' } : null;
 }

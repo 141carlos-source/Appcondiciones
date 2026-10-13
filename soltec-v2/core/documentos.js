@@ -2,7 +2,7 @@
 // Funciones puras: reciben pdf-lib (PDFLib) y los datos; no tocan la base de datos.
 
 import { direccionCompleta, calleNumero, nombreArchivo, datosPendientes } from './model.js';
-import { nombreCampoPdf } from './fichaCliente.js';
+import { nombreCampoPdf, plantillaRespuesta } from './fichaCliente.js';
 import { nombreEmpresa } from './empresa.js';
 
 // ---------------------------------------------------------------- utilidades
@@ -157,22 +157,20 @@ export function telefonoWhatsApp(tel) {
 }
 
 export function resumenWhatsApp({ aviso, empresa, seguimiento }) {
-  const faltan = datosPendientes(aviso, 'ficha').concat(datosPendientes(aviso, 'contrato'), datosPendientes(aviso, 'boletin'));
-  const unicos = [...new Map(faltan.map((f) => [f.campo, f.etiqueta])).values()];
+  const bloque = plantillaRespuesta(aviso);
+  const nFaltan = (bloque.match(/← falta/g) || []).length;
   const cl = aviso.cliente || {};
   const l = [];
   l.push(`Hola${cl.contacto || cl.nombre ? ' ' + (cl.contacto || cl.nombre).split(' ')[0] : ''}, le escribimos de ${nombreEmpresa(empresa)}.`);
   l.push('');
   l.push(`Aviso ${aviso.numero}${direccionCompleta(aviso.suministro) ? ' · ' + direccionCompleta(aviso.suministro) : ''}`);
   if (aviso.condiciones?.ref) l.push(`Ref. condiciones: ${aviso.condiciones.ref}`);
-  if (unicos.length) {
-    l.push('');
-    l.push('Para continuar necesitamos estos datos:');
-    for (const u of unicos) l.push(`• ${u}`);
-  }
   if (seguimiento) l.push('', `Próximo contacto: ${seguimiento.fecha}${seguimiento.hora ? ' a las ' + seguimiento.hora : ''}`);
   l.push('');
-  l.push('Le enviamos la ficha en PDF: revísela, complete lo que falte para el boletín y/o el contrato, guárdela y devuélvanosla firmada.');
+  l.push(nFaltan ? `Para continuar nos faltan ${nFaltan} dato(s), marcados con «← falta».` : 'Por favor, revise que sus datos son correctos.');
+  l.push('Responda a este mismo mensaje: copie el bloque de abajo, escriba o corrija sus datos detrás de los dos puntos y envíenoslo. No hace falta abrir ni instalar nada.');
+  l.push('');
+  l.push(bloque);
   l.push('');
   l.push(`Gracias. ${nombreEmpresa(empresa)}${empresa?.empresa?.telefono ? ' · ' + empresa.empresa.telefono : ''}`);
   return l.join('\n');
