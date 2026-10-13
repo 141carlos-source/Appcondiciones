@@ -173,7 +173,7 @@ export async function vistaParte(app, id) {
     det('Cliente', !reg && !aviso, h('div', { class: 'grid2' },
       inp(p.cliente, 'nombre', 'Cliente', { id: 'p-cliente', ancho: true }), inp(p.cliente, 'nif', 'NIF / CIF', { id: 'p-nif' }), inp(p.cliente, 'telefono', 'Teléfono', { id: 'p-telefono', tipo: 'tel' }),
       inp(p.cliente, 'contacto', 'Contacto', { id: 'p-contacto' }), inp(p.cliente, 'email', 'Correo', { id: 'p-email', tipo: 'email' }),
-      inp(p.cliente, 'direccion', 'Dirección', { id: 'p-direccion', ancho: true }), inp(p.cliente, 'piso', 'Piso', { id: 'p-piso' }), inp(p.cliente, 'puerta', 'Puerta', { id: 'p-puerta' }),
+      inp(p.cliente, 'direccion', 'Calle / vía', { id: 'p-direccion', ancho: true }), inp(p.cliente, 'numero', 'Número', { id: 'p-numero' }), inp(p.cliente, 'piso', 'Piso', { id: 'p-piso' }), inp(p.cliente, 'puerta', 'Puerta', { id: 'p-puerta' }),
       inp(p.cliente, 'cp', 'Código postal', { id: 'p-cp', modo: 'numeric' }), inp(p.cliente, 'localidad', 'Localidad', { id: 'p-localidad' }))),
     det('Trabajo realizado', true,
       area('trabajos', 'Trabajos realizados', 5),

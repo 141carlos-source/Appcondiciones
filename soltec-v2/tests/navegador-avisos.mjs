@@ -42,8 +42,16 @@ try {
   assert.equal(await page.inputValue('#f-cliente-nif'), '12345678Z');
   await page.fill('#f-cliente-telefono', '600 123 456');
   await page.fill('#f-suministro-cp', '44001');
-  assert.equal(await page.inputValue('#f-suministro-provincia'), 'Teruel');
+  assert.equal(await page.inputValue('#f-suministro-provincia'), 'TERUEL');
   ok('El código postal rellena la provincia');
+  assert.equal(await page.inputValue('#f-cliente-nombre'), 'MARÍA PÉREZ GÓMEZ');
+  await page.fill('#f-cliente-email', 'Maria@Ejemplo.es');
+  assert.equal(await page.inputValue('#f-cliente-email'), 'Maria@Ejemplo.es');
+  await page.click('#f-cliente-contacto');
+  await page.keyboard.type('ana');
+  assert.equal(await page.inputValue('#f-cliente-contacto'), 'ANA');
+  await page.fill('#f-cliente-contacto', '');
+  ok('Todo se escribe en MAYÚSCULAS salvo el correo');
   await page.fill('#f-suministro-poblacion', 'Teruel');
   await page.fill('#f-cliente-email', 'maria@ejemplo.es');
   await page.fill('#f-suministro-direccion', 'Calle Mayor 1');
@@ -146,7 +154,7 @@ try {
   await page.click('nav.inferior a[data-ruta=inicio]');
   await page.waitForTimeout(300);
   assert.match(page.url(), /#\/aviso\//);
-  assert.equal(await page.inputValue('#f-cliente-contacto'), 'Juan (hijo)');
+  assert.equal(await page.inputValue('#f-cliente-contacto'), 'JUAN (HIJO)');
   respuesta = 'aceptar';
   await page.click('nav.inferior a[data-ruta=inicio]');
   await page.waitForSelector('#buscador-unico');

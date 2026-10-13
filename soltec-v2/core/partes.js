@@ -1,7 +1,7 @@
 // SOLTEC V2 · Partes de trabajo (registro «parte», ref = aviso opcional). Funciones puras y PDF.
 // Sin funciones de facturación ni cobro: el parte documenta el trabajo realizado.
 
-import { direccionCompleta, nombreArchivo, hoyLocal } from './model.js';
+import { direccionCompleta, calleNumero, nombreArchivo, hoyLocal } from './model.js';
 import { nombreEmpresa } from './empresa.js';
 import { textoPdf } from './documentos.js';
 
@@ -14,7 +14,7 @@ export function nuevoParte(aviso = null, empresa = null) {
     numero: '', fecha: hoyLocal(), avisoNumero: aviso?.numero || '',
     tecnico: empresa?.tecnico?.nombre || '',
     cliente: { nombre: cl.nombre || '', nif: cl.nif || '', contacto: cl.contacto || '', telefono: cl.telefono || '', email: cl.email || '',
-      direccion: su.direccion || '', piso: su.piso || '', puerta: su.puerta || '', cp: su.cp || '', localidad: su.poblacion || '', provincia: su.provincia || '' },
+      direccion: su.direccion || '', numero: su.numero || '', piso: su.piso || '', puerta: su.puerta || '', cp: su.cp || '', localidad: su.poblacion || '', provincia: su.provincia || '' },
     trabajos: '', conceptos: { desplazamiento: false, disponibilidad: false, urgencia: false }, horas: '',
     materiales: [], // {ref, desc, cantidad}
     observaciones: '', resultado: '',
@@ -60,7 +60,7 @@ export function faltaParaCerrar(p) {
   return f;
 }
 
-export const nombrePartePdf = (p) => nombreArchivo('PARTE', p.numero, p.cliente?.direccion, p.cliente?.piso && `PISO ${p.cliente.piso}`, p.cliente?.puerta && `PUERTA ${p.cliente.puerta}`) + '.pdf';
+export const nombrePartePdf = (p) => nombreArchivo('PARTE', p.numero, calleNumero(p.cliente || {}), p.cliente?.piso && `PISO ${p.cliente.piso}`, p.cliente?.puerta && `PUERTA ${p.cliente.puerta}`) + '.pdf';
 
 // ---------------------------------------------------------------- PDF
 const ROJO = [0.769, 0.086, 0.11], GRAFITO = [0.118, 0.133, 0.149], ACERO = [0.353, 0.38, 0.412], LINEA = [0.83, 0.843, 0.859], HUESO = [0.957, 0.949, 0.933];

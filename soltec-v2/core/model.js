@@ -79,7 +79,7 @@ export function nuevoAviso(extra = {}) {
     presupuesto: { es: false, numero: '' },
     cliente: { nombre: '', contacto: '', nif: '', telefono: '', email: '', iban: '' },
     facturacion: { mismoCliente: true, nombre: '', nif: '', direccion: '', cp: '', poblacion: '', provincia: '' },
-    suministro: { direccion: '', piso: '', puerta: '', cp: '', poblacion: '', provincia: '', refCatastral: '', lat: '', lon: '', cups: '' },
+    suministro: { direccion: '', numero: '', piso: '', puerta: '', cp: '', poblacion: '', provincia: '', refCatastral: '', lat: '', lon: '', cups: '' },
     electrico: { potenciaKw: '', tension: '', fases: '', uso: '' },
     condiciones: { ref: '', pdfs: [] }, // pdfs: versiones {hash,name,mime,size,addedAt}, la última es la actual
     tramite: 'datos',
@@ -144,8 +144,19 @@ export function conPdfCondiciones(aviso, ficha) {
   return { ...aviso, condiciones: { ...aviso.condiciones, pdfs: [...pdfs, ficha] } };
 }
 
+/** «CALLE MAYOR 10» → { calle: 'CALLE MAYOR', numero: '10' } (si el final parece un número de portal). */
+export function separarNumero(texto) {
+  const t = String(texto || '').trim();
+  const m = t.match(/^(.*?\D)[\s,]+(?:N[º°.]?\s*)?(\d{1,4}\s?[A-Z]?(?:\s?(?:BIS|DUP))?)$/i);
+  if (!m || /\b(KM|KILOMETRO|KILÓMETRO|PK)\.?$/i.test(m[1].trim())) return { calle: t, numero: '' };
+  return { calle: m[1].replace(/[\s,]+$/, ''), numero: m[2].toUpperCase() };
+}
+
+/** Calle y número juntos («CALLE MAYOR 10»). El número va en su propio campo. */
+export const calleNumero = (s = {}) => [s.direccion, s.numero].map((x) => String(x || '').trim()).filter(Boolean).join(' ');
+
 export const direccionCompleta = (s = {}) =>
-  [s.direccion, s.piso && `Piso ${s.piso}`, s.puerta && `Puerta ${s.puerta}`].filter(Boolean).join(', ');
+  [calleNumero(s), s.piso && `Piso ${s.piso}`, s.puerta && `Puerta ${s.puerta}`].filter(Boolean).join(', ');
 
 /** Nombre de archivo seguro: mayúsculas, sin acentos, separado por guiones bajos. */
 export const nombreArchivo = (...partes) =>
@@ -155,7 +166,7 @@ export const nombreArchivo = (...partes) =>
 /** Nombre del PDF de la memoria CNMC: incluye dirección, piso y puerta. */
 export const nombreMemoria = (aviso) => {
   const s = aviso.suministro || {};
-  return nombreArchivo('CNMC_CIRCULAR_1_2024_ENDESA', s.direccion || aviso.numero, s.piso && `PISO ${s.piso}`, s.puerta && `PUERTA ${s.puerta}`) + '.pdf';
+  return nombreArchivo('CNMC_CIRCULAR_1_2024_ENDESA', calleNumero(s) || aviso.numero, s.piso && `PISO ${s.piso}`, s.puerta && `PUERTA ${s.puerta}`) + '.pdf';
 };
 
 // ---------- Datos pendientes ----------

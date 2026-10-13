@@ -1,15 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { desdeCartoCiudad, parcelasCercanas, inmueblesParcela, inmuebleQueCoincide, mercator, urlPlanoIgn, coordsValidas, urlCandidatos } from '../core/geo.js';
+import { desdeCartoCiudad, parcelasCercanas, inmueblesParcela, inmuebleQueCoincide, mercator, urlPlanoIgn, coordsValidas, urlCandidatos, aJsonp, desdeNominatim, urlNominatim } from '../core/geo.js';
 
 test('candidato de CartoCiudad → campos del aviso', () => {
   const r = desdeCartoCiudad({ tip_via: 'CALLE', address: 'RAMON Y CAJAL', portalNumber: 12, postalCode: '44001', muni: 'TERUEL', province: 'TERUEL', lat: 40.344512345, lng: -1.106789123 });
-  assert.equal(r.direccion, 'Calle Ramon Y Cajal 12');
+  assert.equal(r.direccion, 'CALLE RAMON Y CAJAL');
+  assert.equal(r.numero, '12');
   assert.equal(r.cp, '44001');
-  assert.equal(r.poblacion, 'Teruel');
+  assert.equal(r.poblacion, 'TERUEL');
   assert.equal(r.lat, '40.344512');
   assert.equal(r.lon, '-1.106789');
-  assert.match(urlCandidatos('calle mayor 1'), /candidatesJsonp\?q=calle%20mayor%201&limit=8$/);
+  assert.equal(r.texto, 'CALLE RAMON Y CAJAL 12, 44001, TERUEL, TERUEL');
+  assert.match(urlCandidatos('calle mayor 1'), /\/candidates\?q=calle%20mayor%201&limit=8$/);
+  assert.match(aJsonp(urlCandidatos('x')), /\/candidatesJsonp\?q=x/);
+  assert.equal(desdeCartoCiudad({ address: 'MAYOR', portalNumber: 0 }).numero, '');
 });
 
 test('respuesta real del Catastro: parcela más cercana', () => {
@@ -46,4 +50,12 @@ test('plano IGN centrado en las coordenadas', () => {
   assert.match(urlPlanoIgn(40.4168, -3.7038), /^https:\/\/www\.ign\.es\/wms-inspire\/ign-base\?.*CRS=EPSG:3857&BBOX=/);
   assert.equal(coordsValidas('40.4', '-3.7'), true);
   assert.equal(coordsValidas('4.4', '-3.7'), false);
+});
+
+test('respaldo OpenStreetMap (Nominatim) → mismos campos', () => {
+  const r = desdeNominatim({ lat: '41.6562345', lon: '-0.8773456', address: { road: 'Calle de Alfonso I', house_number: '17', postcode: '50003', city: 'Zaragoza', province: 'Zaragoza' } });
+  assert.deepEqual([r.direccion, r.numero, r.cp, r.poblacion, r.provincia, r.lat, r.lon], ['CALLE DE ALFONSO I', '17', '50003', 'ZARAGOZA', 'ZARAGOZA', '41.656235', '-0.877346']);
+  const u = new URL(urlNominatim({ calle: 'CALLE MAYOR', numero: '10', poblacion: 'ZARAGOZA', cp: '50001' }));
+  assert.equal(u.searchParams.get('street'), '10 CALLE MAYOR');
+  assert.equal(u.searchParams.get('countrycodes'), 'es');
 });

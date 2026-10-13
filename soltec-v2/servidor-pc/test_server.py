@@ -178,5 +178,12 @@ class AppEstaticaTest(unittest.TestCase):
             self.assertIsNone(server.archivo_app("/app/%2e%2e/secreto.txt", app))
             self.assertIsNone(server.archivo_app("/app/no-existe.js", app))
 
+
+class GeoTest(unittest.TestCase):
+    def test_solo_servicios_permitidos(self):
+        for url in ["http://www.cartociudad.es/x", "https://evil.example/x", "file:///etc/passwd", "https://www.cartociudad.es.evil.com/x"]:
+            code, _, _ = server.consulta_geo(url)
+            self.assertEqual(code, 400, url)
+
 if __name__ == "__main__":
     unittest.main()

@@ -99,7 +99,7 @@ export function validarCp(v) {
   return PROVINCIAS[s.slice(0, 2)] ? null : 'Código postal fuera de rango (01–52)';
 }
 
-export const provinciaDeCp = (cp) => PROVINCIAS[String(cp ?? '').trim().slice(0, 2)] || '';
+export const provinciaDeCp = (cp) => (PROVINCIAS[String(cp ?? '').trim().slice(0, 2)] || '').toLocaleUpperCase('es-ES');
 
 /** Referencia catastral de 20 caracteres con sus dos letras de control. */
 export function validarRefCatastral(v) {

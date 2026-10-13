@@ -6,9 +6,9 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.4.2';
+export const VERSION = 'V2-1.5.0';
 
-import { h, toast, hace, descargar } from './ui.js';
+import { h, toast, hace, descargar, activarMayusculas } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
 import { vistaAgenda, vistaCita, iniciarAlarmas } from './modulos/agenda.js';
 import { vistaEmpresa } from './modulos/empresa.js';
@@ -486,6 +486,7 @@ function carcasa() {
 
 export async function iniciar() {
   carcasa();
+  activarMayusculas();
   try {
     app.storage = await Storage.open();
   } catch (e) {

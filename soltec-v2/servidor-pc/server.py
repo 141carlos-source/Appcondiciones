@@ -10,6 +10,8 @@ Sincronización registro a registro. Sin dependencias: solo Python 3.8+.
   PUT  /api/v2/blob/<sha256>             subir un archivo (se verifica la huella)
   GET  /api/v2/blob/<sha256>             bajar un archivo
   POST /api/v2/backup                    guardar una copia completa enviada por un dispositivo
+  GET  /api/v2/geo?u=URL                 consulta CartoCiudad / Catastro / OpenStreetMap desde el PC
+                                         (para cuando el navegador del móvil no puede pedirlas él mismo)
   GET  /app/...                          la propia aplicación (para abrirla en el PC sin internet)
   POST /api/v2/latido                    {deviceId, nombre, abierto} -> {seq, presencia:[otros dispositivos]}
 
@@ -36,7 +38,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "V2-SERVIDOR-4"
+VERSION = "V2-SERVIDOR-5"
 LEGACY_ROOT = Path(__file__).resolve().parent  # versiones anteriores guardaban todo junto a server.py
 # Los datos y la clave viven fuera de la carpeta del programa: al descomprimir una versión
 # nueva en otra carpeta se conservan la misma clave y los mismos datos.
@@ -53,6 +55,26 @@ TIPOS = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=u
          ".css": "text/css; charset=utf-8", ".json": "application/json", ".webmanifest": "application/manifest+json",
          ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".ico": "image/x-icon",
          ".woff2": "font/woff2", ".pdf": "application/pdf", ".txt": "text/plain; charset=utf-8"}
+
+
+GEO_HOSTS = {"www.cartociudad.es", "ovc.catastro.meh.es", "nominatim.openstreetmap.org"}
+
+
+def consulta_geo(url, timeout=12):
+    """Pide una URL de los servicios de localización permitidos. Devuelve (código, tipo, datos)."""
+    import urllib.request
+    import urllib.error
+    u = urlparse(url)
+    if u.scheme != "https" or u.hostname not in GEO_HOSTS:
+        return 400, "application/json", json.dumps({"ok": False, "error": "Servicio no permitido"}).encode()
+    req = urllib.request.Request(url, headers={"User-Agent": "SOLTEC-V2/1 (M. A. SOLTEC, uso interno)", "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return 200, r.headers.get("Content-Type", "application/json"), r.read(4 * 1024 * 1024)
+    except urllib.error.HTTPError as e:
+        return 502, "application/json", json.dumps({"ok": False, "error": f"El servicio respondió {e.code}"}).encode()
+    except Exception as e:
+        return 502, "application/json", json.dumps({"ok": False, "error": f"El PC no llega al servicio: {e}"}).encode()
 
 
 def archivo_app(ruta, app_dir=None):
@@ -351,6 +373,15 @@ def make_handler(store, key):
             try:
                 if u.path == "/api/v2/status":
                     return self.send_json(200, {"ok": True, "version": VERSION, "serverTime": now_iso(), **store.status()})
+                if u.path == "/api/v2/geo":
+                    code, ctype, data = consulta_geo(parse_qs(u.query).get("u", [""])[0])
+                    self.send_response(code)
+                    self.cors()
+                    self.send_header("Content-Type", ctype)
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
                 if u.path == "/api/v2/pull":
                     q = parse_qs(u.query)
                     since = int(q.get("since", ["0"])[0])

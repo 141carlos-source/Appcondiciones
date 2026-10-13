@@ -1,7 +1,7 @@
 // SOLTEC V2 · Documentos y comunicaciones: ficha PDF del cliente, WhatsApp y correos.
 // Funciones puras: reciben pdf-lib (PDFLib) y los datos; no tocan la base de datos.
 
-import { direccionCompleta, nombreArchivo, datosPendientes } from './model.js';
+import { direccionCompleta, calleNumero, nombreArchivo, datosPendientes } from './model.js';
 import { nombreEmpresa } from './empresa.js';
 
 // ---------------------------------------------------------------- utilidades
@@ -11,7 +11,7 @@ export const textoPdf = (s) => String(s ?? '').normalize('NFC').replace(/\t/g, '
 
 export const nombreFicha = (aviso, firmada = false) => {
   const s = aviso.suministro || {};
-  return nombreArchivo('FICHA_CLIENTE', s.direccion || aviso.numero, s.piso && `PISO ${s.piso}`, s.puerta && `PUERTA ${s.puerta}`, firmada && 'FIRMADA') + '.pdf';
+  return nombreArchivo('FICHA_CLIENTE', calleNumero(s) || aviso.numero, s.piso && `PISO ${s.piso}`, s.puerta && `PUERTA ${s.puerta}`, firmada && 'FIRMADA') + '.pdf';
 };
 
 const ROJO = [0.769, 0.086, 0.11], GRAFITO = [0.118, 0.133, 0.149], ACERO = [0.353, 0.38, 0.412], LINEA = [0.83, 0.843, 0.859], HUESO = [0.957, 0.949, 0.933];
@@ -101,7 +101,7 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma 
   fila([['IBAN (para el contrato)', cl.iban, 1]], 9);
   y -= 4;
   seccion('DATOS DEL SUMINISTRO');
-  fila([['Dirección', su.direccion, 4], ['Piso', su.piso, 0.7], ['Puerta', su.puerta, 0.7]], 8);
+  fila([['Dirección', su.direccion, 3.4], ['Número', su.numero, 0.7], ['Piso', su.piso, 0.7], ['Puerta', su.puerta, 0.7]], 8);
   fila([['Código postal', su.cp, 1], ['Población', su.poblacion, 2], ['Provincia', su.provincia, 1.6]], 8);
   fila([['CUPS', su.cups, 2], ['Referencia catastral', su.refCatastral, 2]], 8);
   y -= 4;

@@ -48,12 +48,12 @@ try {
   // Al guardar se abre la cita con «Añadir al calendario del teléfono»
   await page.waitForSelector('#bloque-calendario');
   const g = new URL(await page.getAttribute('#cal-google', 'href'));
-  assert.equal(g.searchParams.get('text'), 'SOLTEC · Llamar para pedir el IBAN');
+  assert.equal(g.searchParams.get('text'), 'SOLTEC · LLAMAR PARA PEDIR EL IBAN');
   assert.match(g.searchParams.get('details'), /Aviso 2026-0001 · Ana Gil/);
   assert.equal(g.searchParams.get('location'), 'Calle Sol 3');
   const [desc] = await Promise.all([page.waitForEvent('download'), page.click('#cal-ics')]);
   const ics = await (await import('node:fs/promises')).readFile(await desc.path(), 'utf8');
-  assert.match(desc.suggestedFilename(), /^SOLTEC_.*Llamar_para_pedir_el_IBAN\.ics$/);
+  assert.match(desc.suggestedFilename(), /^SOLTEC_.*LLAMAR_PARA_PEDIR_EL_IBAN\.ics$/);
   assert.match(ics, /BEGIN:VALARM[\s\S]*TRIGGER:-PT15M/);
   ok('Al guardar la cita se ofrece Google Calendar y archivo .ics con aviso 15 min antes');
   await page.click('a.btn:has-text("Volver")');
@@ -67,7 +67,7 @@ try {
   // Inicio: bandeja «Seguimientos para hoy»
   await page.goto(base + '#/inicio');
   await page.click('button.chip:has-text("Seguimientos para hoy")');
-  await page.waitForSelector('text=Hoy: Llamar para pedir el IBAN · ' + hoy() + ' 09:00 · Carlos');
+  await page.waitForSelector('text=Hoy: LLAMAR PARA PEDIR EL IBAN · ' + hoy() + ' 09:00 · CARLOS');
   ok('«Qué toca hoy» muestra el seguimiento de hoy con hora y responsable');
 
   // Agenda: cita suelta de ayer → Vencidas
@@ -87,7 +87,7 @@ try {
 
   // Marcar como hecha → historial del aviso
   await page.click('.cita:has-text("Llamar para pedir el IBAN") .check');
-  await page.waitForFunction(() => !document.querySelector('main').textContent.includes('Llamar para pedir el IBAN'));
+  await page.waitForFunction(() => !document.querySelector('main').textContent.includes('LLAMAR PARA PEDIR EL IBAN'));
   await page.click('a.chip:has-text("Hechas")');
   await page.waitForSelector('text=Llamar para pedir el IBAN');
   const kinds = await page.evaluate(async (aid) => (await window.soltec.storage.history(aid)).map((e) => e.data.kind), id);

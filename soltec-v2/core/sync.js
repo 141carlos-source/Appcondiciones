@@ -140,6 +140,12 @@ export class SyncManager {
     return { hayCambios: r.seq !== cursor, otros: r.presencia || [] };
   }
 
+  /** Consulta de localización (CartoCiudad, Catastro, OpenStreetMap) hecha por el PC. */
+  async geo(url) {
+    const res = await this._call('GET', '/api/v2/geo?u=' + encodeURIComponent(url), { raw: true });
+    return res.json();
+  }
+
   // ---------- Conflictos ----------
   async conflictos() {
     const c = (await this.s.getMeta('conflictos')) || {};

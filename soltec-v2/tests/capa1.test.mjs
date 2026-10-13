@@ -49,7 +49,7 @@ test('IBAN, teléfono, correo, CP, referencia catastral', () => {
   assert.ok(V.validarEmail('a@b'));
   assert.equal(V.validarCp('44001'), null);
   assert.ok(V.validarCp('60001'));
-  assert.equal(V.provinciaDeCp('44001'), 'Teruel');
+  assert.equal(V.provinciaDeCp('44001'), 'TERUEL');
   assert.equal(V.validarRefCatastral('9872023 VH5797S 0001 WX'), null);
   assert.match(V.validarRefCatastral('9872023VH5797S0001WY'), /control/);
   assert.match(V.validarRefCatastral('9872023VH5797S'), /20/);
@@ -213,4 +213,15 @@ test('la versión de la app y la del service worker coinciden', async () => {
   const { readFileSync } = await import('node:fs');
   const v = (f, re) => re.exec(readFileSync(new URL('../' + f, import.meta.url), 'utf8'))[1];
   assert.equal(v('app.js', /VERSION = '([^']+)'/), v('sw.js', /VERSION = '([^']+)'/));
+});
+
+test('el número de la calle va en su campo', async () => {
+  const { separarNumero, calleNumero, direccionCompleta } = await import('../core/model.js');
+  assert.deepEqual(separarNumero('CALLE MAYOR 10'), { calle: 'CALLE MAYOR', numero: '10' });
+  assert.deepEqual(separarNumero('Avda. Madrid, 25 B'), { calle: 'Avda. Madrid', numero: '25 B' });
+  assert.deepEqual(separarNumero('CALLE DOS DE MAYO Nº 3'), { calle: 'CALLE DOS DE MAYO', numero: '3' });
+  assert.deepEqual(separarNumero('CALLE 2 DE MAYO'), { calle: 'CALLE 2 DE MAYO', numero: '' });
+  assert.deepEqual(separarNumero('CARRETERA N-232 KM 5'), { calle: 'CARRETERA N-232 KM 5', numero: '' });
+  assert.equal(calleNumero({ direccion: 'CALLE MAYOR', numero: '10' }), 'CALLE MAYOR 10');
+  assert.equal(direccionCompleta({ direccion: 'CALLE MAYOR', numero: '10', piso: '2', puerta: 'B' }), 'CALLE MAYOR 10, Piso 2, Puerta B');
 });

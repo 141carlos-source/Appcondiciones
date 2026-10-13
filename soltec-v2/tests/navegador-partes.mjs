@@ -76,7 +76,7 @@ try {
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#p-descargar')]);
   assert.match(dl.suggestedFilename(), /^PARTE_P_\d{4}_0001_CALLE_SOL_3_PISO_1_PUERTA_A\.pdf$/);
   const txt = execFileSync('pdftotext', ['-layout', await dl.path(), '-']).toString();
-  for (const t of ['PARTE DE TRABAJO', 'Ana Gil', 'Diferencial 2P 40A 30mA', 'Resuelto', 'Desplazamiento', '1,5 h', '12345678Z']) assert.ok(txt.includes(t), t);
+  for (const t of ['PARTE DE TRABAJO', 'Ana Gil', 'DIFERENCIAL 2P 40A 30MA', 'Resuelto', 'Desplazamiento', '1,5 h', '12345678Z']) assert.ok(txt.includes(t), t);
   ok('PDF del parte con trabajos, material, resultado y firma');
   await page.screenshot({ path: join(raiz, 'tests/captura-parte.png') });
 

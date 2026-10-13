@@ -28,11 +28,18 @@ try {
 
   // --- Servicios públicos simulados
   const jsonp = (route, data) => { const cb = new URL(route.request().url()).searchParams.get('callback'); route.fulfill({ contentType: 'application/javascript', body: `${cb}(${JSON.stringify(data)})` }); };
+  // CartoCiudad: la petición normal no deja leerla desde una web (sin CORS) → la app usa JSONP.
+  let cartoCaido = false;
+  const gloria = [{ id: '130770000123', type: 'portal', tip_via: 'CALLE', address: 'GLORIA', portalNumber: 51, postalCode: '13730', muni: 'SANTA CRUZ DE MUDELA', province: 'CIUDAD REAL', lat: 38.6448, lng: -3.4655 }];
   await ctx.route('https://www.cartociudad.es/**', (route) => {
     const u = route.request().url();
-    if (u.includes('candidatesJsonp')) return jsonp(route, [{ id: '130770000123', type: 'portal', tip_via: 'CALLE', address: 'GLORIA', portalNumber: 51, postalCode: '13730', muni: 'SANTA CRUZ DE MUDELA', province: 'CIUDAD REAL', lat: 38.6448, lng: -3.4655 }]);
+    if (cartoCaido) return route.abort();
+    if (u.includes('candidatesJsonp')) return jsonp(route, gloria);
+    if (u.includes('/candidates?')) return route.fulfill({ contentType: 'application/json', body: JSON.stringify(gloria) }); // sin CORS
     return jsonp(route, {});
   });
+  await ctx.route('https://nominatim.openstreetmap.org/**', (route) => route.fulfill({ headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'application/json',
+    body: JSON.stringify([{ lat: '41.6562', lon: '-0.8773', address: { road: 'Calle de Alfonso I', house_number: '17', postcode: '50003', city: 'Zaragoza', province: 'Zaragoza' } }]) }));
   await ctx.route('https://ovc.catastro.meh.es/**', (route) => {
     const u = route.request().url();
     const h = { 'Access-Control-Allow-Origin': '*' };
@@ -46,7 +53,8 @@ try {
   page.setDefaultTimeout(15000);
   const errores = [];
   page.on('pageerror', (e) => errores.push(e.message));
-  page.on('console', (m) => { if (m.type() === 'error') errores.push(m.text()); });
+  // Los fallos de red simulados (CartoCiudad sin CORS o caído) no cuentan como errores de la app
+  page.on('console', (m) => { if (m.type() === 'error' && !/cartociudad|CORS|Failed to load resource/i.test(m.text())) errores.push(m.text()); });
   const dialogos = [];
   page.on('dialog', (d) => { dialogos.push(d.message()); d.accept(); });
   const base = `http://localhost:${pWeb}/index.html`;
@@ -55,19 +63,36 @@ try {
   await page.waitForFunction(() => window.soltec?.storage);
   const id = await page.evaluate(async () => (await window.soltec.storage.save('aviso', {
     numero: '2026-0001', concepto: 'Nuevo suministro vivienda', cliente: { nombre: 'Luis Gómez' },
-    suministro: { direccion: 'Calle Gloria 51', poblacion: 'Santa Cruz de Mudela' }, electrico: {}, docs: {},
+    suministro: { direccion: 'CALLE GLORIA', numero: '51', poblacion: 'SANTA CRUZ DE MUDELA' }, electrico: {}, docs: {},
   })).id);
   await page.goto(base + '#/aviso/' + id);
   await page.click('summary:has-text("Cliente y suministro")');
 
   // CartoCiudad
   await page.click('#btn-buscar-direccion');
-  await page.click('text=Calle Gloria 51, 13730');
+  await page.click('text=CALLE GLORIA 51, 13730');
   await page.waitForSelector('text=Dirección aplicada con coordenadas');
+  assert.equal(await page.inputValue('#f-suministro-direccion'), 'CALLE GLORIA');
+  assert.equal(await page.inputValue('#f-suministro-numero'), '51');
   assert.equal(await page.inputValue('#f-suministro-cp'), '13730');
-  assert.equal(await page.inputValue('#f-suministro-provincia'), 'Ciudad Real');
+  assert.equal(await page.inputValue('#f-suministro-provincia'), 'CIUDAD REAL');
   assert.equal(await page.inputValue('#f-suministro-lat'), '38.6448');
-  ok('CartoCiudad: dirección, código postal, provincia y coordenadas');
+  ok('CartoCiudad (sin CORS → JSONP): calle y número por separado, CP, provincia y coordenadas');
+
+  // CartoCiudad caído → OpenStreetMap
+  cartoCaido = true;
+  await page.click('#btn-buscar-direccion');
+  await page.waitForSelector('text=resultados de OpenStreetMap');
+  assert.match(await page.textContent('#estado-ubicacion'), /CartoCiudad no responde/);
+  await page.click('text=CALLE DE ALFONSO I 17, 50003');
+  await page.waitForSelector('text=Dirección aplicada con coordenadas 41.6562');
+  assert.equal(await page.inputValue('#f-suministro-numero'), '17');
+  ok('CartoCiudad caído: se busca en OpenStreetMap');
+  // se vuelve a la dirección de la prueba para el Catastro
+  cartoCaido = false;
+  await page.click('#btn-buscar-direccion');
+  await page.click('text=CALLE GLORIA 51, 13730');
+  await page.waitForSelector('text=Dirección aplicada con coordenadas 38.6448');
 
   // Catastro
   await page.click('#btn-catastro');

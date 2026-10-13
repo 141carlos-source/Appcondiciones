@@ -5,6 +5,7 @@ import { h, toast, fecha, fechaHora, abrirBlob, compartir, ir } from '../ui.js';
 import {
   nuevoAviso, normalizarAviso, siguienteNumero, isExpediente, conPdfCondiciones, pdfCondicionesActual, datosPendientes,
   docsPendientes, direccionCompleta, FASES_TRAMITE, DOCUMENTOS, ESTADOS_DOC, ESTADOS_AVISO, EVENTOS, EVENTOS_MANUALES, DESTINOS,
+  separarNumero,
 } from '../core/model.js';
 import { buscar, duplicados } from '../core/search.js';
 import { provinciaDeCp, formatearIban, validarCups } from '../core/validate.js';
@@ -93,7 +94,8 @@ const CAMPOS_CLIENTE = [
   ['suministro.cp', 'Código postal', 'text', { inputmode: 'numeric' }],
   ['cliente.email', 'Correo electrónico', 'email', { ancho: 2 }],
   ['cliente.iban', 'IBAN', 'text', { ancho: 2, mayus: true }],
-  ['suministro.direccion', 'Dirección del suministro', 'text', { ancho: 2 }],
+  ['suministro.direccion', 'Calle / vía del suministro', 'text', { ancho: 2 }],
+  ['suministro.numero', 'Número', 'text'],
   ['suministro.piso', 'Piso', 'text'],
   ['suministro.puerta', 'Puerta', 'text'],
   ['suministro.cups', 'CUPS', 'text', { ancho: 2, mayus: true, mono: true }],
@@ -204,13 +206,23 @@ export async function vistaFicha(app, id) {
         const p = cont.querySelector('#f-suministro-provincia');
         if (p) p.value = draft.suministro.provincia;
       }
-      if (['suministro.cups', 'suministro.direccion', 'suministro.piso', 'suministro.puerta', 'suministro.cp'].includes(ruta)) comprobarDuplicados();
+      if (['suministro.cups', 'suministro.direccion', 'suministro.numero', 'suministro.piso', 'suministro.puerta', 'suministro.cp'].includes(ruta)) comprobarDuplicados();
       alCambiar();
     };
     if (tipo === 'select') ctrl = h('select', { id: idc, onchange: on }, ...o.opciones.map(([v, t]) => h('option', { value: v, selected: String(valor) === v || null }, t)));
     else if (tipo === 'textarea') ctrl = h('textarea', { id: idc, rows: 3, oninput: on, value: valor });
     else ctrl = h('input', { id: idc, type: tipo === 'date' ? 'date' : tipo === 'email' ? 'email' : tipo === 'tel' ? 'tel' : 'text', value: valor, inputmode: o.inputmode, class: o.mono ? 'mono' : null, autocomplete: 'off', oninput: on,
-      onblur: ruta === 'cliente.iban' ? (e) => { const f = formatearIban(e.target.value); if (f) { e.target.value = f; escribir(draft, ruta, f); } } : null });
+      onblur: ruta === 'cliente.iban' ? (e) => { const f = formatearIban(e.target.value); if (f) { e.target.value = f; escribir(draft, ruta, f); } }
+        : ruta === 'suministro.direccion' ? (e) => {
+          // Si el número se escribió junto a la calle y su campo está vacío, se pasa a su sitio
+          if (String(draft.suministro.numero || '').trim()) return;
+          const { calle, numero } = separarNumero(e.target.value);
+          if (!numero) return;
+          e.target.value = calle; escribir(draft, 'suministro.direccion', calle);
+          escribir(draft, 'suministro.numero', numero);
+          const n = cont.querySelector('#f-suministro-numero'); if (n) n.value = numero;
+          comprobarDuplicados(); alCambiar();
+        } : null });
     return h('div', { class: 'campo' + (o.ancho === 2 ? ' ancho' : ''), 'data-campo': ruta }, h('label', { for: idc }, etiqueta), ctrl, h('div', { class: 'msg-pend' }));
   };
   const seccion = (titulo, abierta, ...hijos) => h('details', { class: 'card', open: abierta || null }, h('summary', {}, titulo), h('div', { class: 'cuerpo' }, ...hijos));

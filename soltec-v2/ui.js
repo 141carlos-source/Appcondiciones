@@ -97,3 +97,29 @@ export function lienzoFirma(id = 'lienzo-firma') {
     png: async () => new Uint8Array(await (await new Promise((ok) => el.toBlob(ok, 'image/png'))).arrayBuffer()),
   };
 }
+
+// ---------------------------------------------------------------- todo en MAYÚSCULAS (salvo correos)
+const TIPOS_TEXTO = new Set(['text', 'search', '']);
+const NO_MAYUS = /email|correo|mail|web|url|clave|key|buscador|buscar/i;
+/** ¿Este campo se escribe en mayúsculas? Todos los de texto salvo correos, webs, claves y buscadores. */
+export function vaEnMayusculas(el) {
+  if (!el || el.readOnly || el.disabled) return false;
+  const esTexto = el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && TIPOS_TEXTO.has((el.getAttribute('type') || '').toLowerCase()));
+  if (!esTexto || el.type === 'search') return false;
+  if (el.closest('[data-minusculas]')) return false;
+  return !NO_MAYUS.test([el.id, el.name, el.className, el.getAttribute('autocomplete') || ''].join(' '));
+}
+
+/** Convierte a mayúsculas lo que se escribe o se pega, sin mover el cursor. */
+export function activarMayusculas(raiz = document) {
+  raiz.addEventListener('input', (e) => {
+    const el = e.target;
+    if (e.isComposing || !vaEnMayusculas(el)) return;
+    const v = el.value;
+    const m = v.toLocaleUpperCase('es-ES');
+    if (m === v) return;
+    const ini = el.selectionStart, fin = el.selectionEnd;
+    el.value = m;
+    if (m.length === v.length && ini != null) { try { el.setSelectionRange(ini, fin); } catch { /* sin cursor */ } }
+  }, true); // en captura: el valor ya va en mayúsculas cuando lo lee el formulario
+}

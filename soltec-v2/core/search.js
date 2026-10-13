@@ -1,7 +1,7 @@
 // SOLTEC V2 · Capa 1 · Buscador único, duplicados y bandeja «Qué toca hoy».
 // Funciones puras sobre listas de registros (las da Storage.list).
 
-import { isExpediente, datosPendientes, docsPendientes, firmaPendiente, FASES_TRAMITE, direccionCompleta } from './model.js';
+import { isExpediente, datosPendientes, docsPendientes, firmaPendiente, FASES_TRAMITE, direccionCompleta, calleNumero } from './model.js';
 import { cupsBase } from './validate.js';
 
 /** Minúsculas, sin acentos y sin separadores habituales. */
@@ -19,7 +19,7 @@ const digitos = (s) => String(s ?? '').replace(/\D/g, '');
 
 function textoBusqueda(a) {
   const c = a.cliente || {}, s = a.suministro || {};
-  return [c.nombre, c.contacto, s.direccion, s.piso, s.puerta, s.poblacion, a.numero, a.condiciones?.ref, s.cups, a.obra, a.v1?.id].map(norm).join(' | ');
+  return [c.nombre, c.contacto, calleNumero(s), s.piso, s.puerta, s.poblacion, a.numero, a.condiciones?.ref, s.cups, a.obra, a.v1?.id].map(norm).join(' | ');
 }
 
 /**
@@ -46,14 +46,14 @@ export function buscar(registros, consulta) {
 export function duplicados(aviso, registros, idPropio) {
   const s = aviso.suministro || {};
   const cups = cupsBase(s.cups);
-  const dir = compactoDir(s.direccion) && [compactoDir(s.direccion), compacto(s.piso), compacto(s.puerta), s.cp || ''].join('|');
+  const dir = compactoDir(calleNumero(s)) && [compactoDir(calleNumero(s)), compacto(s.piso), compacto(s.puerta), s.cp || ''].join('|');
   const out = [];
   for (const r of registros) {
     if (r.id === idPropio || r.deleted) continue;
     const o = r.data.suministro || {};
     const motivos = [];
     if (cups.length === 20 && cupsBase(o.cups) === cups) motivos.push('mismo CUPS');
-    const odir = compactoDir(o.direccion) && [compactoDir(o.direccion), compacto(o.piso), compacto(o.puerta), o.cp || ''].join('|');
+    const odir = compactoDir(calleNumero(o)) && [compactoDir(calleNumero(o)), compacto(o.piso), compacto(o.puerta), o.cp || ''].join('|');
     if (dir && odir && (dir === odir || (!s.cp || !o.cp) && dir.split('|').slice(0, 3).join('|') === odir.split('|').slice(0, 3).join('|'))) motivos.push('misma dirección, piso y puerta');
     if (motivos.length) out.push({ registro: r, motivos });
   }

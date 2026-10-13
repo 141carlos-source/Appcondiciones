@@ -2,9 +2,10 @@
 // Si un servicio público no responde, se puede seguir a mano: nada bloquea el aviso.
 
 import { h, toast } from '../ui.js';
+import { calleNumero } from '../core/model.js';
 import {
-  urlCandidatos, urlBuscar, urlInversa, urlParcelaCercana, urlInmuebles, urlSedeCatastro, urlPlanoIgn,
-  desdeCartoCiudad, parcelasCercanas, inmueblesParcela, inmuebleQueCoincide, coordsValidas, redondear,
+  urlCandidatos, urlBuscar, urlInversa, urlParcelaCercana, urlInmuebles, urlSedeCatastro, urlPlanoIgn, aJsonp, urlNominatim,
+  desdeCartoCiudad, desdeNominatim, parcelasCercanas, inmueblesParcela, inmuebleQueCoincide, coordsValidas, redondear,
 } from '../core/geo.js';
 
 /** Petición JSONP (CartoCiudad no siempre permite peticiones directas desde el navegador). */
@@ -33,6 +34,25 @@ async function json(url, ms = 9000) {
 }
 
 /**
+ * Consulta un servicio público de localización probando, por orden:
+ *  1. directamente desde el navegador;
+ *  2. a través del PC de casa (si la sincronización está configurada);
+ *  3. JSONP (solo CartoCiudad).
+ * Así funciona aunque el servicio no deje pedirle datos desde una web.
+ */
+export async function consultarGeo(app, url, { jsonpOk = false } = {}) {
+  const errores = [];
+  try { return await json(url, 7000); } catch (e) { errores.push('directo: ' + e.message); }
+  if (app?.sync && app.estado?.configurado) {
+    try { return await app.sync.geo(url); } catch (e) { errores.push('PC: ' + e.message); }
+  }
+  if (jsonpOk) {
+    try { return await jsonp(aJsonp(url)); } catch (e) { errores.push('JSONP: ' + e.message); }
+  }
+  throw new Error(errores.join(' · '));
+}
+
+/**
  * Bloque de localización. «poner(ruta, valor)» escribe en el aviso y en su campo de la ficha.
  */
 export function bloqueUbicacion(app, draft, poner, alCambiar) {
@@ -41,35 +61,48 @@ export function bloqueUbicacion(app, draft, poner, alCambiar) {
   const di = (t, err = false) => { estado.textContent = t; estado.classList.toggle('error-texto', err); };
 
   const aplicar = (r, { soloVacios = false } = {}) => {
-    for (const k of ['direccion', 'cp', 'poblacion', 'provincia', 'lat', 'lon', 'refCatastral']) {
+    for (const k of ['direccion', 'numero', 'cp', 'poblacion', 'provincia', 'lat', 'lon', 'refCatastral']) {
       if (!r[k]) continue;
       if (soloVacios && String(draft.suministro[k] || '').trim()) continue;
       poner('suministro.' + k, r[k]);
     }
   };
 
+  const pintarResultados = (rs, origen) => {
+    di(`Elige la dirección correcta (${origen}):`);
+    lista.replaceChildren(...rs.slice(0, 8).map(({ r, completar }) => h('button', { class: 'tarjeta', type: 'button', style: 'text-align:left;width:100%', onclick: async () => {
+      let fin = r;
+      if ((!r.lat || !r.lon) && completar) {
+        try { fin = { ...r, ...Object.fromEntries(Object.entries(await completar()).filter(([, v]) => v)) }; } catch { /* sin coordenadas */ }
+      }
+      aplicar(fin);
+      lista.replaceChildren();
+      di(fin.lat ? `Dirección aplicada con coordenadas ${fin.lat}, ${fin.lon}.` : 'Dirección aplicada (sin coordenadas: usa «Mi ubicación» en el sitio).');
+    } }, r.texto)));
+  };
+
   const buscarDireccion = async () => {
-    const q = [draft.suministro.direccion, draft.suministro.poblacion || draft.suministro.cp, draft.suministro.provincia].filter(Boolean).join(', ');
-    if (!draft.suministro.direccion) { di('Escribe primero la dirección (y mejor también la población).', true); return; }
-    di('Buscando en CartoCiudad…');
+    const su = draft.suministro;
+    if (!su.direccion) { di('Escribe primero la calle (y mejor también el número y la población).', true); return; }
+    const q = [calleNumero(su), su.poblacion || su.cp, su.provincia].filter(Boolean).join(', ');
+    di('Buscando la dirección…');
     lista.replaceChildren();
+    let fallo = '';
     try {
-      const cands = [].concat(await jsonp(urlCandidatos(q)) || []);
-      if (!cands.length) { di('CartoCiudad no encuentra esa dirección. Revisa la calle y el número, o sigue a mano.', true); return; }
-      di('Elige la dirección correcta:');
-      lista.replaceChildren(...cands.slice(0, 8).map((c) => {
-        const r = desdeCartoCiudad(c);
-        return h('button', { class: 'tarjeta', type: 'button', style: 'text-align:left;width:100%', onclick: async () => {
-          let fin = r;
-          if (!r.lat || !r.lon) {
-            try { fin = { ...r, ...Object.fromEntries(Object.entries(desdeCartoCiudad(await jsonp(urlBuscar(c)))).filter(([, v]) => v)) }; } catch { /* sin coordenadas */ }
-          }
-          aplicar(fin);
-          lista.replaceChildren();
-          di(fin.lat ? `Dirección aplicada con coordenadas ${fin.lat}, ${fin.lon}.` : 'Dirección aplicada (sin coordenadas: usa «Mi ubicación» en el sitio).');
-        } }, r.texto || c.address);
-      }));
-    } catch (e) { di(`CartoCiudad no responde (${e.message}). Puedes seguir rellenando a mano.`, true); }
+      const cands = [].concat(await consultarGeo(app, urlCandidatos(q), { jsonpOk: true }) || []);
+      if (cands.length) {
+        pintarResultados(cands.map((c) => ({ r: desdeCartoCiudad(c), completar: async () => desdeCartoCiudad(await consultarGeo(app, urlBuscar(c), { jsonpOk: true })) })), 'CartoCiudad');
+        return;
+      }
+    } catch (e) { fallo = e.message; }
+    // Respaldo: OpenStreetMap
+    try {
+      const rs = [].concat(await consultarGeo(app, urlNominatim({ calle: su.direccion, numero: su.numero, poblacion: su.poblacion, cp: su.cp })) || []);
+      if (rs.length) { pintarResultados(rs.map((n) => ({ r: desdeNominatim(n) })), fallo ? 'CartoCiudad no responde; resultados de OpenStreetMap' : 'OpenStreetMap'); return; }
+      di('No se encuentra esa dirección. Revisa la calle, el número y la población, o sigue a mano.', true);
+    } catch (e) {
+      di(`No se ha podido buscar la dirección (${fallo || e.message}). Puedes seguir rellenando a mano o usar «Mi ubicación» en el sitio.`, true);
+    }
   };
 
   const miUbicacion = () => {
@@ -81,7 +114,7 @@ export function bloqueUbicacion(app, draft, poner, alCambiar) {
       poner('suministro.lon', lon);
       di(`Ubicación: ${lat}, ${lon} (precisión ±${Math.round(p.coords.accuracy)} m). Buscando la dirección…`);
       try {
-        const r = desdeCartoCiudad(await jsonp(urlInversa(lat, lon)));
+        const r = desdeCartoCiudad(await consultarGeo(app, urlInversa(lat, lon), { jsonpOk: true }));
         aplicar({ ...r, lat: '', lon: '' }, { soloVacios: true });
         di(`Ubicación guardada: ${lat}, ${lon}. Dirección aproximada: ${r.texto || 'no disponible'} (solo se han rellenado los campos vacíos).`);
       } catch { di(`Ubicación guardada: ${lat}, ${lon}. No se pudo obtener la dirección.`); }
@@ -94,10 +127,10 @@ export function bloqueUbicacion(app, draft, poner, alCambiar) {
     di('Consultando el Catastro…');
     lista.replaceChildren();
     try {
-      const parcelas = parcelasCercanas(await json(urlParcelaCercana(lat, lon)));
+      const parcelas = parcelasCercanas(await consultarGeo(app, urlParcelaCercana(lat, lon)));
       if (!parcelas.length) { di('El Catastro no tiene parcelas en esas coordenadas.', true); return; }
       const parcela = parcelas[0];
-      const inm = inmueblesParcela(await json(urlInmuebles(parcela.rc14)));
+      const inm = inmueblesParcela(await consultarGeo(app, urlInmuebles(parcela.rc14)));
       const elegir = (x) => { poner('suministro.refCatastral', x.rc); lista.replaceChildren(); di(`Referencia catastral aplicada: ${x.rc}`); };
       const claro = inmuebleQueCoincide(inm, piso, puerta);
       if (claro) { elegir(claro); di(`Referencia aplicada: ${claro.rc} (${parcela.direccion}${claro.planta ? ` · planta ${claro.planta}` : ''}${claro.puerta ? ` puerta ${claro.puerta}` : ''}). Compruébala.`); return; }
@@ -112,7 +145,7 @@ export function bloqueUbicacion(app, draft, poner, alCambiar) {
 
   return h('div', {},
     h('div', { class: 'acciones' },
-      h('button', { class: 'btn', type: 'button', id: 'btn-buscar-direccion', onclick: buscarDireccion }, 'Buscar dirección (CartoCiudad)'),
+      h('button', { class: 'btn', type: 'button', id: 'btn-buscar-direccion', onclick: buscarDireccion }, 'Buscar dirección'),
       h('button', { class: 'btn', type: 'button', onclick: miUbicacion }, 'Mi ubicación (en el sitio)'),
       h('button', { class: 'btn', type: 'button', id: 'btn-catastro', onclick: buscarCatastro }, 'Buscar referencia catastral')),
     estado, lista);

@@ -1,7 +1,7 @@
 // SOLTEC V2 · Memoria técnica CNMC Circular 1/2024 (Endesa / e-distribución).
 // Datos en aviso.memoria; el PDF se genera con pdf-lib. Funciones puras.
 
-import { direccionCompleta, nombreMemoria } from './model.js';
+import { direccionCompleta, calleNumero, nombreMemoria } from './model.js';
 import { nombreEmpresa } from './empresa.js';
 import { textoPdf } from './documentos.js';
 
@@ -155,7 +155,7 @@ export async function generarMemoria(PDFLib, { aviso, empresa, logo, edist, firm
 
   const a = aviso, su = a.suministro || {}, cl = a.cliente || {}, e = empresa?.empresa || {}, so = empresa?.solicitante || {}, te = empresa?.tecnico || {};
   const coords = su.lat && su.lon ? `${su.lat}, ${su.lon}` : '—';
-  const dir = [su.direccion, su.cp, su.poblacion, su.provincia].filter(Boolean).join(' · ');
+  const dir = [calleNumero(su), su.cp, su.poblacion, su.provincia].filter(Boolean).join(' · ');
   const tot = totales(m);
   const potencia = tot.total ? `${kw(tot.total)} kW` : a.electrico?.potenciaKw ? `${a.electrico.potenciaKw} kW` : '';
 
@@ -168,7 +168,7 @@ export async function generarMemoria(PDFLib, { aviso, empresa, logo, edist, firm
     ['Dirección', [so.direccion || e.direccion, so.cp || e.cp, so.localidad || e.localidad, so.provincia || e.provincia].filter(Boolean).join(' · ')], ['Teléfono', so.telefono || e.telefono],
     ['Correo electrónico', so.email || e.email]]);
   seccion('3. UBICACIÓN DEL SUMINISTRO');
-  campos([['Dirección postal', su.direccion], ['Piso', su.piso], ['Puerta', su.puerta], ['Código postal y población', [su.cp, su.poblacion, su.provincia].filter(Boolean).join(' · ')],
+  campos([['Dirección postal', calleNumero(su)], ['Piso', su.piso], ['Puerta', su.puerta], ['Código postal y población', [su.cp, su.poblacion, su.provincia].filter(Boolean).join(' · ')],
     ['Ref. catastral', su.refCatastral], ['CUPS electricidad', su.cups], ['CUPS gas', m.cupsGas], ['Coordenadas WGS84', coords]]);
   seccion('USO Y POTENCIA');
   campos([['Uso de la finca', m.usoFinca], ['Nivel de tensión', tensionTexto(a.electrico?.tension)], ['Potencia total solicitada', potencia]]);

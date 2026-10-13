@@ -4,9 +4,22 @@
 export const CARTO = 'https://www.cartociudad.es/geocoder/api/geocoder';
 export const CATASTRO = 'https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero';
 
-export const urlCandidatos = (q, limite = 8) => `${CARTO}/candidatesJsonp?q=${encodeURIComponent(q)}&limit=${limite}`;
-export const urlBuscar = (c) => `${CARTO}/findJsonp?q=${encodeURIComponent(c.address || '')}&type=${encodeURIComponent(c.type || '')}&tip_via=${encodeURIComponent(c.tip_via || '')}&id=${encodeURIComponent(c.id || '')}&portal=${encodeURIComponent(c.portalNumber ?? '')}`;
-export const urlInversa = (lat, lon) => `${CARTO}/reverseGeocodeJsonp?lat=${lat}&lon=${lon}`;
+// Se usan las respuestas JSON normales (no JSONP): el navegador las pide directamente y, si
+// CartoCiudad no lo permite, se piden a través del PC de casa (ver consultarGeo en ubicacion.js).
+export const urlCandidatos = (q, limite = 8) => `${CARTO}/candidates?q=${encodeURIComponent(q)}&limit=${limite}`;
+export const urlBuscar = (c) => `${CARTO}/find?q=${encodeURIComponent(c.address || '')}&type=${encodeURIComponent(c.type || '')}&tip_via=${encodeURIComponent(c.tip_via || '')}&id=${encodeURIComponent(c.id || '')}&portal=${encodeURIComponent(c.portalNumber ?? '')}`;
+export const urlInversa = (lat, lon) => `${CARTO}/reverseGeocode?lat=${lat}&lon=${lon}`;
+/** Versión JSONP (respaldo si la petición normal falla). */
+export const aJsonp = (url) => url.replace(/\/(candidates|find|reverseGeocode)\?/, (m, x) => `/${x}Jsonp?`);
+export const NOMINATIM = 'https://nominatim.openstreetmap.org';
+/** Respaldo cuando CartoCiudad no responde: OpenStreetMap (Nominatim). */
+export const urlNominatim = ({ calle, numero, poblacion, cp }) => {
+  const p = new URLSearchParams({ format: 'jsonv2', addressdetails: '1', countrycodes: 'es', limit: '6', 'accept-language': 'es' });
+  if (calle) p.set('street', [numero, calle].filter(Boolean).join(' '));
+  if (poblacion) p.set('city', poblacion);
+  if (cp) p.set('postalcode', cp);
+  return `${NOMINATIM}/search?${p}`;
+};
 export const urlParcelaCercana = (lat, lon) => `${CATASTRO}/COVCCoordenadas.svc/json/Consulta_RCCOOR_Distancia?CoorX=${lon}&CoorY=${lat}&SRS=EPSG:4326`;
 export const urlInmuebles = (rc14) => `${CATASTRO}/COVCCallejero.svc/json/Consulta_DNPRC?RefCat=${encodeURIComponent(rc14)}`;
 export const urlSedeCatastro = (rc14) => `https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?refcat=${encodeURIComponent(rc14 || '')}`;
@@ -15,20 +28,36 @@ const num = (v) => { const x = parseFloat(String(v ?? '').replace(',', '.')); re
 export const coordsValidas = (lat, lon) => { const a = num(lat), b = num(lon); return a !== null && b !== null && a > 27 && a < 44.5 && b > -18.5 && b < 4.6; };
 export const redondear = (v, d = 6) => String(Math.round(num(v) * 10 ** d) / 10 ** d);
 
-/** Candidato de CartoCiudad → campos del aviso. */
+const MAY = (v) => String(v || '').trim().toLocaleUpperCase('es-ES');
+
+/** Candidato de CartoCiudad → campos del aviso (calle y número por separado, en mayúsculas). */
 export function desdeCartoCiudad(c = {}) {
-  const via = [c.tip_via, c.address].filter(Boolean).join(' ').trim();
-  const portal = c.portalNumber && c.portalNumber !== '0' ? ` ${c.portalNumber}` : '';
-  const capital = (s) => String(s || '').toLowerCase().replace(/(^|\s|-|\/)(\S)/g, (m, a, b) => a + b.toUpperCase());
+  const via = MAY([c.tip_via, c.address].filter(Boolean).join(' '));
+  const numero = c.portalNumber && String(c.portalNumber) !== '0' ? MAY(c.portalNumber) + MAY(c.extension || '') : '';
   return {
-    direccion: capital(via) + portal,
+    direccion: via,
+    numero,
     cp: c.postalCode || '',
-    poblacion: capital(c.poblacion || c.muni || ''),
-    provincia: capital(c.province || ''),
+    poblacion: MAY(c.poblacion || c.muni || ''),
+    provincia: MAY(c.province || ''),
     lat: c.lat != null ? redondear(c.lat) : '',
     lon: c.lng != null ? redondear(c.lng) : '',
     refCatastral: c.refCatastral && /^[0-9A-Z]{14}/.test(c.refCatastral) ? c.refCatastral : '',
-    texto: [capital(via) + portal, c.postalCode, capital(c.muni), capital(c.province)].filter(Boolean).join(', '),
+    texto: [[via, numero].filter(Boolean).join(' '), c.postalCode, MAY(c.poblacion || c.muni), MAY(c.province)].filter(Boolean).join(', '),
+  };
+}
+
+/** Resultado de Nominatim (OpenStreetMap) → mismos campos. */
+export function desdeNominatim(n = {}) {
+  const a = n.address || {};
+  const via = MAY(a.road || a.pedestrian || a.footway || a.square || '');
+  const numero = MAY(a.house_number || '');
+  const poblacion = MAY(a.city || a.town || a.village || a.municipality || a.hamlet || '');
+  const provincia = MAY(a.province || a.county || a.state_district || '');
+  return {
+    direccion: via, numero, cp: a.postcode || '', poblacion, provincia,
+    lat: n.lat != null ? redondear(n.lat) : '', lon: n.lon != null ? redondear(n.lon) : '', refCatastral: '',
+    texto: [[via, numero].filter(Boolean).join(' '), a.postcode, poblacion, provincia].filter(Boolean).join(', '),
   };
 }
 
