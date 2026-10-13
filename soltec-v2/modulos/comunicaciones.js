@@ -22,7 +22,7 @@ export function cargarPdfLib() {
 }
 
 /** Imagen guardada → {bytes, mime} en PNG o JPG (los demás formatos se convierten a PNG). */
-async function imagenParaPdf(app, ficha) {
+export async function imagenParaPdf(app, ficha) {
   if (!ficha) return null;
   const f = await app.storage.getFile(ficha.hash);
   if (!f) return null;

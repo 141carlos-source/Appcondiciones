@@ -57,7 +57,7 @@ TIPOS = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=u
          ".woff2": "font/woff2", ".pdf": "application/pdf", ".txt": "text/plain; charset=utf-8"}
 
 
-GEO_HOSTS = {"www.cartociudad.es", "ovc.catastro.meh.es", "nominatim.openstreetmap.org"}
+GEO_HOSTS = {"www.cartociudad.es", "ovc.catastro.meh.es", "nominatim.openstreetmap.org", "www.ign.es"}
 
 
 def consulta_geo(url, timeout=12):
@@ -67,7 +67,7 @@ def consulta_geo(url, timeout=12):
     u = urlparse(url)
     if u.scheme != "https" or u.hostname not in GEO_HOSTS:
         return 400, "application/json", json.dumps({"ok": False, "error": "Servicio no permitido"}).encode()
-    req = urllib.request.Request(url, headers={"User-Agent": "SOLTEC-V2/1 (M. A. SOLTEC, uso interno)", "Accept": "application/json"})
+    req = urllib.request.Request(url, headers={"User-Agent": "SOLTEC-V2/1 (M. A. SOLTEC, uso interno)", "Accept": "application/json, image/png, */*"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return 200, r.headers.get("Content-Type", "application/json"), r.read(4 * 1024 * 1024)

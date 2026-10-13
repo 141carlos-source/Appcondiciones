@@ -103,8 +103,23 @@ try {
 
   // Plano y fotos
   await page.click('summary:has-text("Plano de situación y fotografías")');
-  await page.click('#btn-plano');
+  // Al encontrar la dirección el plano se genera solo, en A5 a escala 1:2000
   await page.waitForSelector('#vista-plano img');
+  await page.waitForSelector('#estado-plano:has-text("Plano de situación listo")');
+  const pedido = new URL(await page.evaluate(() => performance.getEntriesByType('resource').map((r) => r.name).filter((n) => n.includes('ign.es')).pop()));
+  assert.equal(pedido.searchParams.get('WIDTH'), '1800');
+  assert.equal(pedido.searchParams.get('HEIGHT'), '952');
+  const [desc] = await Promise.all([page.waitForEvent('download'), page.click('#btn-plano-a5')]);
+  assert.match(desc.suggestedFilename(), /^PLANO_SITUACION_A5_CALLE_GLORIA_51.*\.pdf$/);
+  globalThis.self ??= globalThis;
+  const _pl = (await import('node:module')).createRequire(import.meta.url)('../vendor/pdf-lib.min.js');
+  const PL = _pl?.PDFDocument ? _pl : globalThis.PDFLib;
+  const docA5 = await PL.PDFDocument.load(await (await import('node:fs/promises')).readFile(await desc.path()));
+  const tam = docA5.getPage(0).getSize();
+  assert.ok(Math.abs(tam.width - 595.28) < 0.1 && Math.abs(tam.height - 419.53) < 0.1, JSON.stringify(tam));
+  ok('Al encontrar la dirección se genera el plano de situación y se descarga en PDF A5 (1:2000)');
+  await page.click('#btn-plano');
+  await page.waitForSelector('#estado-plano:has-text("Plano de situación listo")');
   await page.setInputFiles('#fotos-galeria', [{ name: 'cgp.png', mimeType: 'image/png', buffer: png }, { name: 'fachada.png', mimeType: 'image/png', buffer: readFileSync(join(raiz, 'icon-192.png')) }]);
   await page.waitForFunction(() => document.querySelectorAll('.foto').length === 2);
   await page.check('.foto >> nth=0 >> input[type=radio]');
@@ -143,7 +158,7 @@ try {
   await page.waitForTimeout(500);
   assert.ok(!dialogos.some((m) => /otro dispositivo/.test(m)), 'sin aviso falso de edición simultánea');
   const archivos = await page.evaluate(async (aid) => (await window.soltec.storage.get(aid)).data.archivos.map((a) => a.tipo), id);
-  assert.deepEqual(archivos, ['memoria']);
+  assert.deepEqual(archivos, ['plano_a5', 'memoria']);
   ok('La copia de la memoria se guarda en el aviso y se conserva al seguir editando');
 
   // Sin servicios: se puede seguir a mano

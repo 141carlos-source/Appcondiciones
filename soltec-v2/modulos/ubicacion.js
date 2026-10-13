@@ -1,10 +1,13 @@
 // SOLTEC V2 · Localización (CartoCiudad), referencia catastral (Catastro), plano (IGN) y fotografías.
 // Si un servicio público no responde, se puede seguir a mano: nada bloquea el aviso.
 
-import { h, toast } from '../ui.js';
-import { calleNumero } from '../core/model.js';
+import { h, toast, descargar } from '../ui.js';
+import { calleNumero, normalizarAviso } from '../core/model.js';
+import { generarPlanoA5, nombrePlanoA5 } from '../core/plano.js';
+import { leerEmpresa } from './empresa.js';
+import { cargarPdfLib, imagenParaPdf } from './comunicaciones.js';
 import {
-  urlCandidatos, urlBuscar, urlInversa, urlParcelaCercana, urlInmuebles, urlSedeCatastro, urlPlanoIgn, aJsonp, urlNominatim,
+  urlCandidatos, urlBuscar, urlInversa, urlParcelaCercana, urlInmuebles, urlSedeCatastro, aJsonp, encuadreA5, urlNominatim,
   desdeCartoCiudad, desdeNominatim, parcelasCercanas, inmueblesParcela, inmuebleQueCoincide, coordsValidas, redondear,
 } from '../core/geo.js';
 
@@ -55,7 +58,7 @@ export async function consultarGeo(app, url, { jsonpOk = false } = {}) {
 /**
  * Bloque de localización. «poner(ruta, valor)» escribe en el aviso y en su campo de la ficha.
  */
-export function bloqueUbicacion(app, draft, poner, alCambiar) {
+export function bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar } = {}) {
   const estado = h('div', { class: 'muted', id: 'estado-ubicacion', 'aria-live': 'polite' });
   const lista = h('div', { class: 'lista' });
   const di = (t, err = false) => { estado.textContent = t; estado.classList.toggle('error-texto', err); };
@@ -78,6 +81,7 @@ export function bloqueUbicacion(app, draft, poner, alCambiar) {
       aplicar(fin);
       lista.replaceChildren();
       di(fin.lat ? `Dirección aplicada con coordenadas ${fin.lat}, ${fin.lon}.` : 'Dirección aplicada (sin coordenadas: usa «Mi ubicación» en el sitio).');
+      if (fin.lat && alEncontrar) alEncontrar();
     } }, r.texto)));
   };
 
@@ -158,40 +162,81 @@ async function dibujarMarcador(blob) {
   cv.width = img.width; cv.height = img.height;
   const g = cv.getContext('2d');
   g.drawImage(img, 0, 0);
+  const k = cv.width / 1000; // todo a escala del tamaño de la imagen
   const x = cv.width / 2, y = cv.height / 2;
-  g.lineWidth = 6; g.strokeStyle = '#ffffff'; g.beginPath(); g.arc(x, y, 26, 0, Math.PI * 2); g.stroke();
-  g.lineWidth = 4; g.strokeStyle = '#c4161c'; g.beginPath(); g.arc(x, y, 26, 0, Math.PI * 2); g.stroke();
-  g.fillStyle = '#c4161c'; g.beginPath(); g.arc(x, y, 7, 0, Math.PI * 2); g.fill();
+  g.lineWidth = 6 * k; g.strokeStyle = '#ffffff'; g.beginPath(); g.arc(x, y, 26 * k, 0, Math.PI * 2); g.stroke();
+  g.lineWidth = 4 * k; g.strokeStyle = '#c4161c'; g.beginPath(); g.arc(x, y, 26 * k, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = '#c4161c'; g.beginPath(); g.arc(x, y, 7 * k, 0, Math.PI * 2); g.fill();
   // Norte
-  g.fillStyle = '#1e2226'; g.font = 'bold 30px Arial'; g.fillText('N', cv.width - 52, 52);
-  g.beginPath(); g.moveTo(cv.width - 42, 62); g.lineTo(cv.width - 52, 92); g.lineTo(cv.width - 32, 92); g.closePath(); g.fill();
-  // Fuente
-  g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(0, cv.height - 30, 360, 30);
-  g.fillStyle = '#1e2226'; g.font = '16px Arial'; g.fillText('Cartografía: © Instituto Geográfico Nacional', 10, cv.height - 10);
+  g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(cv.width - 70 * k, 14 * k, 50 * k, 84 * k);
+  g.fillStyle = '#1e2226'; g.font = `bold ${30 * k}px Arial`; g.textAlign = 'center'; g.fillText('N', cv.width - 45 * k, 46 * k);
+  g.beginPath(); g.moveTo(cv.width - 45 * k, 54 * k); g.lineTo(cv.width - 56 * k, 90 * k); g.lineTo(cv.width - 34 * k, 90 * k); g.closePath(); g.fill();
   return new Promise((ok) => cv.toBlob(ok, 'image/png'));
 }
 
+/** Crea el PDF A5 del plano con los datos actuales del aviso y lo guarda en sus archivos. */
+async function crearPlanoA5(app, draft) {
+  if (!draft.plano) return null;
+  const [PDFLib, empresa, mapa] = await Promise.all([cargarPdfLib(), leerEmpresa(app), app.storage.getFile(draft.plano.hash)]);
+  const logo = await imagenParaPdf(app, empresa.logo).catch(() => null);
+  const aviso = normalizarAviso(draft);
+  const bytes = await generarPlanoA5(PDFLib, { aviso, empresa, logo, mapa: mapa && { bytes: new Uint8Array(mapa.bytes), mime: mapa.mime }, escala: draft.plano.escala || 2000 });
+  const ficha = await app.storage.putFile({ name: nombrePlanoA5(aviso), mime: 'application/pdf', bytes });
+  draft.archivos = (draft.archivos || []).filter((x) => x.tipo !== 'plano_a5');
+  draft.archivos.push({ tipo: 'plano_a5', hash: ficha.hash, name: ficha.name, mime: 'application/pdf', size: ficha.size, addedAt: new Date().toISOString() });
+  return { ficha, bytes };
+}
+
+/**
+ * Plano de situación. Devuelve el bloque con .generar({auto}) para que se pueda pedir solo
+ * al encontrar la dirección. Un plano subido a mano no se sustituye automáticamente.
+ */
 export function bloquePlano(app, draft, alCambiar) {
   const vista = h('div', { class: 'logo-caja', id: 'vista-plano' });
-  const estado = h('div', { class: 'muted' });
+  const estado = h('div', { class: 'muted', id: 'estado-plano', 'aria-live': 'polite' });
   const pintar = async () => {
     const b = draft.plano && await app.storage.getFileBlob(draft.plano.hash);
     vista.replaceChildren(b ? h('img', { src: URL.createObjectURL(b), alt: 'Plano de situación', style: 'max-height:260px' }) : h('span', { class: 'muted' }, 'Sin plano de situación'));
   };
-  const guardar = async (blob, nombre) => {
-    draft.plano = await app.storage.putFile({ name: nombre, mime: blob.type || 'image/png', bytes: new Uint8Array(await blob.arrayBuffer()) });
+  const guardar = async (blob, nombre, extra = {}) => {
+    const f = await app.storage.putFile({ name: nombre, mime: blob.type || 'image/png', bytes: new Uint8Array(await blob.arrayBuffer()) });
+    draft.plano = { ...f, ...extra };
     alCambiar(); pintar();
   };
-  const generar = async () => {
-    const { lat, lon } = draft.suministro;
-    if (!coordsValidas(lat, lon)) { estado.textContent = 'Faltan las coordenadas del suministro.'; return; }
-    estado.textContent = 'Generando el plano con cartografía del IGN…';
+  const descargarA5 = async () => {
     try {
-      const r = await fetch(urlPlanoIgn(lat, lon));
-      if (!r.ok) throw new Error();
-      const blob = await dibujarMarcador(await r.blob());
-      await guardar(blob, `PLANO_SITUACION_${redondear(lat, 5)}_${redondear(lon, 5)}.png`);
-      estado.textContent = 'Plano generado. Pulsa Guardar en el aviso.';
+      estado.textContent = 'Preparando el plano A5…';
+      const r = await crearPlanoA5(app, draft);
+      if (!r) { estado.textContent = 'Primero genera o sube el plano.'; return; }
+      alCambiar();
+      descargar(new Blob([r.bytes], { type: 'application/pdf' }), r.ficha.name);
+      estado.textContent = `Plano A5 descargado (${r.ficha.name}). Queda también en los documentos del aviso.`;
+    } catch (e) { estado.textContent = 'No se pudo crear el PDF del plano: ' + e.message; }
+  };
+  const generar = async ({ auto = false } = {}) => {
+    const { lat, lon } = draft.suministro;
+    if (!coordsValidas(lat, lon)) { if (!auto) estado.textContent = 'Faltan las coordenadas del suministro.'; return; }
+    if (auto && draft.plano && !draft.plano.auto) { estado.textContent = 'Hay un plano subido a mano: no se cambia. Pulsa «Generar plano» si quieres el del IGN.'; return; }
+    if (auto && draft.plano?.auto && draft.plano.lat === lat && draft.plano.lon === lon) return;
+    estado.textContent = 'Generando el plano de situación (IGN, A5 a escala 1:2.000)…';
+    try {
+      const e = encuadreA5(lat, lon);
+      let mapa;
+      try {
+        const r = await fetch(e.url);
+        if (!r.ok) throw new Error();
+        mapa = await r.blob();
+      } catch (err) {
+        // El IGN no deja pedirlo desde el navegador o no responde: se pide a través del PC
+        if (!app.estado?.configurado) throw err;
+        mapa = await app.sync.geoBlob(e.url);
+      }
+      const blob = await dibujarMarcador(mapa);
+      await guardar(blob, `PLANO_SITUACION_${redondear(lat, 5)}_${redondear(lon, 5)}.png`, { auto: true, lat, lon, escala: e.escala });
+      await crearPlanoA5(app, draft);
+      alCambiar();
+      estado.replaceChildren(`Plano de situación listo (A5, escala 1:2.000)${auto ? ' a partir de la dirección' : ''}; se usará en la memoria. Pulsa Guardar en el aviso. `,
+        h('button', { class: 'btn peq', type: 'button', onclick: descargarA5 }, 'Descargar PDF A5'));
     } catch {
       estado.textContent = 'El IGN no ha respondido. Puedes subir una captura del plano con «Subir plano».';
     }
@@ -202,12 +247,15 @@ export function bloquePlano(app, draft, alCambiar) {
     estado.textContent = 'Plano añadido. Pulsa Guardar en el aviso.';
   } });
   pintar();
-  return h('div', {}, vista,
+  const el = h('div', {}, vista,
     h('div', { class: 'fila' },
-      h('button', { class: 'btn peq prim', type: 'button', id: 'btn-plano', onclick: generar }, 'Generar plano (IGN)'),
+      h('button', { class: 'btn peq prim', type: 'button', id: 'btn-plano', onclick: () => generar() }, 'Generar plano (IGN)'),
+      h('button', { class: 'btn peq', type: 'button', id: 'btn-plano-a5', onclick: descargarA5 }, 'Descargar plano A5 (PDF)'),
       h('button', { class: 'btn peq', type: 'button', onclick: () => subir.click() }, 'Subir plano'), subir,
-      h('button', { class: 'btn peq', type: 'button', onclick: () => { draft.plano = null; alCambiar(); pintar(); } }, 'Quitar')),
+      h('button', { class: 'btn peq', type: 'button', onclick: () => { draft.plano = null; draft.archivos = (draft.archivos || []).filter((x) => x.tipo !== 'plano_a5'); alCambiar(); pintar(); } }, 'Quitar')),
     estado);
+  el.generar = generar;
+  return el;
 }
 
 // ---------------------------------------------------------------- fotografías

@@ -116,3 +116,34 @@ export function urlPlanoIgn(lat, lon, ancho = 1000, alto = 760, semiX = 220, sem
   const bbox = [p.x - semiX, p.y - semiY, p.x + semiX, p.y + semiY].join(',');
   return `https://www.ign.es/wms-inspire/ign-base?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=IGNBaseTodo&STYLES=&CRS=EPSG:3857&BBOX=${encodeURIComponent(bbox)}&WIDTH=${ancho}&HEIGHT=${alto}&FORMAT=image/png&TRANSPARENT=FALSE`;
 }
+
+// ---------------------------------------------------------------- plano A5
+/** Hoja A5 apaisada (puntos PDF) y zona del mapa dentro de ella. */
+export const A5 = { ancho: 595.28, alto: 419.53, margen: 22, cabecera: 50, pie: 34 };
+export const MAPA_A5 = { ancho: A5.ancho - 2 * A5.margen, alto: A5.alto - 2 * A5.margen - A5.cabecera - A5.pie };
+const PT_MM = 25.4 / 72;
+
+/**
+ * Encuadre del plano para imprimirlo en A5 a escala 1:escala.
+ * Devuelve la URL del IGN, el tamaño de la imagen y los metros reales que cubre.
+ * (En Web Mercator un metro del mapa mide 1/cos(latitud) metros reales: se corrige.)
+ */
+export function encuadreA5(lat, lon, escala = 2000) {
+  const anchoM = (MAPA_A5.ancho * PT_MM / 1000) * escala; // metros reales
+  const altoM = (MAPA_A5.alto * PT_MM / 1000) * escala;
+  const k = 1 / Math.cos((num(lat) * Math.PI) / 180);
+  const px = 1800;
+  const py = Math.round(px * MAPA_A5.alto / MAPA_A5.ancho);
+  return {
+    escala, anchoM, altoM, px, py,
+    url: urlPlanoIgn(lat, lon, px, py, (anchoM / 2) * k, (altoM / 2) * k),
+  };
+}
+
+/** Barra de escala «redonda» que quepa en un tercio del ancho del mapa. */
+export function barraEscala(escala, anchoMapaPt = MAPA_A5.ancho) {
+  const metrosPorPt = (escala * PT_MM) / 1000;
+  const max = (anchoMapaPt / 3) * metrosPorPt;
+  const metros = [10, 20, 25, 50, 100, 200, 250, 500, 1000].filter((m) => m <= max).pop() || 10;
+  return { metros, pt: metros / metrosPorPt };
+}

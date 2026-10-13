@@ -146,6 +146,12 @@ export class SyncManager {
     return res.json();
   }
 
+  /** Igual que geo() pero devuelve el archivo (p. ej. la imagen del plano del IGN). */
+  async geoBlob(url) {
+    const res = await this._call('GET', '/api/v2/geo?u=' + encodeURIComponent(url), { raw: true });
+    return res.blob();
+  }
+
   // ---------- Conflictos ----------
   async conflictos() {
     const c = (await this.s.getMeta('conflictos')) || {};
