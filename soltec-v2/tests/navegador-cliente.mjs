@@ -107,30 +107,6 @@ try {
   await page.waitForSelector('#cambios-ficha:has-text("3 dato(s)")');
   ok('Pegando el mensaje de WhatsApp también se leen los datos');
 
-  // Sin abrir nada: el cliente responde al propio mensaje de WhatsApp con sus datos
-  await page.evaluate(async (aid) => window.soltec.storage.patch(aid, { cliente: { nombre: 'ANA GIL', telefono: '600123456', nif: '', email: '', iban: '' } }), id);
-  await page.goto(base + 'index.html#/inicio');
-  await page.goto(base + 'index.html#/aviso/' + id);
-  await page.waitForSelector('#btn-whatsapp', { state: 'attached' });
-  await page.evaluate(() => { document.querySelector('#btn-whatsapp').closest('details').open = true; });
-  await page.click('#btn-whatsapp');
-  const msg = await page.inputValue('#texto-whatsapp');
-  assert.match(msg, /^DNI \/ NIF \/ CIF: +← falta$/m);
-  assert.match(msg, /^CALLE: CALLE MAYOR$/m);
-  const respuesta = msg.replace(/^DNI \/ NIF \/ CIF: +← falta$/m, 'DNI / NIF / CIF: 12345678Z')
-    .replace(/^CORREO ELECTRÓNICO: +← falta$/m, 'Correo electrónico: ana@correo.es').replace(/^CONFORMIDAD \(escriba SÍ\): $/m, 'CONFORMIDAD (escriba SÍ): Sí');
-  await page.click('#btn-leer-devuelta');
-  await page.fill('#texto-devuelto', respuesta);
-  await page.click('#leer-texto');
-  await page.waitForSelector('#cambios-ficha:has-text("2 dato(s)")');
-  assert.match(await page.textContent('#cambios-ficha'), /respondido «SÍ»/);
-  await page.click('#aplicar-ficha');
-  let a2;
-  for (let i = 0; i < 30; i++) { a2 = await page.evaluate(async (aid) => (await window.soltec.storage.get(aid)).data, id); if (a2.cliente.nif) break; await page.waitForTimeout(200); }
-  assert.equal(a2.cliente.nif, '12345678Z');
-  assert.equal(a2.cliente.email, 'ana@correo.es');
-  ok('Sin abrir nada: el cliente responde al mensaje con sus datos y la app los aplica');
-
   assert.deepEqual(errores, []);
   ok('Sin errores en la consola');
 } catch (e) {

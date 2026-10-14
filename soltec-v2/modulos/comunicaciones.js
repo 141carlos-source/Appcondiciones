@@ -1,12 +1,12 @@
 // SOLTEC V2 · Ficha PDF del cliente, firma con el dedo, resumen de WhatsApp y correos.
 // Preparar una comunicación no es enviarla: el historial lo distingue.
 
-import { h, toast, abrirBlob, compartir, descargar, fecha, lienzoFirma, irORepintar } from '../ui.js';
+import { h, toast, abrirBlob, compartir, puedeCompartirArchivos, descargar, fecha, lienzoFirma, irORepintar } from '../ui.js';
 import { generarFicha, nombreFicha, resumenWhatsApp, enlaceWhatsApp, telefonoWhatsApp, correo, enlaceCorreo, TIPOS_CORREO } from '../core/documentos.js';
 import { faltaParaFormulario } from '../core/empresa.js';
 import { datosPendientes, normalizarAviso, hoyLocal } from '../core/model.js';
 import { leerEmpresa } from './empresa.js';
-import { paqueteFicha, enlaceFormulario, URL_PUBLICA, leerDatos, leerRespuesta, datosDePdf, cambiosFicha, aplicarCambios } from '../core/fichaCliente.js';
+import { paqueteFicha, enlaceFormulario, URL_PUBLICA, leerDatos, datosDePdf, cambiosFicha, aplicarCambios } from '../core/fichaCliente.js';
 
 let cargaPdfLib = null;
 /** Carga pdf-lib solo cuando hace falta (pesa ~500 KB). */
@@ -87,13 +87,24 @@ export async function bloqueComunicaciones(app, avisoId) {
       try {
         const blob = await crearFichaPdf(app, aviso);
         const nombre = nombreFicha(aviso);
-        await app.storage.addEvent(avisoId, 'formulario', `Ficha PDF preparada: ${nombre}`);
-        panel.replaceChildren(h('div', { class: 'aviso ok' }, h('b', {}, 'Ficha preparada. '), nombre,
-          h('div', { class: 'fila' },
-            h('button', { class: 'btn peq', type: 'button', onclick: () => abrirBlob(blob) }, 'Ver'),
-            h('button', { class: 'btn peq prim', type: 'button', onclick: () => compartir(blob, nombre) }, 'Compartir'),
-            h('button', { class: 'btn peq', type: 'button', onclick: () => descargar(blob, nombre) }, 'Descargar')),
-          h('div', { class: 'muted' }, 'Para enviarla por WhatsApp usa «Compartir» o adjúntala como documento: abrir el chat no adjunta el PDF.')));
+        const mensaje = resumenWhatsApp({ aviso, empresa, seguimiento: await proximoSeguimiento(app, avisoId) });
+        const cl = aviso.cliente || {};
+        await app.storage.addEvent(avisoId, 'formulario', `Ficha PDF rellenable preparada: ${nombre}`);
+        const compartible = puedeCompartirArchivos();
+        panel.replaceChildren(h('div', { class: 'card', id: 'panel-ficha-pdf' },
+          h('div', { class: 'aviso ok' }, h('b', {}, 'Ficha rellenable preparada: '), nombre),
+          compartible
+            ? h('p', { class: 'muted' }, '«Enviar» abre la lista de aplicaciones: elige WhatsApp o tu correo y el cliente. Se envía el PDF con el mensaje.')
+            : h('p', { class: 'muted' }, 'En este equipo no se pueden adjuntar archivos automáticamente: descarga el PDF y adjúntalo en WhatsApp o en el correo.'),
+          h('div', { class: 'acciones' },
+            compartible ? h('button', { class: 'btn prim', type: 'button', id: 'enviar-ficha', onclick: async () => {
+              if (await compartir(blob, nombre, mensaje)) { await app.storage.addEvent(avisoId, 'doc_preparada', `Ficha PDF compartida: ${nombre}`); marcarEnviado('Ficha PDF rellenable'); }
+            } }, 'Enviar (WhatsApp, correo…)') : null,
+            compartible ? null : h('button', { class: 'btn prim', type: 'button', onclick: () => descargar(blob, nombre) }, 'Descargar PDF'),
+            compartible ? null : h('button', { class: 'btn', type: 'button', onclick: async () => { window.open(enlaceWhatsApp(cl.telefono, mensaje), '_blank', 'noopener'); marcarEnviado('Ficha PDF por WhatsApp'); } }, 'Abrir WhatsApp del cliente'),
+            compartible ? null : h('button', { class: 'btn', type: 'button', onclick: () => { window.location.href = enlaceCorreo({ para: cl.email || '', asunto: `Ficha de datos · Aviso ${aviso.numero}`, cuerpo: mensaje }); marcarEnviado('Ficha PDF por correo'); } }, 'Abrir correo al cliente'),
+            h('button', { class: 'btn', type: 'button', onclick: () => abrirBlob(blob) }, 'Ver')),
+          h('p', { class: 'muted' }, 'El cliente toca el PDF en WhatsApp o en el correo, se abre en su visor (iPhone, Google Drive, Acrobat…), rellena los recuadros, firma, guarda y te lo reenvía. Luego usa «Leer ficha devuelta por el cliente».')));
       } catch (e) { toast(e.message, true); }
     });
   };
@@ -104,7 +115,7 @@ export async function bloqueComunicaciones(app, avisoId) {
     const texto = h('textarea', { rows: 12, id: 'texto-whatsapp', value: resumenWhatsApp({ aviso, empresa, seguimiento: await proximoSeguimiento(app, avisoId) }) });
     const tel = telefonoWhatsApp(aviso.cliente?.telefono);
     panel.replaceChildren(h('div', { class: 'card' },
-      h('b', {}, 'Mensaje para WhatsApp'), h('p', { class: 'muted' }, 'El cliente solo tiene que copiar el bloque, escribir sus datos y responder. Luego pega su respuesta en «Leer ficha devuelta por el cliente». Puedes editarlo antes de enviarlo.'), texto,
+      h('b', {}, 'Resumen para WhatsApp'), h('p', { class: 'muted' }, 'Puedes editarlo antes de enviarlo.'), texto,
       tel ? null : h('div', { class: 'aviso info' }, 'El teléfono del cliente no es un móvil español: WhatsApp se abrirá sin destinatario.'),
       h('div', { class: 'fila' },
         h('button', { class: 'btn peq', type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(texto.value); toast('Texto copiado'); } catch { texto.select(); toast('Selecciona y copia el texto', true); } } }, 'Copiar'),
@@ -167,12 +178,14 @@ export async function bloqueComunicaciones(app, avisoId) {
       const aviso = await leer();
       const cambios = cambiosFicha(aviso, r.d);
       const marcas = cambios.map((c) => h('input', { type: 'checkbox', checked: c.problema ? null : true }));
-      const firmada = !!r.firma;
-      const conforme = firmada || !!r.conforme;
+      // Firmada: firma dibujada en el formulario web o en el propio PDF. Si solo marcó la casilla, es conformidad.
+      const firmada = !!r.firma && (r.origen === 'formulario' || !!r.firma.dibujada);
+      const descFirma = !r.firma ? 'El cliente no ha firmado ni marcado la conformidad: pídele que lo haga si hace falta.'
+        : firmada ? `Firmada${r.firma.nombre ? ' por ' + r.firma.nombre : ''}${r.firma.fecha ? ' el ' + r.firma.fecha : ''}${r.firma.conforme === false ? ' (sin marcar la casilla de conformidad)' : ''}.`
+          : `Ha marcado la casilla de conformidad${r.firma.nombre ? ' (' + r.firma.nombre + ')' : ''}, sin firma dibujada.`;
       resultado.replaceChildren(h('div', { class: 'card', id: 'cambios-ficha' },
         h('b', {}, cambios.length ? `${cambios.length} dato(s) del cliente para el aviso` : 'Los datos que envía el cliente ya están en el aviso.'),
-        firmada ? h('div', { class: 'muted' }, `Firmada por ${r.firma.nombre} el ${r.firma.fecha}.`)
-          : r.origen === 'respuesta' ? h('div', { class: 'muted' }, conforme ? 'El cliente ha respondido «SÍ» a la conformidad (sin firma manuscrita).' : 'El cliente no ha escrito «SÍ» en la conformidad.') : null,
+        h('div', { class: 'muted', id: 'estado-firma' }, descFirma),
         cambios.length ? h('ul', { class: 'lista-chk' }, ...cambios.map((c, i) => h('li', {},
           h('label', { class: 'check-linea', style: 'flex:1' }, marcas[i],
             h('span', {}, h('b', {}, c.etiqueta), h('div', { class: 'muted' }, c.antes ? `Antes: ${c.antes}` : 'Estaba vacío'), h('div', {}, `Ahora: ${c.ahora}`),
@@ -187,7 +200,7 @@ export async function bloqueComunicaciones(app, avisoId) {
             if (!nuevo.archivos.some((x) => x.hash === f.hash)) nuevo.archivos.push({ tipo: 'ficha_cliente', hash: f.hash, name: f.name, mime: 'application/pdf', size: f.size, addedAt: new Date().toISOString() });
           }
           if (firmada && archivo) nuevo.docs = { ...nuevo.docs, firmado: 'recibido' };
-          await app.storage.save('aviso', nuevo, { id: avisoId, event: { kind: 'doc_recibida', text: `Ficha del cliente recibida${r.origen === 'respuesta' ? ' (respuesta al mensaje)' : ''}: ${elegidos.length} dato(s) actualizados${firmada ? `, firmada por ${r.firma.nombre}` : r.conforme ? ', con conformidad «SÍ»' : ''}${archivo ? ' · PDF guardado' : ''}` } });
+          await app.storage.save('aviso', nuevo, { id: avisoId, event: { kind: 'doc_recibida', text: `Ficha del cliente recibida: ${elegidos.length} dato(s) actualizados${firmada ? `, firmada${r.firma.nombre ? ' por ' + r.firma.nombre : ''}` : r.firma ? ', con la casilla de conformidad marcada' : ''}${archivo ? ' · PDF guardado' : ''}` } });
           toast('Datos del cliente aplicados al aviso');
           irORepintar('aviso/' + avisoId);
         } }, cambios.length ? 'Aplicar al aviso' : (archivo ? 'Guardar el PDF en el aviso' : 'Cerrar')))));
@@ -199,24 +212,24 @@ export async function bloqueComunicaciones(app, avisoId) {
         await procesar(await datosDePdf(await cargarPdfLib(), bytes), { name: f.name, bytes });
       } catch (err) { resultado.replaceChildren(h('div', { class: 'aviso err' }, 'No se puede leer ese PDF: ' + err.message)); }
     } });
-    const pegado = h('textarea', { rows: 4, id: 'texto-devuelto', 'data-minusculas': '', placeholder: 'O pega aquí la respuesta del cliente por WhatsApp o correo (con sus líneas «DNI: …», «CORREO: …»)' });
+    const pegado = h('textarea', { rows: 4, id: 'texto-devuelto', 'data-minusculas': '', placeholder: 'O pega aquí el mensaje del formulario web (el que termina en SOLTEC-DATOS:…)' });
     panel.replaceChildren(h('div', { class: 'card' },
       h('b', {}, 'Leer la ficha que devuelve el cliente'),
       h('p', { class: 'muted' }, 'Elige el PDF que te ha enviado (el del formulario o el PDF rellenado) o pega su mensaje. Verás qué datos cambian antes de aplicarlos.'),
       h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', onclick: () => fichero.click() }, 'Elegir PDF devuelto'), fichero),
       pegado,
-      h('div', { class: 'fila' }, h('button', { class: 'btn', type: 'button', id: 'leer-texto', onclick: () => procesar(leerDatos(pegado.value) || leerRespuesta(pegado.value), null) }, 'Leer la respuesta pegada'))),
+      h('div', { class: 'fila' }, h('button', { class: 'btn', type: 'button', id: 'leer-texto', onclick: () => procesar(leerDatos(pegado.value), null) }, 'Leer el mensaje pegado'))),
       resultado);
   };
 
   return h('div', {},
     faltaEmpresa.length ? h('div', { class: 'aviso info' }, `Configura ${faltaEmpresa.join(' y ')} de la empresa para la ficha PDF. `, h('a', { href: '#/empresa' }, 'Ir a Empresa')) : null,
     h('div', { class: 'acciones' },
-      h('button', { class: 'btn prim', type: 'button', id: 'btn-enlace-cliente', onclick: enlaceCliente }, 'Formulario para que el cliente rellene y firme'),
+      h('button', { class: 'btn prim', type: 'button', id: 'btn-ficha-pdf', onclick: fichaPdf }, 'Enviar ficha PDF rellenable'),
       h('button', { class: 'btn', type: 'button', id: 'btn-leer-devuelta', onclick: leerDevuelta }, 'Leer ficha devuelta por el cliente'),
-      h('button', { class: 'btn', type: 'button', id: 'btn-ficha-pdf', onclick: fichaPdf }, 'Ficha PDF rellenable'),
       h('a', { class: 'btn', href: `#/firma/${avisoId}` }, 'Firmar en este dispositivo'),
-      h('button', { class: 'btn', type: 'button', id: 'btn-whatsapp', onclick: whatsapp }, 'Pedir datos por WhatsApp (responde en el chat)'),
+      h('button', { class: 'btn', type: 'button', id: 'btn-whatsapp', onclick: whatsapp }, 'Resumen para WhatsApp'),
+      h('button', { class: 'btn', type: 'button', id: 'btn-enlace-cliente', onclick: enlaceCliente }, 'Formulario web (alternativa)'),
       ...Object.entries(TIPOS_CORREO).map(([k, t]) => h('button', { class: 'btn', type: 'button', onclick: enviarCorreo(k) }, 'Correo: ' + t.label.toLowerCase()))),
     panel);
 }

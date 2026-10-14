@@ -2,7 +2,7 @@
 // Funciones puras: reciben pdf-lib (PDFLib) y los datos; no tocan la base de datos.
 
 import { direccionCompleta, calleNumero, nombreArchivo, datosPendientes } from './model.js';
-import { nombreCampoPdf, plantillaRespuesta } from './fichaCliente.js';
+import { nombreCampoPdf, REQUERIDOS_FICHA } from './fichaCliente.js';
 import { nombreEmpresa } from './empresa.js';
 
 // ---------------------------------------------------------------- utilidades
@@ -71,12 +71,13 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma,
 
   // Instrucciones
   const instr = [
-    'Revise los datos. Complete los campos vacíos que necesitamos para el boletín y/o el contrato de electricidad.',
-    'Rellénelo en el móvil o el ordenador (con Adobe Acrobat Reader, gratuito), guárdelo y devuélvanoslo por WhatsApp o correo.',
+    '1. Toque cada recuadro y escriba sus datos. Los recuadros en rojo son los que faltan.',
+    '2. Firme en «Firma» con la opción de firmar o dibujar de su visor, o escriba su nombre y marque la casilla de conformidad.',
+    '3. Guarde el PDF y reenvíenoslo por el mismo WhatsApp o correo.',
   ];
-  page.drawRectangle({ x: M, y: y - 26, width: W, height: 30, color: c(HUESO) });
+  page.drawRectangle({ x: M, y: y - 37, width: W, height: 41, color: c(HUESO) });
   instr.forEach((t, i) => texto(t, M + 8, y - 8 - i * 11, { size: 8, maxW: W - 16 }));
-  y -= 40;
+  y -= 51;
 
   // Secciones con campos rellenables
   let n = 0;
@@ -91,6 +92,7 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma,
       // Los campos de datos se llaman como su ruta (cliente__nombre…) para poder leerlos al volver
       const tf = form.createTextField(ruta ? nombreCampoPdf(ruta) : `f${++n}_${nombreArchivo(etiqueta).slice(0, 30)}`);
       tf.setText(textoPdf(valor));
+      if (ruta && REQUERIDOS_FICHA.has(ruta)) tf.enableRequired();
       tf.addToPage(page, { x, y: y - 11 - alto, width: w, height: alto, font: fuente, borderColor: c(LINEA), backgroundColor: valor ? rgb(1, 1, 1) : rgb(0.984, 0.918, 0.918), borderWidth: 0.6 });
       tf.setFontSize(size);
       x += w + gap;
@@ -117,8 +119,12 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma,
 
   // Firma
   seccion('CONFORMIDAD Y FIRMA DEL CLIENTE');
-  texto('El cliente declara que los datos son correctos y autoriza su uso para tramitar la solicitud con la distribuidora y la comercializadora.', M, y - 8, { size: 7, color: ACERO, maxW: W });
-  y -= 18;
+  // Casilla de conformidad (las casillas funcionan en casi todos los visores del móvil)
+  const conf = form.createCheckBox('conformidad');
+  conf.addToPage(page, { x: M, y: y - 14, width: 12, height: 12, borderColor: c(GRAFITO), borderWidth: 0.8, backgroundColor: rgb(1, 1, 1) });
+  if (firma) conf.check();
+  texto('Declaro que los datos son correctos y autorizo su uso para tramitar la solicitud con la distribuidora y la comercializadora.', M + 18, y - 11, { size: 7.5, maxW: W - 18 });
+  y -= 24;
   const firmaH = 80;
   page.drawRectangle({ x: M, y: y - firmaH, width: W * 0.6, height: firmaH, borderColor: c(LINEA), borderWidth: 0.6 });
   texto('Firma', M + 4, y - 9, { size: 6.5, color: ACERO });
@@ -130,20 +136,22 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma,
   const xd = M + W * 0.6 + 8, wd = W * 0.4 - 8;
   y -= 2;
   const yFirma = y;
-  const campoFirma = (etq, val, dy) => {
+  const campoFirma = (etq, val, dy, nombreCampo) => {
     texto(etq, xd, yFirma - dy, { size: 6.5, color: ACERO });
-    const tf = form.createTextField(`firma_${nombreArchivo(etq)}`);
+    const tf = form.createTextField(nombreCampo);
     tf.setText(textoPdf(val));
     tf.addToPage(page, { x: xd, y: yFirma - dy - 20, width: wd, height: 18, font: fuente, borderColor: c(LINEA), borderWidth: 0.6 });
     tf.setFontSize(9);
   };
-  campoFirma('Nombre de quien firma', firma?.nombre || '', 7);
-  campoFirma('Fecha', firma?.fecha || '', 40);
+  campoFirma('Nombre de quien firma', firma?.nombre || '', 7, 'firma__nombre');
+  campoFirma('Fecha', firma?.fecha || '', 40, 'firma__fecha');
   y -= firmaH + 14;
 
   texto(`Documento preparado por ${nombreEmpresa(empresa)}${firma ? ' · Firmado en el dispositivo el ' + firma.fecha : ''}.`, M, Math.max(y, M), { size: 6.5, color: ACERO, maxW: W });
 
   form.updateFieldAppearances(fuente);
+  // Pide al visor que redibuje los campos al rellenarlos (mejor resultado en móviles)
+  try { form.acroForm.dict.set(PDFLib.PDFName.of('NeedAppearances'), PDFLib.PDFBool.True); } catch { /* opcional */ }
   if (firma?.png || aplanar) form.flatten(); // firmado: los datos quedan fijados junto a la firma
   return pdf.save();
 }
@@ -157,20 +165,22 @@ export function telefonoWhatsApp(tel) {
 }
 
 export function resumenWhatsApp({ aviso, empresa, seguimiento }) {
-  const bloque = plantillaRespuesta(aviso);
-  const nFaltan = (bloque.match(/← falta/g) || []).length;
+  const faltan = datosPendientes(aviso, 'ficha').concat(datosPendientes(aviso, 'contrato'), datosPendientes(aviso, 'boletin'));
+  const unicos = [...new Map(faltan.map((f) => [f.campo, f.etiqueta])).values()];
   const cl = aviso.cliente || {};
   const l = [];
   l.push(`Hola${cl.contacto || cl.nombre ? ' ' + (cl.contacto || cl.nombre).split(' ')[0] : ''}, le escribimos de ${nombreEmpresa(empresa)}.`);
   l.push('');
   l.push(`Aviso ${aviso.numero}${direccionCompleta(aviso.suministro) ? ' · ' + direccionCompleta(aviso.suministro) : ''}`);
   if (aviso.condiciones?.ref) l.push(`Ref. condiciones: ${aviso.condiciones.ref}`);
+  if (unicos.length) {
+    l.push('');
+    l.push('Para continuar necesitamos estos datos:');
+    for (const u of unicos) l.push(`• ${u}`);
+  }
   if (seguimiento) l.push('', `Próximo contacto: ${seguimiento.fecha}${seguimiento.hora ? ' a las ' + seguimiento.hora : ''}`);
   l.push('');
-  l.push(nFaltan ? `Para continuar nos faltan ${nFaltan} dato(s), marcados con «← falta».` : 'Por favor, revise que sus datos son correctos.');
-  l.push('Responda a este mismo mensaje: copie el bloque de abajo, escriba o corrija sus datos detrás de los dos puntos y envíenoslo. No hace falta abrir ni instalar nada.');
-  l.push('');
-  l.push(bloque);
+  l.push('Le enviamos la ficha en PDF: tóquela para abrirla, rellene los recuadros tocándolos (los rojos son los que faltan), fírmela, guárdela y reenvíenosla por aquí mismo.');
   l.push('');
   l.push(`Gracias. ${nombreEmpresa(empresa)}${empresa?.empresa?.telefono ? ' · ' + empresa.empresa.telefono : ''}`);
   return l.join('\n');

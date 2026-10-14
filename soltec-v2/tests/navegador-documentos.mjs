@@ -66,19 +66,21 @@ try {
   await page.goto(base + '#/aviso/' + id);
   await page.click('summary:has-text("Solicitudes y comunicaciones")');
   await page.click('#btn-ficha-pdf');
-  await page.waitForSelector('text=Ficha preparada.');
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('.aviso.ok >> text=Descargar')]);
+  await page.waitForSelector('#panel-ficha-pdf');
+  assert.match(await page.textContent('#panel-ficha-pdf'), /Ficha rellenable preparada/);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#panel-ficha-pdf >> text=Descargar PDF')]);
   assert.equal(dl.suggestedFilename(), 'FICHA_CLIENTE_CALLE_RAMON_Y_CAJAL_12_PISO_3_PUERTA_B.pdf');
   const doc = await PDFLib.PDFDocument.load(readFileSync(await dl.path()));
   const vals = doc.getForm().getFields().map((f) => f.getText?.());
   assert.ok(vals.includes('María Pérez Núñez') && vals.includes('12345678Z'));
-  ok('Ficha PDF rellenable generada en el móvil con los datos del aviso y el logo');
+  assert.ok(doc.getForm().getCheckBox('conformidad'), 'casilla de conformidad');
+  ok('Ficha PDF rellenable generada en el móvil con los datos del aviso, el logo y la casilla de conformidad');
 
   // WhatsApp
   await page.click('#btn-whatsapp');
   const texto = await page.inputValue('#texto-whatsapp');
   assert.match(texto, /le escribimos de M\. A\. SOLTEC/);
-  assert.match(texto, /^IBAN: +← falta$/m);
+  assert.match(texto, /• IBAN/);
   let urlWa = '';
   await ctx.route('https://wa.me/**', (r) => { urlWa = r.request().url(); r.fulfill({ status: 200, body: 'WhatsApp' }); });
   const [pop] = await Promise.all([ctx.waitForEvent('page'), page.click('text=Abrir WhatsApp')]);

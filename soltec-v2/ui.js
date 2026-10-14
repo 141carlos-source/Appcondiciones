@@ -49,13 +49,16 @@ export function abrirBlob(blob) {
 }
 
 /** Compartir un archivo con el menú del dispositivo; si no se puede, se descarga. */
-export async function compartir(blob, nombre) {
+export async function compartir(blob, nombre, texto = '') {
   const file = new File([blob], nombre, { type: blob.type });
   if (navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: nombre }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    try { await navigator.share({ files: [file], title: nombre, ...(texto ? { text: texto } : {}) }); return true; } catch (e) { if (e.name === 'AbortError') return false; }
   }
   descargar(blob, nombre);
+  return false;
 }
+/** ¿Este navegador puede enviar archivos a WhatsApp, correo…? */
+export const puedeCompartirArchivos = () => { try { return !!navigator.canShare?.({ files: [new File(['x'], 'x.pdf', { type: 'application/pdf' })] }); } catch { return false; } };
 
 export const ir = (ruta) => { location.hash = '#/' + ruta; };
 /** Va a la pantalla; si ya estás en ella, la vuelve a pintar con los datos nuevos. */
