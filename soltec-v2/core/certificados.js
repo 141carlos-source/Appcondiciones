@@ -122,12 +122,12 @@ export async function generarCertTierra(PDFLib, { aviso, empresa, cert, medidor,
     page = pdf.addPage([PW, PH]);
     y = PH - M;
     page.drawRectangle({ x: 0, y: PH - 5, width: PW, height: 5, color: ROJO });
-    await img(logo, M, y, 120, 40, false);
+    await img(logo, M, y + 6, 160, 56, false);
     const tit = 'CERTIFICADO DE MEDICIÓN DE LA TOMA DE TIERRA';
     t(tit, PW - M - B.widthOfTextAtSize(textoPdf(tit), 11.5), y - 14, { size: 11.5, font: B });
     const sub = `Reglamento Electrotécnico para Baja Tensión (RD 842/2002) · ITC-BT-18 / ITC-BT-26${aviso.numero ? ' · Aviso ' + aviso.numero : ''}`;
     t(sub, PW - M - F.widthOfTextAtSize(textoPdf(sub), 7), y - 26, { size: 7, color: ACERO });
-    y -= 50;
+    y -= 58;
   };
   const seccion = (titulo) => {
     y -= 4;
