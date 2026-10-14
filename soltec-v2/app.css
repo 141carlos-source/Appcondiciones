@@ -344,3 +344,5 @@ nav.inferior .salir::before { content: ''; position: absolute; left: 0; top: 14p
 .pagina-cliente main { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
 .pagina-cliente h2 { font-size: 14px; letter-spacing: .04em; color: var(--rojo); margin: 0 0 10px; }
 .pagina-cliente .check-linea { margin: 12px 0; align-items: flex-start; }
+
+.sello-muestra { background: #fff; padding: 10px; min-height: 160px; }

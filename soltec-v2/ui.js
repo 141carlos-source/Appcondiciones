@@ -71,33 +71,59 @@ export const irORepintar = (ruta) => {
  * Recuadro para firmar con el dedo o el ratón.
  * @returns {{el: HTMLCanvasElement, vacio: () => boolean, borrar: () => void, png: () => Promise<Uint8Array>}}
  */
-export function lienzoFirma(id = 'lienzo-firma') {
+export function lienzoFirma(id = 'lienzo-firma', { color = '#14213d', boli = false, recortarPng = false } = {}) {
   const el = h('canvas', { class: 'firma-lienzo', id });
-  let ctx = null, dibujando = false, ultimo = null, trazos = 0;
+  let ctx = null, dibujando = false, trazos = 0;
+  let pts = [], ancho = 2.4;
+  const grosor = boli ? 2.6 : 2.4;
   const preparar = () => {
     const r = el.getBoundingClientRect();
     const k = window.devicePixelRatio || 1;
     el.width = Math.round(r.width * k); el.height = Math.round(r.height * k);
     const c = el.getContext('2d');
-    c.scale(k, k); c.lineWidth = 2.4; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = '#14213d';
+    c.scale(k, k); c.lineWidth = grosor; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = color; c.fillStyle = color;
     return c;
   };
-  const punto = (e) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-  el.addEventListener('pointerdown', (e) => { ctx ??= preparar(); dibujando = true; ultimo = punto(e); el.setPointerCapture(e.pointerId); e.preventDefault(); });
+  const punto = (e) => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: e.timeStamp || performance.now() }; };
+  // Tramo con efecto bolígrafo: más fino si se va rápido y tinta algo irregular
+  const tramo = () => {
+    const n = pts.length;
+    if (n < 2) return;
+    const a = pts[n - 2], b = pts[n - 1];
+    if (boli) {
+      const v = Math.hypot(b.x - a.x, b.y - a.y) / Math.max(1, b.t - a.t);
+      const objetivo = Math.max(grosor * 0.45, Math.min(grosor * 1.15, grosor * (1.2 - v * 0.35)));
+      ancho = ancho * 0.6 + objetivo * 0.4;
+      ctx.lineWidth = ancho;
+      ctx.globalAlpha = 0.82 + Math.random() * 0.16;
+    }
+    const p0 = n > 2 ? { x: (pts[n - 3].x + a.x) / 2, y: (pts[n - 3].y + a.y) / 2 } : a;
+    const p2 = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.quadraticCurveTo(a.x, a.y, p2.x, p2.y); ctx.stroke();
+  };
+  el.addEventListener('pointerdown', (e) => {
+    ctx ??= preparar(); dibujando = true; pts = [punto(e)]; ancho = grosor;
+    ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(pts[0].x, pts[0].y, grosor * 0.45, 0, Math.PI * 2); ctx.fill();
+    el.setPointerCapture(e.pointerId); e.preventDefault();
+  });
   el.addEventListener('pointermove', (e) => {
     if (!dibujando) return;
-    const p = punto(e);
-    ctx.beginPath(); ctx.moveTo(...ultimo); ctx.lineTo(...p); ctx.stroke();
-    ultimo = p; trazos++;
+    const lista = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    for (const ev of (lista.length ? lista : [e])) { pts.push(punto(ev)); tramo(); trazos++; }
   });
   const fin = () => { dibujando = false; };
   el.addEventListener('pointerup', fin);
   el.addEventListener('pointercancel', fin);
+  const aPng = async (cv) => new Uint8Array(await (await new Promise((ok) => cv.toBlob(ok, 'image/png'))).arrayBuffer());
   return {
     el,
     vacio: () => trazos < 5,
     borrar: () => { ctx = preparar(); trazos = 0; },
-    png: async () => new Uint8Array(await (await new Promise((ok) => el.toBlob(ok, 'image/png'))).arrayBuffer()),
+    png: async () => {
+      if (!recortarPng) return aPng(el);
+      const { recortar } = await import('./core/tinta.js');
+      return aPng(recortar(el) || el);
+    },
   };
 }
 

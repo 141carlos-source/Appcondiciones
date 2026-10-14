@@ -1,6 +1,7 @@
 // SOLTEC V2 · Configuración de empresa: identidad, técnico, solicitante, correos, logo, firma y sello.
 
-import { h, toast, ir } from '../ui.js';
+import { h, toast, ir, lienzoFirma } from '../ui.js';
+import { AZUL_BIC, dibujarSelloLogo } from '../core/tinta.js';
 import { ID_EMPRESA, empresaVacia, normalizarEmpresa, desdeV1, dataUrlAArchivo } from '../core/empresa.js';
 import { provinciaDeCp } from '../core/validate.js';
 
@@ -64,9 +65,55 @@ export async function vistaEmpresa(app) {
       pintar();
     } });
     pintar();
+    const extra = h('div');
+    const guardarCanvas = async (cv, nombre) => {
+      const bytes = new Uint8Array(await (await new Promise((ok) => cv.toBlob(ok, 'image/png'))).arrayBuffer());
+      d[k] = await app.storage.putFile({ name: nombre, mime: 'image/png', bytes });
+      cambiado = true; extra.replaceChildren(); pintar();
+      toast(`${titulo} lista: pulsa «Guardar datos de empresa»`);
+    };
+    // Firma del técnico con el dedo, en azul de bolígrafo
+    const firmar = () => {
+      const lienzo = lienzoFirma('lienzo-firma-tecnico', { color: AZUL_BIC, boli: true, recortarPng: true });
+      extra.replaceChildren(h('div', { class: 'card' },
+        h('p', { class: 'muted' }, 'Firma con el dedo (o el ratón). Sale en azul, como un bolígrafo.'), lienzo.el,
+        h('div', { class: 'fila' },
+          h('button', { class: 'btn peq', type: 'button', onclick: () => lienzo.borrar() }, 'Borrar'),
+          h('button', { class: 'btn peq prim', type: 'button', id: 'guardar-firma-tecnico', onclick: async () => {
+            if (lienzo.vacio()) { toast('Falta la firma', true); return; }
+            const bytes = await lienzo.png();
+            d[k] = await app.storage.putFile({ name: 'FIRMA_TECNICO.png', mime: 'image/png', bytes });
+            cambiado = true; extra.replaceChildren(); pintar();
+            toast('Firma lista: pulsa «Guardar datos de empresa»');
+          } }, 'Usar esta firma'),
+          h('button', { class: 'btn peq', type: 'button', onclick: () => extra.replaceChildren() }, 'Cancelar'))));
+    };
+    // Sello de caucho gastado: logo de la empresa, línea roja y datos en negro (sin marco)
+    const crearSello = async () => {
+      const op = { semilla: 23 };
+      const muestra = h('div', { class: 'logo-caja sello-muestra', id: 'muestra-sello' });
+      let actual = null;
+      let logoImg = null;
+      const url = await urlImagen(app, d.logo);
+      if (url) logoImg = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = url; });
+      const dibujar = () => { actual = dibujarSelloLogo(d, logoImg, op); actual.style.maxWidth = '100%'; actual.style.maxHeight = '240px'; muestra.replaceChildren(actual); };
+      extra.replaceChildren(h('div', { class: 'card' },
+        h('p', { class: 'muted' }, 'Se hace con el logo, la razón social, el CIF, la dirección, el teléfono y el nº de instalador de esta pantalla. Rellénalos antes.'),
+        logoImg ? null : h('div', { class: 'aviso info' }, 'No hay logo: el sello llevará el nombre de la empresa en grande. Sube el logo para que salga.'),
+        muestra,
+        h('div', { class: 'fila' },
+          h('button', { class: 'btn peq', type: 'button', onclick: () => { op.semilla = Math.floor(Math.random() * 1e6) + 1; dibujar(); } }, 'Otro desgaste'),
+          h('button', { class: 'btn peq prim', type: 'button', id: 'guardar-sello', onclick: () => guardarCanvas(actual, 'SELLO_EMPRESA.png') }, 'Usar este sello'),
+          h('button', { class: 'btn peq', type: 'button', onclick: () => extra.replaceChildren() }, 'Cancelar'))));
+      dibujar();
+    };
     return h('div', { class: 'campo ancho' }, h('label', {}, titulo), vista, ayuda ? h('div', { class: 'muted' }, ayuda) : null,
-      h('div', { class: 'fila' }, h('button', { class: 'btn peq', type: 'button', onclick: () => input.click() }, d[k] ? 'Cambiar' : 'Subir imagen'),
-        h('button', { class: 'btn peq', type: 'button', onclick: () => { d[k] = null; cambiado = true; pintar(); } }, 'Quitar'), input));
+      h('div', { class: 'fila' },
+        k === 'firma' ? h('button', { class: 'btn peq prim', type: 'button', id: 'firmar-dedo', onclick: firmar }, 'Firmar con el dedo') : null,
+        k === 'sello' ? h('button', { class: 'btn peq prim', type: 'button', id: 'crear-sello', onclick: crearSello }, 'Crear sello de caucho') : null,
+        h('button', { class: 'btn peq', type: 'button', onclick: () => input.click() }, d[k] ? 'Cambiar' : 'Subir imagen'),
+        h('button', { class: 'btn peq', type: 'button', onclick: () => { d[k] = null; cambiado = true; pintar(); } }, 'Quitar'), input),
+      extra);
   };
 
   const campos = (sec, lista) => h('div', { class: 'grid2' }, ...lista.map(([c, etq, ancho]) => h('div', { class: 'campo' + (ancho === 2 ? ' ancho' : '') },
@@ -115,7 +162,7 @@ export async function vistaEmpresa(app) {
     h('details', { class: 'card', open: true }, h('summary', {}, 'Logo, firma y sello'),
       h('div', { class: 'cuerpo' }, h('div', { class: 'grid2' },
         imagen('logo', 'Logo', 'Sale en el formulario del cliente y en los documentos.'),
-        imagen('firma', 'Firma del técnico'), imagen('sello', 'Sello')))),
+        imagen('firma', 'Firma del técnico', 'Sale en certificados y en la memoria.'), imagen('sello', 'Sello', 'Puedes crearlo aquí con aspecto de sello de caucho usado.')))),
     ...SECCIONES.map(([sec, titulo, lista], i) => h('details', { class: 'card', open: i === 0 || null }, h('summary', {}, titulo), h('div', { class: 'cuerpo' }, campos(sec, lista)))),
     h('div', { class: 'barra-guardar' }, h('button', { class: 'btn prim ancho', type: 'submit', id: 'guardar-empresa' }, 'Guardar datos de empresa')));
 
