@@ -42,7 +42,7 @@ try {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } });
     const page = await ctx.newPage();
     page.setDefaultTimeout(15000);
-    page.on('pageerror', (e) => errores.push(nombre + ': ' + e.message));
+    page.on('pageerror', (e) => { if (errores.length < 50) errores.push(nombre + ': ' + e.message); });
     page.on('dialog', (d) => d.accept());
     await page.goto(`http://localhost:${pWeb}/index.html#/ajustes`);
     await page.waitForSelector('#sync-url');
@@ -61,7 +61,7 @@ try {
   const t0 = Date.now();
   const id = await movil.evaluate(async () => (await window.soltec.storage.save('aviso', { numero: '2026-0101', cliente: { nombre: 'Luis Pardo' }, suministro: {}, docs: {} }, { event: { kind: 'creado' } })).id);
   await hasta(pc, async (aid) => !!(await window.soltec.storage.get(aid)), id);
-  await pc.waitForSelector('main :text("Luis Pardo")', { timeout: 5000 });
+  await hasta(pc, () => document.querySelector('main')?.textContent.includes('Luis Pardo'), undefined, 5000);
   const seg = Math.round((Date.now() - t0) / 1000);
   assert.ok(seg <= 35, `tardó ${seg} s`);
   ok(`Creado en el móvil, aparece en la lista del PC sin pulsar nada (${seg} s)`);
@@ -72,13 +72,13 @@ try {
   ok('Cambiado en el PC, llega al móvil solo');
 
   // 3. Mismo aviso abierto en los dos → aviso en pantalla
-  await movil.goto(`http://localhost:${pWeb}/index.html#/aviso/${id}`);
-  await movil.waitForSelector('h1:has-text("2026-0101")');
+  await movil.evaluate((aid) => { location.hash = '#/aviso/' + aid; }, id);
+  await hasta(movil, () => document.querySelector('h1')?.textContent.includes('2026-0101'), undefined, 15000);
   await movil.waitForTimeout(1500); // su latido anuncia qué tiene abierto
-  await pc.goto(`http://localhost:${pWeb}/index.html#/aviso/${id}`);
+  await pc.evaluate((aid) => { location.hash = '#/aviso/' + aid; }, id);
   await hasta(pc, () => document.getElementById('aviso-otro-dispositivo')?.textContent.includes('«MÓVIL»'));
   await hasta(movil, () => document.getElementById('aviso-otro-dispositivo')?.textContent.includes('«PC CASA»'));
-  await pc.goto(`http://localhost:${pWeb}/index.html#/agenda`);
+  await pc.evaluate(() => { location.hash = '#/agenda'; });
   await hasta(pc, () => document.querySelector('h1')?.textContent === 'Agenda', undefined, 10000);
   assert.equal(await pc.$('#aviso-otro-dispositivo'), null);
   ok('Mismo aviso abierto en los dos: los dos lo avisan; al salir desaparece');

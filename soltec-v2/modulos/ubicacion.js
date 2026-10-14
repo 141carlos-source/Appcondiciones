@@ -271,7 +271,7 @@ export async function reducirImagen(file, max = 1600, calidad = 0.82) {
   } catch { return file; } // formato que el navegador no sabe leer: se guarda tal cual
 }
 
-export function bloqueFotos(app, draft, alCambiar, { cgp = true } = {}) {
+export function bloqueFotos(app, draft, alCambiar, { cgp = true, max = Infinity, id = 'fotos-galeria' } = {}) {
   const lista = h('div', { class: 'fotos' });
   const pintar = async () => {
     const items = await Promise.all(draft.fotos.map(async (f, i) => {
@@ -282,9 +282,13 @@ export function bloqueFotos(app, draft, alCambiar, { cgp = true } = {}) {
         cgp ? h('label', { class: 'check-linea' }, h('input', { type: 'radio', name: 'foto-cgp', checked: f.cgp || null, onchange: () => { draft.fotos.forEach((x) => { x.cgp = x === f; }); alCambiar(); pintar(); } }), ' Ubicación CGP') : null,
         h('button', { class: 'btn peq', type: 'button', onclick: () => { draft.fotos.splice(i, 1); alCambiar(); pintar(); } }, 'Quitar'));
     }));
-    lista.replaceChildren(...(items.length ? items : [h('p', { class: 'muted' }, 'Sin fotografías.')]));
+    lista.replaceChildren(...(items.length ? items : [h('p', { class: 'muted' }, 'Sin fotografías.')]),
+      ...(max !== Infinity ? [h('p', { class: 'muted' }, `${items.length} de ${max} fotografías.`)] : []));
   };
   const anadir = async (files) => {
+    const sitio = max - draft.fotos.length;
+    if (sitio <= 0) { toast(`Como máximo ${max} fotografías`, true); return; }
+    if (files.length > sitio) { toast(`Solo caben ${sitio} más (máximo ${max})`, true); files = files.slice(0, sitio); }
     for (const f of files) {
       const blob = await reducirImagen(f);
       const ficha = await app.storage.putFile({ name: f.name.replace(/\.[^.]+$/, '') + '.jpg', mime: blob.type || f.type, bytes: new Uint8Array(await blob.arrayBuffer()) });
@@ -293,7 +297,7 @@ export function bloqueFotos(app, draft, alCambiar, { cgp = true } = {}) {
     alCambiar(); pintar();
     toast(`${files.length} foto(s) añadida(s). Pulsa Guardar.`);
   };
-  const galeria = h('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none', id: 'fotos-galeria', onchange: (e) => { const f = [...e.target.files]; e.target.value = ''; if (f.length) anadir(f); } });
+  const galeria = h('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none', id, onchange: (e) => { const f = [...e.target.files]; e.target.value = ''; if (f.length) anadir(f); } });
   const camara = h('input', { type: 'file', accept: 'image/*', capture: 'environment', style: 'display:none', onchange: (e) => { const f = [...e.target.files]; e.target.value = ''; if (f.length) anadir(f); } });
   pintar();
   return h('div', {},

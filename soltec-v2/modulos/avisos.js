@@ -13,6 +13,7 @@ import { bloqueSeguimiento } from './agenda.js';
 import { bloqueComunicaciones, listaArchivos } from './comunicaciones.js';
 import { bloqueMemoria } from './memoria.js';
 import { bloqueUbicacion, bloquePlano, bloqueFotos } from './ubicacion.js';
+import { bloqueCertificados } from './certificados.js';
 import { bloquePartes } from './partes.js';
 
 const faseLabel = (id) => FASES_TRAMITE.find((f) => f.id === id)?.label || '';
@@ -317,6 +318,11 @@ export async function vistaFicha(app, id) {
   const partes = registro ? await bloquePartes(app, registro.id) : null;
   const titulo = registro ? `Aviso ${draft.numero}` : id === 'duplicar' ? 'Nuevo aviso (copia)' : 'Nuevo aviso';
   const planoEl = bloquePlano(app, draft, alCambiar);
+  const certificados = await bloqueCertificados(app, draft, alCambiar, planoEl, async (ficha) => {
+    draft.archivos = (draft.archivos || []).filter((x) => x.tipo !== ficha.tipo); // la copia nueva sustituye a la anterior
+    draft.archivos.push(ficha);
+    await guardar();
+  });
   const cont = h('form', { class: 'ficha', onsubmit: (e) => { e.preventDefault(); guardar(); } },
     h('div', { class: 'titulo-fila' },
       h('div', {}, h('h1', {}, titulo), registro && isExpediente(draft) ? h('span', { class: 'insignia ok' }, 'Expediente') : null, draft.v1?.id ? h('span', { class: 'insignia', style: 'margin-left:6px' }, `V1.35 nº ${draft.v1.id}`) : null),
@@ -338,6 +344,7 @@ export async function vistaFicha(app, id) {
       if (!draft.archivos.some((x) => x.hash === ficha.hash)) draft.archivos.push(ficha);
       await guardar();
     })),
+    seccion('Certificados', false, certificados),
     seccion('Obra, fecha y observaciones', false, h('div', { class: 'grid2' }, ...CAMPOS_OBRA.map(campo),
       campo(['presupuesto.numero', 'Nº de presupuesto (si corresponde)', 'text']))),
     registro ? seccion('Seguimiento', false, seguimiento) : null,
