@@ -1,6 +1,6 @@
 // SOLTEC V2 · Cuadros eléctricos dentro del aviso.
 // CuadroLab (assets/cuadrolab.html) se abre a pantalla completa dentro de la app y se comunica por mensajes:
-// no guarda nada por su cuenta. El proyecto vuelve a la ficha del aviso (draft.cuadro) y se guarda con «Guardar».
+// no guarda nada por su cuenta. El proyecto vuelve a la ficha del aviso (draft.cuadro) y, si cambió, el aviso se guarda solo al volver.
 
 import { h, toast, hace } from '../ui.js';
 import { normalizarCuadro, resumenCuadro, textoResumen, esProyecto } from '../core/cuadros.js';
@@ -24,8 +24,8 @@ async function datosParaCuadro(app, draft) {
   };
 }
 
-/** Bloque de la ficha. Modifica draft.cuadro y avisa con alCambiar(). */
-export function bloqueCuadros(app, draft, alCambiar) {
+/** Bloque de la ficha. Modifica draft.cuadro y avisa con alCambiar(); al volver con cambios llama a alVolver() (guarda el aviso). */
+export function bloqueCuadros(app, draft, alCambiar, alVolver) {
   draft.cuadro = normalizarCuadro(draft.cuadro);
   const caja = h('div', { id: 'bloque-cuadros' });
 
@@ -38,7 +38,7 @@ export function bloqueCuadros(app, draft, alCambiar) {
       h('div', { class: 'fila' },
         h('button', { class: 'btn prim', type: 'button', id: 'abrir-cuadro', onclick: abrir }, r.hay ? 'Abrir cuadro eléctrico' : 'Diseñar cuadro eléctrico'),
         r.hay ? h('button', { class: 'btn', type: 'button', id: 'quitar-cuadro', onclick: quitar }, 'Quitar cuadro') : null),
-      h('p', { class: 'muted' }, 'El cuadro se guarda dentro del aviso al pulsar «Guardar». Unifilar, etiquetas, pedido y memoria se imprimen desde el propio diseñador.'));
+      h('p', { class: 'muted' }, 'El cuadro se guarda solo dentro del aviso al volver del diseñador. Unifilar, etiquetas, pedido y memoria se imprimen desde el propio diseñador.'));
   };
 
   const quitar = () => {
@@ -51,11 +51,15 @@ export function bloqueCuadros(app, draft, alCambiar) {
     let datos;
     try { datos = await datosParaCuadro(app, draft); } catch (err) { toast('No se pudieron leer los datos de empresa: ' + err.message, true); return; }
     const iframe = h('iframe', { src: RUTA_CUADRO + '#host', title: 'Cuadro eléctrico', id: 'iframe-cuadro' });
-    const cerrar = () => {
+    let tocado = false;
+    const cerrar = async () => {
       window.removeEventListener('message', alMensaje);
       capa.remove();
       document.body.classList.remove('con-capa');
       pintar();
+      if (tocado && alVolver) {
+        try { await alVolver(); } catch (err) { toast('No se pudo guardar el aviso: ' + err.message, true); }
+      }
     };
     const capa = h('div', { class: 'capa-cuadro', role: 'dialog', 'aria-label': 'Cuadro eléctrico' },
       h('div', { class: 'barra-cuadro' },
@@ -69,6 +73,7 @@ export function bloqueCuadros(app, draft, alCambiar) {
         iframe.contentWindow.postMessage({ tipo: 'cl-cargar', proyecto: draft.cuadro.proyecto, ...datos }, location.origin);
       } else if (m.tipo === 'cl-cambio' && esProyecto(m.proyecto)) {
         draft.cuadro = { v: 1, proyecto: m.proyecto, actualizado: new Date().toISOString() };
+        tocado = true;
         alCambiar();
       } else if (m.tipo === 'cl-volver') cerrar();
     }

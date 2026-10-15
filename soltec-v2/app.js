@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.9.3';
+export const VERSION = 'V2-1.9.4';
 
 import { h, toast, hace, descargar, activarMayusculas } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -478,7 +478,8 @@ function carcasa() {
   document.body.replaceChildren(
     h('header', { class: 'top' },
       h('div', { class: 'marca' }, h('div', {}, h('b', {}, 'SOLTEC'), h('small', {}, 'Avisos y expedientes'))),
-      h('button', { class: 'estado', onclick: () => sincronizar() })),
+      h('button', { class: 'estado', onclick: () => sincronizar() }),
+      h('span', { class: 'version-app', id: 'version-app', title: 'Versión de la aplicación' }, VERSION.replace(/^V2-/, 'V2 · '))),
     h('div', { id: 'banda-sync', 'aria-live': 'polite' }),
     h('main', { id: 'contenido' }),
     nav);

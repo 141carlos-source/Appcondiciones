@@ -47,7 +47,7 @@ img { display: block; }
   display: flex; align-items: center; gap: 10px; padding: 10px 16px;
   padding-top: calc(10px + env(safe-area-inset-top));
 }
-.marca { display: flex; align-items: center; gap: 9px; }
+.marca { flex: none; display: flex; align-items: center; gap: 9px; }
 .marca::before { content: ''; width: 5px; height: 30px; border-radius: 3px; background: var(--rojo); }
 .marca b { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; font-stretch: 112%; }
 .marca small { display: block; font-size: 11px; font-weight: 600; color: var(--acero); margin-top: 2px; letter-spacing: 0; }
@@ -55,8 +55,9 @@ img { display: block; }
   margin-left: auto; display: inline-flex; align-items: center; gap: 7px;
   font-size: 12.5px; font-weight: 600; color: var(--acero);
   background: var(--suave); border: 1px solid var(--linea); border-radius: var(--r-pill);
-  padding: 6px 11px; cursor: pointer; max-width: 58vw;
+  padding: 6px 11px; cursor: pointer; max-width: 58vw; min-width: 0; flex: 0 1 auto;
 }
+.version-app { flex: none; margin-left: -2px; font-size: 10.5px; font-weight: 700; color: var(--acero); letter-spacing: .02em; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .estado > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--niebla); flex: none; }
 .punto.ok { background: #22a35a; box-shadow: 0 0 0 3px rgba(34, 163, 90, .18); }
@@ -353,3 +354,5 @@ body.con-capa { overflow: hidden; }
 .barra-cuadro { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; background: var(--grafito); color: #fff; }
 .barra-cuadro .btn { background: var(--papel); }
 .capa-cuadro iframe { flex: 1 1 auto; width: 100%; border: 0; background: #f4f5f6; }
+
+@media (max-width: 400px) { .top { gap: 8px; padding-left: 12px; padding-right: 12px; } .version-app { font-size: 10px; } }

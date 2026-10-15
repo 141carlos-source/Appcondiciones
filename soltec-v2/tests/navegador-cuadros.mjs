@@ -54,22 +54,47 @@ try {
 
   await f.getByText('ACEPTAR Y VOLVER').click();
   await page.waitForSelector('.capa-cuadro', { state: 'detached' });
-  assert.match(await page.textContent('#cuadro-resumen'), /1 cuadro · 2 circuitos/);
-  ok('Aceptar y volver cierra el diseñador y la ficha muestra el resumen');
+  ok('Aceptar y volver cierra el diseñador');
 
-  await page.click('#guardar');
+  // Al volver con cambios el aviso se guarda solo, sin pulsar «Guardar»
   await page.waitForSelector('h1:has-text("Aviso 2026-0001")');
-  ok('El aviso se guarda con su cuadro');
+  const guardado = await page.evaluate(async () => (await window.soltec.storage.list('aviso')).find((r) => r.data.numero === '2026-0001'));
+  assert.ok(guardado?.data.cuadro?.proyecto, 'el cuadro está guardado en el aviso');
+  await abrirSeccion('Cuadros eléctricos');
+  assert.match(await page.textContent('#cuadro-resumen'), /1 cuadro · 2 circuitos/);
+  ok('Al volver del cuadro el aviso se guarda solo, con su cuadro (sin pulsar «Guardar»)');
+
+  // Aviso ya existente: añadir un circuito y volver → guardado sin preguntar nada
+  await page.click('#abrir-cuadro');
+  const e1 = page.frameLocator('#iframe-cuadro');
+  await e1.locator('.dv').first().waitFor({ timeout: 20000 });
+  await e1.locator('[data-new="PIA:1"]').click();
+  await e1.getByText('ACEPTAR Y VOLVER').click();
+  await page.waitForSelector('.capa-cuadro', { state: 'detached' });
+  await page.waitForFunction(async () => {
+    const r = (await window.soltec.storage.list('aviso')).find((x) => x.data.numero === '2026-0001');
+    return (r?.data.cuadro?.proyecto?.cs?.[0]?.dv || r?.data.cuadro?.proyecto?.dv || []).filter((d) => d.t === 'PIA').length === 3;
+  }, undefined, { polling: 300, timeout: 10000 }).catch(() => {});
+  const n3 = await page.evaluate(async () => {
+    const r = (await window.soltec.storage.list('aviso')).find((x) => x.data.numero === '2026-0001');
+    const p = r.data.cuadro.proyecto; return (p.cs?.find((q) => q.dv?.length)?.dv || p.dv || []).filter((d) => d.t === 'PIA').length;
+  });
+  assert.equal(n3, 3);
+  assert.match(await page.textContent('#cuadro-resumen'), /3 circuitos/);
+  ok('En un aviso ya guardado, el cambio del cuadro se guarda solo al volver');
+
+  assert.match(await page.textContent('#version-app'), /V2 · \d+\.\d+\.\d+/);
+  ok('La versión se ve arriba a la derecha');
 
   // --- reabrir desde cero: el cuadro viene de la base de datos del aviso
   await page.reload();
   await page.waitForSelector('#f-cliente-nombre', { state: 'attached' }); // la sección de cliente está plegada
   await abrirSeccion('Cuadros eléctricos');
-  assert.match(await page.textContent('#cuadro-resumen'), /1 cuadro · 2 circuitos/);
+  assert.match(await page.textContent('#cuadro-resumen'), /1 cuadro · 3 circuitos/);
   await page.click('#abrir-cuadro');
   const g = page.frameLocator('#iframe-cuadro');
   await g.locator('.dv').first().waitFor({ timeout: 20000 });
-  assert.equal(await g.locator('.dv').count(), 3);
+  assert.equal(await g.locator('.dv').count(), 4);
   assert.match(await g.locator('#hd').textContent(), /CLÍNICA DE TERUEL · CALLE MAYOR/); // nombre y dirección que se pasaron del aviso
   ok('Al reabrir el aviso, el cuadro se recupera tal como se dejó, con el nombre y la dirección del aviso');
 
@@ -86,7 +111,7 @@ try {
   await page.click('#abrir-cuadro');
   const off = page.frameLocator('#iframe-cuadro');
   await off.locator('.dv').first().waitFor({ timeout: 20000 });
-  assert.equal(await off.locator('.dv').count(), 3);
+  assert.equal(await off.locator('.dv').count(), 4);
   ok('Sin conexión y con la app instalada, el diseñador se abre igual (queda en el caché del service worker)');
   await ctx.setOffline(false);
   const g2 = page.frameLocator('#iframe-cuadro');

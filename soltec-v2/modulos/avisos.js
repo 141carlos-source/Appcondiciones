@@ -346,7 +346,7 @@ export async function vistaFicha(app, id) {
       if (!draft.archivos.some((x) => x.hash === ficha.hash)) draft.archivos.push(ficha);
       await guardar();
     })),
-    seccion('Cuadros eléctricos', false, bloqueCuadros(app, draft, alCambiar)),
+    seccion('Cuadros eléctricos', false, bloqueCuadros(app, draft, alCambiar, () => guardar())),
     seccion('Certificados', false, certificados),
     seccion('Obra, fecha y observaciones', false, h('div', { class: 'grid2' }, ...CAMPOS_OBRA.map(campo),
       campo(['presupuesto.numero', 'Nº de presupuesto (si corresponde)', 'text']))),
