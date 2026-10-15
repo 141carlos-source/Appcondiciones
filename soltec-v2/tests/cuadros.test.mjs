@@ -40,3 +40,16 @@ test('el aviso conserva el cuadro al normalizarse (no se pierde al guardar)', ()
   assert.equal(a.cuadro.proyecto, proyecto);
   assert.equal(normalizarAviso({}).cuadro, undefined); // los avisos antiguos no se tocan
 });
+
+test('el P.I.A. de cabecera de un diferencial no cuenta como circuito ni suma potencia', () => {
+  const dv = [
+    { id: 'd1', t: 'IGA', m: 2, in: 63 },
+    { id: 'd2', t: 'PIA', m: 2, in: 40, pw: 9200 },
+    { id: 'd3', t: 'ID', m: 2, in: 40, pp: 'd2' },
+    { id: 'd4', t: 'PIA', m: 2, in: 16, pw: 3680, dep: 'd3' },
+    { id: 'd5', t: 'PIA', m: 2, in: 10, pw: 2300, dep: 'd3' },
+  ];
+  const r = resumenCuadro({ proyecto: { dv, w: 12, r: 2 } });
+  assert.equal(r.circuitos, 2);
+  assert.equal(r.potenciaW, 5980);
+});

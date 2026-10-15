@@ -34,8 +34,10 @@ export function resumenCuadro(cuadro) {
   const c = normalizarCuadro(cuadro);
   const qs = cuadrosDe(c.proyecto);
   const aparatos = qs.reduce((n, q) => n + q.dv.length, 0);
-  const circuitos = qs.reduce((n, q) => n + q.dv.filter((d) => d.t === 'PIA').length, 0);
-  const potenciaW = qs.reduce((n, q) => n + q.dv.filter((d) => d.t === 'PIA').reduce((s, d) => s + (Number(d.pw) || 0), 0), 0);
+  // El P.I.A. de cabecera de un diferencial (ID.pp) no es un circuito: no cuenta ni suma potencia
+  const circuitosDe = (q) => { const cab = new Set(q.dv.filter((d) => d.t === 'ID' && d.pp).map((d) => d.pp)); return q.dv.filter((d) => d.t === 'PIA' && !cab.has(d.id)); };
+  const circuitos = qs.reduce((n, q) => n + circuitosDe(q).length, 0);
+  const potenciaW = qs.reduce((n, q) => n + circuitosDe(q).reduce((s, d) => s + (Number(d.pw) || 0), 0), 0);
   return { hay: aparatos > 0, cuadros: qs.length, nombres: qs.map((q) => q.c).filter(Boolean), aparatos, circuitos, potenciaW, actualizado: c.actualizado };
 }
 

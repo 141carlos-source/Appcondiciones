@@ -71,6 +71,34 @@ try {
   await f.locator(`.dv[data-id="${idNuevo}"]`).click();
   assert.ok(await f.locator('#sel-cab').inputValue());
   ok('«+ Añadir P.I.A. de cabecera» en el diferencial lo crea y lo deja puesto delante');
+
+  // Caso real: IGA + ID con 3 circuitos colgando; la cabecera se mete entre el IGA y el ID
+  // (los demás se corren), no se numera como circuito y no suma potencia.
+  await f.locator('button', { hasText: /^NUEVO$/ }).click();
+  if (await f.locator('#dk').count()) await f.locator('#dk').click();
+  await f.locator('[data-new="IGA:2"]').click();
+  await f.locator('[data-new="ID:2"]').click();
+  const idR = await f.locator('.dv.on').getAttribute('data-id');
+  const cir = [];
+  for (let i = 0; i < 3; i++) { await f.locator('[data-new="PIA:2"]').click(); cir.push(await f.locator('.dv.on').getAttribute('data-id')); }
+  for (const c of cir) { await f.locator(`.dv[data-id="${c}"]`).click(); await sel('DEPENDE DE').selectOption(idR); }
+  await f.locator(`.dv[data-id="${idR}"]`).click();
+  await f.locator('#nuevo-cab').click();
+  const cabR = await f.locator('.dv.on').getAttribute('data-id');
+  const pos = Object.fromEntries(await f.locator('.dv').evaluateAll((a) => a.map((d) => [d.dataset.id, parseInt(d.style.left, 10)])));
+  assert.ok(pos[cabR] < pos[idR], 'la cabecera queda a la izquierda del diferencial');
+  assert.ok(Object.values(pos).filter((x) => x > pos[cabR] && x < pos[idR]).length === 0, 'pegada al diferencial');
+  const txt = await f.locator(`.dv[data-id="${cabR}"]`).innerText();
+  assert.match(txt, /CAB\. ID 1/);
+  assert.doesNotMatch(txt, /KW/);
+  assert.ok(!/(^|\s)C\d{1,2}(\s|$)/.test(txt.replace(/C\d+\n400V/, '')), 'sin número de circuito');
+  assert.match(await f.locator(`.dv[data-id="${cir[0]}"]`).innerText(), /\bC1\b/);
+  await f.locator('nav button', { hasText: 'MEMORIA' }).click();
+  const memo = await f.locator('#t5').innerText();
+  assert.match(memo, /3 CIRCUITOS \+ 1 P\.I\.A\. DE CABECERA/);
+  assert.match(memo, /POTENCIA TOTAL PREVISTA\s+11040 W/);
+  await f.locator('nav button').first().click();
+  ok('Cabecera real: va pegada delante del ID, no se numera como circuito y no suma potencia');
   if (process.env.CAPTURA) {
     await f.locator('nav button', { hasText: 'UNIFILAR' }).click();
     await f.locator('#t1 svg').first().screenshot({ path: '/tmp/claude-0/unifilar.png' });
