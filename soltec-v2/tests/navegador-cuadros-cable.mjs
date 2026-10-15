@@ -59,6 +59,18 @@ try {
   const svg = await f.locator('#t1').innerHTML();
   assert.ok(svg.includes('P.I.A. 2x16A C'), 'el unifilar dibuja el PIA de cabecera');
   ok('Se puede poner un P.I.A. que protege al diferencial y sale en el unifilar');
+
+  // Botón para añadir directamente el P.I.A. de cabecera de un diferencial nuevo
+  await f.locator('[data-new="ID:4"]').click();
+  const idNuevo = await f.locator('.dv.on').getAttribute('data-id');
+  if (process.env.CAPTURA) await f.locator('#ed').screenshot({ path: '/tmp/claude-0/editor-id.png' });
+  const n0 = await f.locator('.dv').count();
+  await f.locator('#nuevo-cab').click();
+  assert.equal(await f.locator('.dv').count(), n0 + 1);
+  assert.match(await f.locator('#ed').textContent(), /CABECERA DEL ID 2/);
+  await f.locator(`.dv[data-id="${idNuevo}"]`).click();
+  assert.ok(await f.locator('#sel-cab').inputValue());
+  ok('«+ Añadir P.I.A. de cabecera» en el diferencial lo crea y lo deja puesto delante');
   if (process.env.CAPTURA) {
     await f.locator('nav button', { hasText: 'UNIFILAR' }).click();
     await f.locator('#t1 svg').first().screenshot({ path: '/tmp/claude-0/unifilar.png' });
