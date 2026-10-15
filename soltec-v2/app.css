@@ -346,3 +346,10 @@ nav.inferior .salir::before { content: ''; position: absolute; left: 0; top: 14p
 .pagina-cliente .check-linea { margin: 12px 0; align-items: flex-start; }
 
 .sello-muestra { background: #fff; padding: 10px; min-height: 160px; }
+
+/* ---------------------------------------------------------------- cuadro eléctrico (CuadroLab a pantalla completa) */
+body.con-capa { overflow: hidden; }
+.capa-cuadro { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; background: var(--papel); }
+.barra-cuadro { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; background: var(--grafito); color: #fff; }
+.barra-cuadro .btn { background: var(--papel); }
+.capa-cuadro iframe { flex: 1 1 auto; width: 100%; border: 0; background: #f4f5f6; }

@@ -19,7 +19,7 @@ Reconstrucción de SOLTEC desde cero en `soltec-v2/`. La V1.35 (`avisos-v134/`) 
 | 3 | Servidor del PC (SQLite, puerto 8766, HTTPS 8443) | `servidor-pc/server.py` | Hecha |
 | 4 | Sincronización | `core/sync.js` | Hecha (probada contra el servidor real) |
 | 5 | Carcasa PWA (navegación, salida segura, actualización) | `index.html`, `sw.js`, `app.js` | Hecha (probada en Chromium móvil) |
-| 6 | Módulos de pantalla | `modulos/*.js` | Hecha: avisos, expedientes, buscador, bandeja, agenda, empresa, ficha PDF con firma, WhatsApp y correos, memoria CNMC, localización, plano, fotos y partes |
+| 6 | Módulos de pantalla | `modulos/*.js` | Hecha: avisos, expedientes, buscador, bandeja, agenda, empresa, ficha PDF con firma, WhatsApp y correos, memoria CNMC, localización, plano, fotos, partes y cuadros eléctricos |
 
 ## Modelo de datos
 
@@ -41,6 +41,8 @@ Una única tabla `records`. Cada registro:
 - **Seguimientos y citas** son lo mismo (`cita`), por lo que la Agenda y la bandeja «Qué toca hoy» leen de un único sitio.
 - **Estado del trámite** y **estado general** son campos separados del aviso.
 - **Historial**: cada cambio relevante crea un `evento` en la misma transacción que el cambio.
+
+**Cuadros eléctricos.** El diseñador es CuadroLab (`assets/cuadrolab.html`, un único archivo que también funciona suelto). Dentro de la V2 se abre a pantalla completa en un `iframe` (`modulos/cuadros.js`) y solo habla con la ficha por mensajes (`cl-listo`, `cl-cargar`, `cl-cambio`, `cl-volver`, mismo origen). No guarda nada por su cuenta: el proyecto completo vive en `aviso.cuadro = { v, proyecto, actualizado }` y se guarda, sincroniza y copia con el aviso. El nombre, datos y logo de empresa se toman de Ajustes › Empresa. Funciones puras en `core/cuadros.js`.
 
 Otras tablas:
 

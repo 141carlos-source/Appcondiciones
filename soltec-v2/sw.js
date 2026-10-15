@@ -2,11 +2,11 @@
 // Solo guarda los archivos de la aplicación. Los datos viven en IndexedDB y nunca se tocan aquí.
 // Una versión nueva se instala en segundo plano y espera a que pulses «Actualizar».
 
-const VERSION = 'V2-1.8.0';
+const VERSION = 'V2-1.9.0';
 const CACHE = 'SOLTEC-V2-' + VERSION;
 const SHELL = [
   './', './index.html', './app.css', './app.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',
-  './core/db.js', './core/storage.js', './core/model.js', './core/validate.js', './core/search.js', './core/backup.js', './core/sync.js', './ui.js', './modulos/avisos.js', './modulos/agenda.js', './modulos/empresa.js', './modulos/comunicaciones.js', './core/empresa.js', './core/documentos.js', './core/memoria.js', './modulos/memoria.js', './core/geo.js', './modulos/ubicacion.js', './core/partes.js', './modulos/partes.js', './core/importarV1.js', './core/calendario.js', './core/plano.js', './core/fichaCliente.js', './core/certificados.js', './core/tinta.js', './modulos/certificados.js', './cliente.html', './cliente.js', './modulos/importar.js', './vendor/pdf-lib.min.js', './vendor/fonts/archivo.woff2', './assets/logo_e-distribucion.jpg',
+  './core/db.js', './core/storage.js', './core/model.js', './core/validate.js', './core/search.js', './core/backup.js', './core/sync.js', './ui.js', './modulos/avisos.js', './modulos/agenda.js', './modulos/empresa.js', './modulos/comunicaciones.js', './core/empresa.js', './core/documentos.js', './core/memoria.js', './modulos/memoria.js', './core/geo.js', './modulos/ubicacion.js', './core/partes.js', './modulos/partes.js', './core/importarV1.js', './core/calendario.js', './core/plano.js', './core/fichaCliente.js', './core/certificados.js', './core/tinta.js', './modulos/certificados.js', './cliente.html', './cliente.js', './modulos/importar.js', './core/cuadros.js', './modulos/cuadros.js', './assets/cuadrolab.html', './vendor/pdf-lib.min.js', './vendor/fonts/archivo.woff2', './assets/logo_e-distribucion.jpg',
 ];
 
 self.addEventListener('install', (e) => {
@@ -43,6 +43,8 @@ self.addEventListener('fetch', (e) => {
   if (req.mode === 'navigate') {
     // El formulario del cliente es otra página: no se sustituye por la app
     if (url.pathname.endsWith('/cliente.html')) { e.respondWith(fetch(req).catch(() => caches.match('./cliente.html'))); return; }
+    // CuadroLab va dentro de un iframe (también es una «navegación»): es otra página, no la app
+    if (url.pathname.endsWith('/assets/cuadrolab.html')) { e.respondWith(caches.match('./assets/cuadrolab.html').then((r) => r || fetch(req))); return; }
     e.respondWith(caches.match('./index.html').then((r) => r || fetch(req)));
     return;
   }

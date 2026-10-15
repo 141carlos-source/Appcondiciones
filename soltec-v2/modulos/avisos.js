@@ -14,6 +14,7 @@ import { bloqueComunicaciones, listaArchivos } from './comunicaciones.js';
 import { bloqueMemoria } from './memoria.js';
 import { bloqueUbicacion, bloquePlano, bloqueFotos } from './ubicacion.js';
 import { bloqueCertificados } from './certificados.js';
+import { bloqueCuadros } from './cuadros.js';
 import { bloquePartes } from './partes.js';
 
 const faseLabel = (id) => FASES_TRAMITE.find((f) => f.id === id)?.label || '';
@@ -304,6 +305,7 @@ export async function vistaFicha(app, id) {
       }
       if (original.docs?.firmado !== 'recibido' && draft.docs?.firmado === 'recibido') eventos.push({ kind: 'firma_recibida', text: 'PDF firmado del cliente recibido' });
     }
+    if (!nuevoReg && (original.cuadro?.actualizado || '') !== (draft.cuadro?.actualizado || '')) eventos.push({ kind: 'actualizado', text: draft.cuadro?.proyecto ? 'Cuadro eléctrico actualizado' : 'Cuadro eléctrico quitado' });
     for (const p of pdfsNuevos) eventos.push({ kind: 'condiciones_pdf', text: p.name });
     const r = await app.storage.save('aviso', draft, { id: registro?.id, event: nuevoReg ? { kind: 'creado', text: `Aviso ${draft.numero} creado` } : eventos.length ? null : { kind: 'actualizado', text: 'Datos actualizados' } });
     for (const ev of eventos) await app.storage.addEvent(r.id, ev.kind, ev.text);
@@ -344,6 +346,7 @@ export async function vistaFicha(app, id) {
       if (!draft.archivos.some((x) => x.hash === ficha.hash)) draft.archivos.push(ficha);
       await guardar();
     })),
+    seccion('Cuadros eléctricos', false, bloqueCuadros(app, draft, alCambiar)),
     seccion('Certificados', false, certificados),
     seccion('Obra, fecha y observaciones', false, h('div', { class: 'grid2' }, ...CAMPOS_OBRA.map(campo),
       campo(['presupuesto.numero', 'Nº de presupuesto (si corresponde)', 'text']))),
