@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.10.0';
+export const VERSION = 'V2-1.10.1';
 
 import { h, toast, hace, descargar, activarMayusculas } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -196,6 +196,39 @@ function programarSync(ms) {
 }
 
 // ---------------------------------------------------------------- vistas
+// ---------------------------------------------------------------- icono en la pantalla de inicio (tablet / móvil)
+let promptInstalar = null;
+const appInstalada = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const esIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  promptInstalar = e;
+  if (['inicio', 'ajustes'].includes(rutaActual())) render();
+});
+window.addEventListener('appinstalled', () => { promptInstalar = null; toast('Icono de SOLTEC añadido a la pantalla de inicio'); });
+
+/** Botón o instrucciones para dejar el icono de la app en la pantalla de inicio. */
+function bloqueInstalar({ cerrable = false } = {}) {
+  if (appInstalada()) return cerrable ? null : h('p', { class: 'muted', id: 'instalar-ok' }, 'Ya estás usando la app instalada (con su icono).');
+  try { if (cerrable && localStorage.getItem('soltec_instalar_oculto')) return null; } catch { /* sin almacenamiento */ }
+  const pasos = esIOS()
+    ? 'En el iPad o iPhone: abre esta página en Safari, pulsa el botón Compartir (el cuadrado con la flecha hacia arriba) y elige «Añadir a pantalla de inicio».'
+    : 'En la tablet Android: en Chrome pulsa el menú ⋮ (arriba a la derecha) y elige «Instalar aplicación» o «Añadir a pantalla de inicio».';
+  const caja = h('div', { class: 'card', id: 'bloque-instalar' },
+    h('b', {}, 'Icono de SOLTEC en la pantalla de inicio'),
+    h('p', { class: 'muted' }, promptInstalar ? 'Pulsa el botón y tendrás el icono en la tablet o el móvil: se abre a pantalla completa, como una app, y funciona sin internet.' : pasos),
+    h('div', { class: 'fila' },
+      promptInstalar ? h('button', { class: 'btn prim', type: 'button', id: 'instalar-app', onclick: async () => {
+        const p = promptInstalar; promptInstalar = null;
+        p.prompt();
+        const r = await p.userChoice.catch(() => null);
+        if (r?.outcome !== 'accepted') promptInstalar = null;
+        render();
+      } }, 'Añadir icono a la pantalla de inicio') : null,
+      cerrable ? h('button', { class: 'btn', type: 'button', onclick: () => { try { localStorage.setItem('soltec_instalar_oculto', '1'); } catch { /* nada */ } caja.remove(); } }, 'Ahora no') : null));
+  return caja;
+}
+
 async function vistaInicio() {
   const avisos = await app.storage.list('aviso');
   const citas = await app.storage.list('cita');
@@ -264,6 +297,7 @@ async function vistaInicio() {
       h('p', { class: 'hoy-dia' }, diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1)),
       h('h1', {}, ahora.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })),
       h('p', { class: 'hoy-resumen' }, ...resumen)),
+    bloqueInstalar({ cerrable: true }),
     !avisos.length && hayV1Local() ? h('a', { class: 'card enlace-card', href: '#/importar' }, h('b', {}, 'Hay datos de la V1.35 en este navegador'), h('span', { class: 'muted' }, 'Tráelos a la V2 sin tocar la V1.35 ›')) : null,
     busca, resultados,
     avisoRepetidos,
@@ -393,6 +427,7 @@ async function vistaAjustes() {
       h('summary', {}, 'Acerca de'),
       h('div', { class: 'cuerpo' },
         h('p', {}, `SOLTEC ${VERSION}`),
+        bloqueInstalar(),
         h('p', { class: 'muted mono' }, `Dispositivo ${app.storage.deviceId}`),
         h('button', { class: 'btn', onclick: () => buscarActualizacion(true) }, 'Buscar actualización'))));
 }
