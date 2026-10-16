@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.10.1';
+export const VERSION = 'V2-1.11.0';
 
 import { h, toast, hace, descargar, activarMayusculas } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -17,6 +17,8 @@ import { vistaPartes, vistaParte } from './modulos/partes.js';
 import { vistaImportar, hayV1Local } from './modulos/importar.js';
 import { bandeja, buscar, FILTROS_BANDEJA } from './core/search.js';
 import { direccionCompleta, hoyLocal, numerosRepetidos, siguienteNumero } from './core/model.js';
+import { codigoAlta, enlaceAlta, leerAlta, nombreSugerido, instaladorWindows, esDireccionLocal } from './core/alta.js';
+import { URL_PUBLICA } from './core/fichaCliente.js';
 
 const ICONOS = {
   inicio: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -44,6 +46,7 @@ const RUTAS = {
   importar: { titulo: 'Importar V1.35', vista: () => vistaImportar(app), nav: 'ajustes' },
   parte: { titulo: 'Parte', vista: (id) => vistaParte(app, id), nav: 'inicio' },
   ajustes: { titulo: 'Ajustes', vista: vistaAjustes },
+  alta: { titulo: 'Conectar este dispositivo', vista: (c) => vistaAlta(c), nav: 'ajustes' },
   salir: { titulo: 'Salir', vista: vistaSalir },
 };
 const partesRuta = () => location.hash.replace(/^#\/?/, '').split('?')[0].split('/');
@@ -323,6 +326,91 @@ function sessionStorageGet(k) { try { return sessionStorage.getItem('soltec_' + 
 function sessionStorageSet(k, v) { try { sessionStorage.setItem('soltec_' + k, v); } catch { /* sin almacenamiento de sesión */ } }
 
 
+// ---------------------------------------------------------------- alta de un dispositivo nuevo (enlace / QR del PC CASA)
+/** Pantalla que abre el enlace de alta: solo pregunta el nombre; dirección y clave vienen en el enlace. */
+async function vistaAlta(codigo) {
+  const datos = leerAlta(codigo);
+  // La clave no se queda en la barra de direcciones ni en el historial
+  try { history.replaceState(null, '', location.pathname + location.search + '#/alta'); } catch { /* sin historial */ }
+  if (!datos) {
+    return h('div', {}, h('h1', {}, 'Conectar este dispositivo'),
+      h('div', { class: 'aviso err' }, 'Este enlace no es válido o está incompleto. Pide uno nuevo en el PC CASA: Ajustes › Instalar en otro dispositivo.'),
+      h('a', { class: 'btn', href: '#/inicio' }, 'Ir al inicio'));
+  }
+  const cfg = await app.sync.config();
+  const nombre = h('input', { type: 'text', id: 'alta-nombre', value: cfg.nombre || nombreSugerido(navigator.userAgent, navigator.maxTouchPoints), autocomplete: 'off', required: true });
+  const msg = h('div', { id: 'alta-msg' });
+  const boton = h('button', { class: 'btn prim', type: 'submit', id: 'alta-conectar' }, 'Conectar');
+  const conectar = async (e) => {
+    e.preventDefault();
+    const n = nombre.value.trim().toLocaleUpperCase('es-ES');
+    if (!n) { nombre.focus(); return; }
+    boton.disabled = true;
+    msg.replaceChildren(h('div', { class: 'aviso' }, 'Conectando con el PC…'));
+    try {
+      await app.sync.guardarConfig({ url: datos.url, clave: datos.clave, nombre: n });
+      const r = await app.sync.probar();
+      if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
+      await refrescarEstado();
+      msg.replaceChildren(h('div', { class: 'aviso ok' }, `Conectado con ${datos.pc || 'el PC'} (${r.registros} registros). Bajando los datos…`));
+      await sincronizar({ silencioso: true });
+      toast(`«${n}» conectado con ${datos.pc || 'el PC'}`);
+      cont.replaceChildren(
+        h('h1', {}, 'Listo'),
+        h('div', { class: 'aviso ok', id: 'alta-ok' }, `Este dispositivo se llama «${n}» y ya trabaja con los mismos datos que ${datos.pc || 'el PC'}. Todo se sincroniza solo.`),
+        bloqueInstalar(),
+        h('a', { class: 'btn prim', href: '#/inicio' }, 'Empezar'));
+    } catch (err) {
+      boton.disabled = false;
+      msg.replaceChildren(h('div', { class: 'aviso err' }, err.message,
+        h('div', { class: 'muted' }, 'Comprueba que este dispositivo tiene Tailscale abierto con tu cuenta y que el PC está encendido. Luego pulsa otra vez «Conectar».')));
+    }
+  };
+  const cont = h('div', {},
+    h('h1', {}, 'Conectar este dispositivo'),
+    h('p', { class: 'muted' }, `Se conectará con ${datos.pc || 'el PC'} (${datos.url.replace(/^https?:\/\//, '')}). La dirección y la clave ya vienen en el enlace.`),
+    h('form', { class: 'card', onsubmit: conectar },
+      h('label', { for: 'alta-nombre' }, '¿Qué nombre le pongo a este dispositivo?'), nombre,
+      h('p', { class: 'muted' }, 'Por ejemplo: TABLET, MÓVIL, PC OFICINA. Sirve para saber desde dónde se ha hecho cada cambio.'),
+      h('div', { class: 'fila' }, boton), msg));
+  return cont;
+}
+
+/** Ajustes › Instalar en otro dispositivo: enlace, QR e instalador para otro PC, con la dirección y la clave dentro. */
+function bloqueOtroDispositivo(cfg) {
+  const cuerpo = h('div', { class: 'cuerpo', id: 'otro-dispositivo' });
+  const fDir = h('input', { type: 'url', id: 'alta-url', placeholder: 'https://carlos25.tail970b93.ts.net:8443', autocomplete: 'off', inputmode: 'url', value: esDireccionLocal(cfg.url) ? '' : cfg.url });
+  const salida = h('div');
+  const generar = async () => {
+    salida.replaceChildren();
+    let codigo;
+    try { codigo = codigoAlta({ url: fDir.value, clave: cfg.clave, pc: cfg.nombre }); } catch (e) { salida.replaceChildren(h('div', { class: 'aviso err' }, e.message)); return; }
+    const enlace = enlaceAlta(URL_PUBLICA, codigo);
+    const { default: qrcode } = await import('./vendor/qrcode.mjs');
+    const q = qrcode(0, 'M'); q.addData(enlace); q.make();
+    const qr = h('div', { class: 'qr-alta', id: 'alta-qr' }); qr.innerHTML = q.createSvgTag({ cellSize: 4, margin: 3, scalable: true });
+    const bat = () => descargar(new Blob([instaladorWindows(URL_PUBLICA, codigo)], { type: 'application/x-bat' }), 'INSTALAR_SOLTEC_V2_EN_OTRO_PC.bat');
+    salida.replaceChildren(
+      h('p', {}, h('b', {}, 'Tablet o móvil: '), 'abre la cámara y apunta a este código (o mándate el enlace por WhatsApp y ábrelo allí). Solo te preguntará el nombre del dispositivo.'),
+      qr,
+      h('div', { class: 'fila' },
+        navigator.share ? h('button', { class: 'btn', type: 'button', onclick: () => navigator.share({ title: 'Conectar con SOLTEC V2', text: 'Enlace para conectar este dispositivo con SOLTEC V2 (no lo compartas):', url: enlace }).catch(() => {}) }, 'Compartir enlace') : null,
+        h('button', { class: 'btn', type: 'button', id: 'alta-copiar', onclick: async () => { try { await navigator.clipboard.writeText(enlace); toast('Enlace copiado'); } catch { prompt('Copia el enlace:', enlace); } } }, 'Copiar enlace')),
+      h('p', {}, h('b', {}, 'Otro PC con Windows: '), 'descarga este instalador, cópialo al otro PC (pendrive, correo…) y ábrelo con doble clic. Crea el icono «SOLTEC V2» en el escritorio y te pregunta el nombre del PC.'),
+      h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', id: 'alta-bat', onclick: bat }, 'Descargar instalador para otro PC')),
+      h('p', { class: 'muted' }, 'El enlace y el instalador llevan dentro la clave del PC: no los compartas con nadie. Cada dispositivo necesita Tailscale abierto con tu cuenta. Si cambias la clave del PC, genera uno nuevo.'),
+      h('input', { type: 'hidden', id: 'alta-enlace', value: enlace }));
+  };
+  cuerpo.append(
+    h('p', { class: 'muted' }, 'Prepara un enlace, un código QR o un instalador con la dirección y la clave de este PC. En el dispositivo nuevo solo tendrás que poner su nombre.'),
+    h('label', { for: 'alta-url' }, 'Dirección del PC para los demás dispositivos (Tailscale, termina en :8443)'), fDir,
+    h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', id: 'alta-generar', onclick: generar }, 'Preparar instalación')),
+    salida);
+  // En el propio PC la dirección guardada es 127.0.0.1: se pide al servidor su dirección de Tailscale
+  if (!fDir.value) app.sync.probar().then((r) => { if (r.tailscale && !fDir.value) fDir.value = r.tailscale; }).catch(() => {});
+  return h('details', { class: 'card', id: 'detalles-otro-dispositivo' }, h('summary', {}, 'Instalar en otro dispositivo'), cuerpo);
+}
+
 async function vistaAjustes() {
   const cfg = await app.sync.config();
   const conflictos = await app.sync.conflictos();
@@ -381,6 +469,8 @@ async function vistaAjustes() {
           } }, 'Guardar y sincronizar')),
         msg,
         h('p', { class: 'muted' }, ultimaSync ? `Última: ${hace(ultimaSync.fin)} · ${ultimaSync.subidos} subidos, ${ultimaSync.bajados} recibidos, ${ultimaSync.archivosSubidos + ultimaSync.archivosBajados} archivos` : 'Todavía no se ha sincronizado.'))),
+
+    cfg.url && cfg.clave ? bloqueOtroDispositivo(cfg) : null,
 
     nConf ? h('details', { class: 'card', open: true },
       h('summary', {}, `Conflictos (${nConf})`),

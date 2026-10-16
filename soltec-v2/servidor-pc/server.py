@@ -38,7 +38,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "V2-SERVIDOR-5"
+VERSION = "V2-SERVIDOR-6"
 LEGACY_ROOT = Path(__file__).resolve().parent  # versiones anteriores guardaban todo junto a server.py
 # Los datos y la clave viven fuera de la carpeta del programa: al descomprimir una versión
 # nueva en otra carpeta se conservan la misma clave y los mismos datos.
@@ -88,6 +88,32 @@ def archivo_app(ruta, app_dir=None):
 MAX_BODY = 60 * 1024 * 1024  # 60 MB por petición
 KEEP_DB_BACKUPS = 30
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+_TS_CACHE = {}
+
+
+def direccion_tailscale():
+    """Dirección https://<equipo>.ts.net:8443 con la que llegan los demás dispositivos (o "" si no se sabe)."""
+    if "v" in _TS_CACHE:
+        return _TS_CACHE["v"]
+    v = ""
+    try:
+        import subprocess
+        for exe in ("tailscale", r"C:\Program Files\Tailscale\tailscale.exe"):
+            try:
+                out = subprocess.run([exe, "status", "--json"], capture_output=True, timeout=4,
+                                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+                nombre = (json.loads(out or b"{}").get("Self") or {}).get("DNSName", "").rstrip(".")
+                if nombre:
+                    v = "https://%s:8443" % nombre
+                    break
+            except (OSError, ValueError, subprocess.SubprocessError):
+                continue
+    except Exception:  # noqa: BLE001 — nunca debe tumbar el servidor
+        v = ""
+    _TS_CACHE["v"] = v
+    return v
 
 
 def now_iso():
@@ -372,7 +398,7 @@ def make_handler(store, key):
                 return
             try:
                 if u.path == "/api/v2/status":
-                    return self.send_json(200, {"ok": True, "version": VERSION, "serverTime": now_iso(), **store.status()})
+                    return self.send_json(200, {"ok": True, "version": VERSION, "serverTime": now_iso(), "tailscale": direccion_tailscale(), **store.status()})
                 if u.path == "/api/v2/geo":
                     code, ctype, data = consulta_geo(parse_qs(u.query).get("u", [""])[0])
                     self.send_response(code)

@@ -25,3 +25,11 @@ INSTALAR_SOLTEC_V2.bat.
 Quitar: DESINSTALAR_SOLTEC_V2.bat (en %LOCALAPPDATA%\SOLTEC_V2).
 
 Necesita Python 3 (python.org, marcando "Add python.exe to PATH").
+
+INSTALAR EN OTROS DISPOSITIVOS (tablet, movil, otro PC)
+- En este PC abre SOLTEC V2 > Ajustes > Instalar en otro dispositivo > Preparar instalacion.
+- Tablet o movil: escanea el codigo QR (o mandate el enlace por WhatsApp) y abrelo.
+  Solo pregunta el nombre del dispositivo; la direccion y la clave van dentro.
+- Otro PC con Windows: pulsa "Descargar instalador para otro PC", copia el .bat al otro PC
+  y abrelo con doble clic. Crea el icono "SOLTEC V2" en el escritorio y pregunta el nombre.
+- Cada dispositivo necesita Tailscale abierto con tu cuenta. El enlace lleva la clave: no lo compartas.

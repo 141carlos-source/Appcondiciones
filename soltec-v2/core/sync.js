@@ -125,7 +125,7 @@ export class SyncManager {
 
   async probar() {
     const st = await this._call('GET', '/api/v2/status');
-    return { ok: true, version: st.version, registros: st.records, archivos: st.blobs };
+    return { ok: true, version: st.version, registros: st.records, archivos: st.blobs, tailscale: st.tailscale || '' };
   }
 
   /**
