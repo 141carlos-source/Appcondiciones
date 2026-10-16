@@ -2,7 +2,7 @@
 // Solo guarda los archivos de la aplicación. Los datos viven en IndexedDB y nunca se tocan aquí.
 // Una versión nueva se instala en segundo plano y espera a que pulses «Actualizar».
 
-const VERSION = 'V2-1.12.0';
+const VERSION = 'V2-1.12.1';
 const CACHE = 'SOLTEC-V2-' + VERSION;
 const SHELL = [
   './', './index.html', './app.css', './app.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',

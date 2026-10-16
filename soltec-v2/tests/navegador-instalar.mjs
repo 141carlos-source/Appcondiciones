@@ -40,6 +40,17 @@ try {
   await and.click('#instalar-app');
   assert.equal(await and.evaluate(() => window.__pedido), true);
   ok('Tablet Android: en Inicio sale «Añadir icono a la pantalla de inicio» y lanza la instalación');
+  // El botón de la cabecera también la lanza
+  await and.evaluate(() => {
+    window.__pedido = false;
+    const e = new Event('beforeinstallprompt', { cancelable: true });
+    e.prompt = () => { window.__pedido = true; };
+    e.userChoice = Promise.resolve({ outcome: 'accepted' });
+    window.dispatchEvent(e);
+  });
+  await and.click('#instalar-cab');
+  assert.equal(await and.evaluate(() => window.__pedido), true);
+  ok('Botón «⬇ Instalar» de la cabecera lanza la instalación en Android');
 
   // «Ahora no» lo quita de Inicio y no vuelve; sigue en Ajustes › Acerca de
   await and.reload(); await and.waitForSelector('#bloque-instalar');
@@ -54,8 +65,24 @@ try {
   const ipad = await tablet('Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1');
   await ipad.waitForSelector('#bloque-instalar');
   assert.match(await ipad.textContent('#bloque-instalar'), /Compartir.*Añadir a pantalla de inicio/);
+  // Botón «Instalar» arriba: en el iPad abre los pasos
+  assert.ok(await ipad.isVisible('#instalar-cab'));
+  await ipad.click('#instalar-cab');
+  await ipad.waitForSelector('#capa-instalar');
+  assert.match(await ipad.textContent('#capa-instalar'), /Compartir[\s\S]*Añadir a pantalla de inicio/);
+  if (process.env.CAPTURA) await ipad.screenshot({ path: '/tmp/claude-0/cab/ipad-pasos.png' });
+  await ipad.click('#capa-instalar >> text=Cerrar');
+  assert.equal(await ipad.$('#capa-instalar'), null);
+  ok('Botón «⬇ Instalar» en la cabecera de la tablet: en el iPad enseña los pasos');
   if (process.env.CAPTURA) await ipad.screenshot({ path: '/tmp/claude-0/cab/ipad.png' });
   ok('iPad: explica Compartir › «Añadir a pantalla de inicio»');
+
+  // En un PC sin pantalla táctil y sin oferta del navegador no molesta
+  const pc = await browser.newPage();
+  await pc.goto(`http://localhost:${pWeb}/index.html#/inicio`);
+  await pc.waitForSelector('.hoy');
+  assert.equal(await pc.isVisible('#instalar-cab'), false);
+  ok('En el PC (sin pantalla táctil) no sale el botón de la cabecera');
 
   assert.deepEqual(errores, []);
   ok('Sin errores en la consola');

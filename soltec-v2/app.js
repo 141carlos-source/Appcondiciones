@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.12.0';
+export const VERSION = 'V2-1.12.1';
 
 import { h, toast, hace, descargar, activarMayusculas } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -206,29 +206,54 @@ const esIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.p
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   promptInstalar = e;
+  pintarBotonInstalar();
   if (['inicio', 'ajustes'].includes(rutaActual())) render();
 });
-window.addEventListener('appinstalled', () => { promptInstalar = null; toast('Icono de SOLTEC añadido a la pantalla de inicio'); });
+window.addEventListener('appinstalled', () => { promptInstalar = null; pintarBotonInstalar(); toast('Icono de SOLTEC añadido a la pantalla de inicio'); });
+const esTactil = () => navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches;
+
+/** Lanza la instalación (Android/Chrome) o, si el navegador no deja, enseña los pasos. */
+async function instalarApp() {
+  if (promptInstalar) {
+    const p = promptInstalar; promptInstalar = null;
+    p.prompt();
+    await p.userChoice.catch(() => null);
+    pintarBotonInstalar();
+    if (['inicio', 'ajustes'].includes(rutaActual())) render();
+    return;
+  }
+  const capa = h('div', { class: 'capa-instalar', id: 'capa-instalar', onclick: (e) => { if (e.target === capa) capa.remove(); } },
+    h('div', { class: 'card' }, bloqueInstalar({ ventana: true }),
+      h('div', { class: 'fila' }, h('button', { class: 'btn', type: 'button', onclick: () => capa.remove() }, 'Cerrar'))));
+  document.body.append(capa);
+}
+
+/** Botón «Instalar» de la cabecera: en tablet y móvil mientras la app no tenga su icono. */
+function pintarBotonInstalar() {
+  const b = document.getElementById('instalar-cab');
+  if (b) b.hidden = appInstalada() || !(promptInstalar || esTactil());
+}
 
 /** Botón o instrucciones para dejar el icono de la app en la pantalla de inicio. */
-function bloqueInstalar({ cerrable = false } = {}) {
+function bloqueInstalar({ cerrable = false, ventana = false } = {}) {
   if (appInstalada()) return cerrable ? null : h('p', { class: 'muted', id: 'instalar-ok' }, 'Ya estás usando la app instalada (con su icono).');
-  try { if (cerrable && localStorage.getItem('soltec_instalar_oculto')) return null; } catch { /* sin almacenamiento */ }
+  // «Ahora no» lo esconde de Inicio una semana
+  try { if (cerrable && Date.now() - Number(localStorage.getItem('soltec_instalar_oculto') || 0) < 7 * 864e5) return null; } catch { /* sin almacenamiento */ }
   const pasos = esIOS()
-    ? 'En el iPad o iPhone: abre esta página en Safari, pulsa el botón Compartir (el cuadrado con la flecha hacia arriba) y elige «Añadir a pantalla de inicio».'
-    : 'En la tablet Android: en Chrome pulsa el menú ⋮ (arriba a la derecha) y elige «Instalar aplicación» o «Añadir a pantalla de inicio».';
-  const caja = h('div', { class: 'card', id: 'bloque-instalar' },
+    ? [h('p', {}, 'En el iPad o iPhone (con Safari):'), h('ol', { class: 'pasos-instalar' },
+      h('li', {}, 'Pulsa el botón Compartir (el cuadrado con la flecha hacia arriba, arriba a la derecha o abajo).'),
+      h('li', {}, 'Baja y elige «Añadir a pantalla de inicio».'),
+      h('li', {}, 'Pulsa «Añadir». Ya tienes el icono SOLTEC.'))]
+    : [h('p', {}, 'En la tablet Android:'), h('ol', { class: 'pasos-instalar' },
+      h('li', {}, 'Chrome: pulsa el menú ⋮ (arriba a la derecha) › «Instalar aplicación» o «Añadir a pantalla de inicio».'),
+      h('li', {}, 'Samsung Internet: menú ≡ (abajo) › «Añadir página a» › «Pantalla de inicio».'),
+      h('li', {}, 'Confirma con «Instalar» o «Añadir». Ya tienes el icono SOLTEC.'))];
+  const caja = h('div', { class: ventana ? '' : 'card', id: ventana ? 'bloque-instalar-ventana' : 'bloque-instalar' },
     h('b', {}, 'Icono de SOLTEC en la pantalla de inicio'),
-    h('p', { class: 'muted' }, promptInstalar ? 'Pulsa el botón y tendrás el icono en la tablet o el móvil: se abre a pantalla completa, como una app, y funciona sin internet.' : pasos),
+    promptInstalar ? h('p', { class: 'muted' }, 'Pulsa el botón y tendrás el icono en la tablet o el móvil: se abre a pantalla completa, como una app, y funciona sin internet.') : h('div', { class: 'muted' }, ...pasos),
     h('div', { class: 'fila' },
-      promptInstalar ? h('button', { class: 'btn prim', type: 'button', id: 'instalar-app', onclick: async () => {
-        const p = promptInstalar; promptInstalar = null;
-        p.prompt();
-        const r = await p.userChoice.catch(() => null);
-        if (r?.outcome !== 'accepted') promptInstalar = null;
-        render();
-      } }, 'Añadir icono a la pantalla de inicio') : null,
-      cerrable ? h('button', { class: 'btn', type: 'button', onclick: () => { try { localStorage.setItem('soltec_instalar_oculto', '1'); } catch { /* nada */ } caja.remove(); } }, 'Ahora no') : null));
+      promptInstalar ? h('button', { class: 'btn prim', type: 'button', id: 'instalar-app', onclick: () => { document.getElementById('capa-instalar')?.remove(); instalarApp(); } }, 'Añadir icono a la pantalla de inicio') : null,
+      cerrable ? h('button', { class: 'btn', type: 'button', onclick: () => { try { localStorage.setItem('soltec_instalar_oculto', String(Date.now())); } catch { /* nada */ } caja.remove(); } }, 'Ahora no') : null));
   return caja;
 }
 
@@ -604,6 +629,7 @@ function carcasa() {
     h('header', { class: 'top' },
       h('div', { class: 'marca' }, h('div', {}, h('b', {}, 'SOLTEC'), h('small', {}, 'Avisos y expedientes'))),
       h('button', { class: 'estado', onclick: () => sincronizar() }),
+      h('button', { class: 'instalar-cab', id: 'instalar-cab', type: 'button', hidden: true, title: 'Poner el icono de SOLTEC en la pantalla de inicio', onclick: () => instalarApp() }, '⬇ Instalar'),
       h('span', { class: 'version-app', id: 'version-app', title: 'Versión de la aplicación' }, VERSION.replace(/^V2-/, 'V2 · '))),
     h('div', { id: 'banda-sync', 'aria-live': 'polite' }),
     h('main', { id: 'contenido' }),
@@ -612,6 +638,7 @@ function carcasa() {
 
 export async function iniciar() {
   carcasa();
+  pintarBotonInstalar();
   activarMayusculas();
   try {
     app.storage = await Storage.open();
