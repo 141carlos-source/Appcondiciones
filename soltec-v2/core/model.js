@@ -191,6 +191,9 @@ const CHECKS = [
   ['electrico.tension', 'Tensión', (x) => (['230', '400', '230/400'].includes(String(x)) ? null : 'Indica la tensión: 230 V o 400 V'), ['contrato', 'boletin']],
 ];
 
+/** El aviso no lleva contrato de electricidad (Documentos › Contrato marcado «No aplica»). */
+export const sinContrato = (aviso) => aviso?.docs?.contrato === 'na';
+
 export const DESTINOS = { ficha: 'Ficha de datos del cliente', contrato: 'Contrato', boletin: 'Boletín / memoria CNMC' };
 
 const leer = (obj, ruta) => ruta.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
@@ -205,6 +208,8 @@ export function datosPendientes(aviso, destino) {
   const out = [];
   for (const [campo, etiqueta, check, destinos] of CHECKS) {
     if (destino && !destinos.includes(destino)) continue;
+    // Sin contrato (Documentos › Contrato: «No aplica») el IBAN vacío no es una falta
+    if (campo === 'cliente.iban' && sinContrato(aviso) && !String(leer(aviso, campo) ?? '').trim()) continue;
     const problema = check(leer(aviso, campo));
     if (problema) out.push({ campo, etiqueta, problema });
   }

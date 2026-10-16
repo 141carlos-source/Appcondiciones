@@ -225,3 +225,14 @@ test('el número de la calle va en su campo', async () => {
   assert.equal(calleNumero({ direccion: 'CALLE MAYOR', numero: '10' }), 'CALLE MAYOR 10');
   assert.equal(direccionCompleta({ direccion: 'CALLE MAYOR', numero: '10', piso: '2', puerta: 'B' }), 'CALLE MAYOR 10, Piso 2, Puerta B');
 });
+
+test('sin contrato («No aplica») el IBAN vacío no sale como falta; con contrato sí', () => {
+  const a = nuevoAviso();
+  assert.ok(datosPendientes(a).some((p) => p.campo === 'cliente.iban'));
+  assert.ok(datosPendientes(a, 'contrato').some((p) => p.campo === 'cliente.iban'));
+  a.docs.contrato = 'na';
+  assert.ok(!datosPendientes(a).some((p) => p.campo === 'cliente.iban'));
+  assert.ok(!datosPendientes(a, 'contrato').some((p) => p.campo === 'cliente.iban'));
+  a.cliente.iban = 'ES00 1234';
+  assert.ok(datosPendientes(a).some((p) => p.campo === 'cliente.iban'), 'si se escribe mal, se avisa igual');
+});

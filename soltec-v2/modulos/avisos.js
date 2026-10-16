@@ -52,7 +52,7 @@ function tarjetaExpediente(r) {
     h('div', { class: 'insignias' },
       ind(!validarCups(a.suministro?.cups), 'CUPS'),
       ind(a.docs?.contrato === 'recibido' || a.docs?.contrato === 'na', 'Contrato'),
-      ind(!!String(a.cliente?.iban || '').trim(), 'IBAN'),
+      a.docs?.contrato === 'na' ? null : ind(!!String(a.cliente?.iban || '').trim(), 'IBAN'),
       a.tramite ? h('span', { class: 'insignia' }, faseLabel(a.tramite)) : null));
 }
 
@@ -161,7 +161,15 @@ export async function vistaFicha(app, id) {
       ? h('div', { class: 'aviso err' },
         h('b', {}, `Faltan o hay que revisar ${pend.length} dato${pend.length > 1 ? 's' : ''}`),
         h('div', { class: 'destinos' }, ...destinos.map(([l, n]) => h('span', { class: 'insignia' + (n ? ' pend' : ' ok') }, `${l}: ${n ? n + ' pendiente' + (n > 1 ? 's' : '') : 'completo'}`))),
-        h('div', { class: 'enlaces-pend' }, ...pend.map((p) => h('button', { class: 'enlace', type: 'button', onclick: () => irACampo(p.campo) }, p.etiqueta))))
+        h('div', { class: 'enlaces-pend' }, ...pend.map((p) => h('button', { class: 'enlace', type: 'button', onclick: () => irACampo(p.campo) }, p.etiqueta))),
+        porCampo.has('cliente.iban') && !String(draft.cliente?.iban || '').trim() ? h('div', { class: 'fila' },
+          h('button', { class: 'btn peq', type: 'button', id: 'sin-contrato', onclick: () => {
+            draft.docs = { ...(draft.docs || {}), contrato: 'na' };
+            const sel = cont.querySelector('#doc-contrato');
+            if (sel) { sel.value = 'na'; sel.parentElement.classList.remove('pend'); }
+            alCambiar();
+            toast('Sin contrato: el IBAN ya no se pide (Documentos › Contrato: No aplica)');
+          } }, 'No lleva contrato: no pedir IBAN')) : null)
       : h('div', { class: 'aviso ok' }, 'Datos completos para ficha, contrato y boletín.'));
   };
   const comprobarDuplicados = () => {
