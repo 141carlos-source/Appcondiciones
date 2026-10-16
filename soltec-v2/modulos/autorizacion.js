@@ -1,0 +1,82 @@
+// SOLTEC V2 · Autorización de representatividad dentro del aviso.
+// El formulario (assets/autorizacion.html) se abre a pantalla completa y habla con la ficha por mensajes:
+// no guarda nada por su cuenta. Los datos vuelven al aviso (draft.autorizacion) y, si cambiaron, el aviso se guarda solo al volver.
+
+import { h, toast, hace } from '../ui.js';
+import { normalizarAutorizacion, datosAutorizacion, sugerenciasAutorizacion, representanteDeEmpresa, resumenAutorizacion } from '../core/autorizacion.js';
+import { leerEmpresa } from './empresa.js';
+
+const RUTA = './assets/autorizacion.html'; // en el caché del service worker; «#host» activa el modo incrustado
+const aDataUrl = (blob) => new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => ok(null); r.readAsDataURL(blob); });
+
+/** Bloque de la ficha. Modifica draft.autorizacion y avisa con alCambiar(); al volver con cambios llama a alVolver() (guarda el aviso). */
+export function bloqueAutorizacion(app, draft, alCambiar, alVolver) {
+  draft.autorizacion = normalizarAutorizacion(draft.autorizacion);
+  const caja = h('div', { id: 'bloque-autorizacion' });
+
+  const pintar = () => {
+    const r = resumenAutorizacion(draft.autorizacion);
+    caja.replaceChildren(
+      h('p', { class: r.hay ? '' : 'muted', id: 'autorizacion-resumen' }, h('b', {}, r.texto),
+        r.actualizado ? h('span', { class: 'muted' }, ` · ${hace(r.actualizado)}`) : null),
+      h('div', { class: 'fila' },
+        h('button', { class: 'btn prim', type: 'button', id: 'abrir-autorizacion', onclick: abrir }, r.hay ? 'Abrir autorización' : 'Preparar autorización'),
+        r.hay ? h('button', { class: 'btn', type: 'button', id: 'quitar-autorizacion', onclick: quitar }, 'Quitar') : null),
+      h('p', { class: 'muted' }, 'Modelo de e-distribución para representante y destinatario de facturación. Se rellena con los datos del aviso y de Ajustes › Empresa (incluido el logo). Se imprime o guarda en PDF desde el propio formulario.'));
+  };
+
+  const quitar = () => {
+    if (!confirm('¿Quitar la autorización de este aviso? Se borrará al guardar el aviso.')) return;
+    draft.autorizacion = { v: 1, datos: null, actualizado: new Date().toISOString() };
+    alCambiar(); pintar();
+  };
+
+  async function abrir() {
+    let empresa, logo = null;
+    try {
+      empresa = await leerEmpresa(app);
+      if (empresa.logo) { const b = await app.storage.getFileBlob(empresa.logo.hash); if (b) logo = await aDataUrl(b); }
+    } catch (err) { toast('No se pudieron leer los datos de empresa: ' + err.message, true); return; }
+    const iframe = h('iframe', { src: RUTA + '#host', title: 'Autorización de representatividad', id: 'iframe-autorizacion' });
+    let tocado = false;
+    const cerrar = async () => {
+      window.removeEventListener('message', alMensaje);
+      capa.remove();
+      document.body.classList.remove('con-capa');
+      pintar();
+      if (tocado && alVolver) {
+        try { await alVolver(); } catch (err) { toast('No se pudo guardar el aviso: ' + err.message, true); }
+      }
+    };
+    const titulo = 'Autorización de representatividad' + (draft.numero ? ` · Aviso ${draft.numero}` : '');
+    const capa = h('div', { class: 'capa-cuadro', role: 'dialog', 'aria-label': 'Autorización de representatividad' },
+      h('div', { class: 'barra-cuadro' },
+        h('b', {}, titulo),
+        h('button', { class: 'btn peq', type: 'button', id: 'volver-autorizacion', onclick: cerrar }, '← Volver al aviso')),
+      iframe);
+    function alMensaje(e) {
+      if (e.origin !== location.origin || e.source !== iframe.contentWindow) return;
+      const m = e.data || {};
+      if (m.tipo === 'au-listo') {
+        iframe.contentWindow.postMessage({
+          tipo: 'au-cargar',
+          datos: draft.autorizacion.datos,
+          sugeridos: sugerenciasAutorizacion(draft, empresa),
+          representante: representanteDeEmpresa(empresa),
+          logo,
+          titulo: [draft.numero ? `Aviso ${draft.numero}` : '', draft.cliente?.nombre].filter(Boolean).join(' · '),
+        }, location.origin);
+      } else if (m.tipo === 'au-cambio' && m.datos && typeof m.datos === 'object') {
+        draft.autorizacion = { v: 1, datos: datosAutorizacion(m.datos), actualizado: new Date().toISOString() };
+        tocado = true;
+        alCambiar();
+      } else if (m.tipo === 'au-volver') cerrar();
+    }
+    window.addEventListener('message', alMensaje);
+    document.body.classList.add('con-capa');
+    document.body.append(capa);
+  }
+
+  pintar();
+  return caja;
+}

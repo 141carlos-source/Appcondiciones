@@ -19,7 +19,7 @@ Reconstrucción de SOLTEC desde cero en `soltec-v2/`. La V1.35 (`avisos-v134/`) 
 | 3 | Servidor del PC (SQLite, puerto 8766, HTTPS 8443) | `servidor-pc/server.py` | Hecha |
 | 4 | Sincronización | `core/sync.js` | Hecha (probada contra el servidor real) |
 | 5 | Carcasa PWA (navegación, salida segura, actualización) | `index.html`, `sw.js`, `app.js` | Hecha (probada en Chromium móvil) |
-| 6 | Módulos de pantalla | `modulos/*.js` | Hecha: avisos, expedientes, buscador, bandeja, agenda, empresa, ficha PDF con firma, WhatsApp y correos, memoria CNMC, localización, plano, fotos, partes y cuadros eléctricos |
+| 6 | Módulos de pantalla | `modulos/*.js` | Hecha: avisos, expedientes, buscador, bandeja, agenda, empresa, ficha PDF con firma, WhatsApp y correos, memoria CNMC, localización, plano, fotos, partes, cuadros eléctricos y autorización de representatividad |
 
 ## Modelo de datos
 
@@ -43,6 +43,8 @@ Una única tabla `records`. Cada registro:
 - **Historial**: cada cambio relevante crea un `evento` en la misma transacción que el cambio.
 
 **Cuadros eléctricos.** El diseñador es CuadroLab (`assets/cuadrolab.html`, un único archivo que también funciona suelto). Dentro de la V2 se abre a pantalla completa en un `iframe` (`modulos/cuadros.js`) y solo habla con la ficha por mensajes (`cl-listo`, `cl-cargar`, `cl-cambio`, `cl-volver`, mismo origen). No guarda nada por su cuenta: el proyecto completo vive en `aviso.cuadro = { v, proyecto, actualizado }` y se guarda, sincroniza y copia con el aviso. El nombre, datos y logo de empresa se toman de Ajustes › Empresa. Funciones puras en `core/cuadros.js`.
+
+**Autorización de representatividad.** El modelo de e-distribución (representante y destinatario de facturación) es `assets/autorizacion.html`, un único archivo que también funciona suelto, con tres modos a elegir en un desplegable (réplica A4, formulario con vista previa y asistente con firma). Dentro de la V2 se abre a pantalla completa en un `iframe` (`modulos/autorizacion.js`) y solo habla con la ficha por mensajes (`au-listo`, `au-cargar`, `au-cambio`, `au-volver`, mismo origen); en ese modo no guarda nada en `localStorage`. Los datos viven en `aviso.autorizacion = { v, datos, actualizado }` (firmas incluidas como PNG). Al abrirlo se proponen, solo en los campos vacíos, los datos del aviso y el representante y logo de Ajustes › Empresa. Funciones puras en `core/autorizacion.js`.
 
 Otras tablas:
 
