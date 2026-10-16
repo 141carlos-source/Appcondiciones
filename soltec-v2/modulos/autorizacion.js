@@ -3,11 +3,31 @@
 // no guarda nada por su cuenta. Los datos vuelven al aviso (draft.autorizacion) y, si cambiaron, el aviso se guarda solo al volver.
 
 import { h, toast, hace } from '../ui.js';
-import { normalizarAutorizacion, datosAutorizacion, sugerenciasAutorizacion, representanteDeEmpresa, resumenAutorizacion } from '../core/autorizacion.js';
+import { normalizarAutorizacion, datosAutorizacion, sugerenciasAutorizacion, representanteDeEmpresa, representanteDeTecnico, resumenAutorizacion } from '../core/autorizacion.js';
 import { leerEmpresa } from './empresa.js';
 
 const RUTA = './assets/autorizacion.html'; // en el caché del service worker; «#host» activa el modo incrustado
 const aDataUrl = (blob) => new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => ok(null); r.readAsDataURL(blob); });
+const cargarImg = (blob) => new Promise((ok) => { if (!blob) return ok(null); const u = URL.createObjectURL(blob); const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = u; });
+
+/**
+ * Firma de la empresa para el representante: el sello estampado y la firma del técnico encima,
+ * en una sola imagen PNG transparente. Si solo hay una de las dos, va esa sola.
+ */
+export async function firmaConSello(firmaBlob, selloBlob) {
+  const [f, s] = await Promise.all([cargarImg(firmaBlob), cargarImg(selloBlob)]);
+  if (!f && !s) return null;
+  const H = 320;
+  const ws = s ? Math.round(s.naturalWidth * H / s.naturalHeight) : 0;
+  const hf = Math.round(H * 0.78), wf = f ? Math.round(f.naturalWidth * hf / f.naturalHeight) : 0;
+  const x0 = s ? Math.round(ws * 0.5) : 0; // la firma pisa la mitad derecha del sello
+  const c = document.createElement('canvas');
+  c.width = Math.max(ws, x0 + wf); c.height = H;
+  const g = c.getContext('2d');
+  if (s) { g.globalAlpha = 0.92; g.drawImage(s, 0, 0, ws, H); g.globalAlpha = 1; }
+  if (f) g.drawImage(f, x0, Math.round((H - hf) / 2), wf, hf);
+  return c.toDataURL('image/png');
+}
 
 /** Bloque de la ficha. Modifica draft.autorizacion y avisa con alCambiar(); al volver con cambios llama a alVolver() (guarda el aviso). */
 export function bloqueAutorizacion(app, draft, alCambiar, alVolver) {
@@ -32,10 +52,12 @@ export function bloqueAutorizacion(app, draft, alCambiar, alVolver) {
   };
 
   async function abrir() {
-    let empresa, logo = null;
+    let empresa, logo = null, firmaEmpresa = null;
     try {
       empresa = await leerEmpresa(app);
       if (empresa.logo) { const b = await app.storage.getFileBlob(empresa.logo.hash); if (b) logo = await aDataUrl(b); }
+      const blob = async (ficha) => (ficha ? app.storage.getFileBlob(ficha.hash) : null);
+      firmaEmpresa = await firmaConSello(await blob(empresa.firma), await blob(empresa.sello)).catch(() => null);
     } catch (err) { toast('No se pudieron leer los datos de empresa: ' + err.message, true); return; }
     const iframe = h('iframe', { src: RUTA + '#host', title: 'Autorización de representatividad', id: 'iframe-autorizacion' });
     let tocado = false;
@@ -63,6 +85,8 @@ export function bloqueAutorizacion(app, draft, alCambiar, alVolver) {
           datos: draft.autorizacion.datos,
           sugeridos: sugerenciasAutorizacion(draft, empresa),
           representante: representanteDeEmpresa(empresa),
+          tecnico: representanteDeTecnico(empresa),
+          firmaEmpresa,
           logo,
           titulo: [draft.numero ? `Aviso ${draft.numero}` : '', draft.cliente?.nombre].filter(Boolean).join(' · '),
         }, location.origin);

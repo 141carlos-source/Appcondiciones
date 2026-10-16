@@ -130,6 +130,7 @@ body{background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-syste
 .pad{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:10px 12px 12px;margin:0 0 12px}
 .pad .t{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;font-weight:600;font-size:13.5px}
 .pad .t small{font-weight:400;color:var(--muted)}
+.pad .pbtns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .pad canvas{display:block;width:100%;height:170px;background:#fff;border:1px dashed #b9c2cf;border-radius:8px;touch-action:none;cursor:crosshair}
 .pad .base{position:relative}
 .pad .base::after{content:"Firme aquí";position:absolute;left:14px;bottom:10px;color:#8d97a5;font-size:12px;pointer-events:none}
@@ -222,12 +223,22 @@ body{background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-syste
       <option value="asi">Asistente con firma</option>
     </select>
   </div>
+  <div class="modo">
+    <label for="repSel">Representante</label>
+    <select id="repSel" title="Rellena los datos del autorizado y pone la firma y el sello de la empresa">
+      <option value="">Elegir…</option>
+      <option value="sol">SOLTEC (empresa)</option>
+      <option value="tec">Técnico</option>
+    </select>
+  </div>
   <div class="sp"></div>
   <div class="menu" id="mMas">
     <button class="btn" id="bMas" aria-haspopup="true" aria-expanded="false">Más ▾</button>
     <div class="pop" role="menu">
       <div class="cap">Datos</div>
       <button data-a="soltec">Rellenar representante con SOLTEC</button>
+      <button data-a="tecnico" id="bTecnico">Rellenar representante con el técnico</button>
+      <button data-a="firmaEmp" id="bFirmaEmp">Poner firma y sello de la empresa</button>
       <button data-a="saveDef">Guardar autorizado como predeterminado</button>
       <button data-a="hoy">Poner fecha de hoy</button>
       <hr>
@@ -716,9 +727,12 @@ function bridge(api) {
 }
 
 /* ---------- Firma manuscrita ---------- */
+/* Firmas ya hechas que se pueden poner con un botón (la app pone aquí la firma y el sello de la empresa). */
+const EXTRA = {};
 function makePad(d, k, title, sub, onChange) {
   const w = document.createElement('div'); w.className = 'pad' + (d[k] ? ' has' : '');
-  w.innerHTML = `<div class="t"><span>${title} <small>${sub || ''}</small></span><button type="button" class="btn">Borrar</button></div><div class="base"><canvas></canvas></div>`;
+  const ex = EXTRA[k] ? EXTRA[k]() : '';
+  w.innerHTML = `<div class="t"><span>${title} <small>${sub || ''}</small></span><span class="pbtns">${ex ? '<button type="button" class="btn" data-ex="1">Firma y sello de empresa</button>' : ''}<button type="button" class="btn" data-del="1">Borrar</button></span></div><div class="base"><canvas></canvas></div>`;
   const cv = w.querySelector('canvas'); let ctx, drawing = false, last = null, dirty = false;
   const setup = () => {
     const r = cv.getBoundingClientRect(); if (!r.width) return;
@@ -736,7 +750,10 @@ function makePad(d, k, title, sub, onChange) {
   });
   const end = () => { if (!drawing) return; drawing = false; if (dirty) { d[k] = trimmed(cv); onChange && onChange(k); } };
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end); cv.addEventListener('pointerleave', end);
-  w.querySelector('button').onclick = () => { if (ctx) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.restore(); } d[k] = ''; w.classList.remove('has'); onChange && onChange(k); };
+  const limpiar = () => { if (ctx) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.restore(); } };
+  w.querySelector('[data-del]').onclick = () => { limpiar(); d[k] = ''; w.classList.remove('has'); onChange && onChange(k); };
+  const bex = w.querySelector('[data-ex]');
+  if (bex) bex.onclick = () => { limpiar(); d[k] = ex; w.classList.add('has'); setup(); onChange && onChange(k); };
   return w;
 }
 function trimmed(cv) {
@@ -761,7 +778,7 @@ function sigModal(d, k, onDone) {
 }
 
 return { SIG_KEYS, SIG_TITLES, SCHEMA_ID, SCHEMA_VER, KEYS, GROUPS, MESES, empty, normalize, esc, makeDoc, bindDoc, syncInputs, fitFields, checkNIF, validate,
-  renderGroups, syncForm, issues, LOGOS, loadLogos, setOwnLogo, setLogosShown, LOGO_SRC_TXT, makePad, sigModal, store, repDefaults, saveRepDefaults, fillToday, copyAutToRf, exportJSON, importJSON, printDoc, fitZoom, toast, bridge };
+  renderGroups, syncForm, issues, EXTRA, LOGOS, loadLogos, setOwnLogo, setLogosShown, LOGO_SRC_TXT, makePad, sigModal, store, repDefaults, saveRepDefaults, fillToday, copyAutToRf, exportJSON, importJSON, printDoc, fitZoom, toast, bridge };
 })();
 
 (() => {
@@ -772,8 +789,21 @@ return { SIG_KEYS, SIG_TITLES, SCHEMA_ID, SCHEMA_VER, KEYS, GROUPS, MESES, empty
      au-listo → (host) au-cargar {datos, sugeridos, representante, logo, titulo} ; au-cambio {datos} ; au-volver */
   const HOST = location.hash === '#host' && window.parent !== window;
   const enviar = m => { try { parent.postMessage(m, location.origin); } catch {} };
-  let hostRep = null;
+  let hostRep = null, hostTec = null, firmaEmp = '';
   const getRep = () => HOST && hostRep ? hostRep : SA.repDefaults();
+  /* Representante SOLTEC o técnico: datos del autorizado + firma y sello de la empresa (si los hay) */
+  const aplicarRep = (quien) => {
+    const r = quien === 'tec' ? hostTec : getRep();
+    if (!r) return SA.toast('Falta el técnico en Ajustes › Empresa');
+    Object.assign(d, r);
+    if (firmaEmp) d.firma_rep = firmaEmp;
+    persist(); setModo(modo);
+    SA.toast((quien === 'tec' ? 'Representante: técnico' : 'Representante: SOLTEC') + (firmaEmp ? ' · con firma y sello' : ''));
+  };
+  const repActual = () => {
+    const igual = (r) => r && r.aut_nombre && r.aut_nombre === d.aut_nombre && (r.aut_nif || '') === (d.aut_nif || '');
+    return igual(hostTec) ? 'tec' : igual(getRep()) ? 'sol' : '';
+  };
   if (HOST) document.documentElement.classList.add('host');
   const $ = id => document.getElementById(id);
   const G = id => SA.GROUPS.find(g => g.id === id);
@@ -801,7 +831,7 @@ return { SIG_KEYS, SIG_TITLES, SCHEMA_ID, SCHEMA_VER, KEYS, GROUPS, MESES, empty
   /* ---------- Herramientas de grupo ---------- */
   function addTools(form, refresh) {
     const tools = {
-      aut: [['Rellenar con SOLTEC', () => { Object.assign(d, getRep()); refresh(); }]].concat(HOST ? [] :
+      aut: [['Rellenar con SOLTEC', () => aplicarRep('sol')]].concat(hostTec ? [['Rellenar con técnico', () => aplicarRep('tec')]] : []).concat(HOST ? [] :
             [['Guardar como predeterminado', () => SA.toast(SA.saveRepDefaults(d) ? 'Predeterminado guardado' : 'No se pudo guardar')]]),
       rf: [['Copiar nombre y NIF del autorizado', () => { SA.copyAutToRf(d); refresh(); }]],
       fecha: [['Hoy', () => { SA.fillToday(d); refresh(); }]]
@@ -950,13 +980,22 @@ return { SIG_KEYS, SIG_TITLES, SCHEMA_ID, SCHEMA_VER, KEYS, GROUPS, MESES, empty
   function setModo(m) {
     if (!MODOS[m]) m = 'frm';
     if (actual) actual.unmount();
-    modo = m; actual = MODOS[m]; $('modo').value = m;
+    modo = m; actual = MODOS[m]; $('modo').value = m; pintarRep();
     try { localStorage.setItem(MODE_KEY, m); } catch {}
     const app = $('app'); app.removeAttribute('data-tab'); app.innerHTML = '';
     window.scrollTo({ top: 0 });
     actual.mount(app);
   }
   $('modo').onchange = e => setModo(e.target.value);
+  function pintarRep() {
+    const sel = $('repSel'); if (!sel) return;
+    sel.querySelector('option[value="tec"]').hidden = !hostTec;
+    sel.value = repActual();
+    const bt = $('bTecnico'); if (bt) bt.hidden = !hostTec;
+    const bf = $('bFirmaEmp'); if (bf) bf.hidden = !firmaEmp;
+  }
+  $('repSel').onchange = e => { if (e.target.value) aplicarRep(e.target.value); else pintarRep(); };
+  listeners.add(() => pintarRep());
   const refresh = () => actual && actual.refresh();
 
   /* ---------- Imprimir ---------- */
@@ -974,7 +1013,9 @@ return { SIG_KEYS, SIG_TITLES, SCHEMA_ID, SCHEMA_VER, KEYS, GROUPS, MESES, empty
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { menu.classList.remove('open'); const m = document.querySelector('.modal'); if (m) m.click(); } });
   const setAll = nd => { Object.keys(d).forEach(k => d[k] = nd[k] || ''); persist(); refresh(); };
   const acts = {
-    soltec: () => { Object.assign(d, getRep()); persist(); refresh(); SA.toast('Representante rellenado'); },
+    soltec: () => aplicarRep('sol'),
+    tecnico: () => aplicarRep('tec'),
+    firmaEmp: () => { if (!firmaEmp) return SA.toast('No hay firma ni sello en Ajustes › Empresa'); d.firma_rep = firmaEmp; persist(); setModo(modo); SA.toast('Firma y sello de la empresa puestos'); },
     saveDef: () => SA.toast(SA.saveRepDefaults(d) ? 'Autorizado guardado como predeterminado' : 'No se pudo guardar'),
     hoy: () => { SA.fillToday(d); persist(); refresh(); },
     export: () => SA.exportJSON(d),
@@ -1021,9 +1062,15 @@ return { SIG_KEYS, SIG_TITLES, SCHEMA_ID, SCHEMA_VER, KEYS, GROUPS, MESES, empty
       Object.keys(d).forEach(k => d[k] = nd[k] || '');
       hostRep = m.representante ? SA.normalize(m.representante) : null;
       if (hostRep) Object.keys(hostRep).forEach(k => { if (!/^aut_/.test(k)) delete hostRep[k]; });
+      hostTec = m.tecnico ? SA.normalize(m.tecnico) : null;
+      if (hostTec) Object.keys(hostTec).forEach(k => { if (!/^aut_/.test(k)) delete hostTec[k]; });
+      firmaEmp = typeof m.firmaEmpresa === 'string' && /^data:image\/png;base64,/.test(m.firmaEmpresa) ? m.firmaEmpresa : '';
+      SA.EXTRA.firma_rep = firmaEmp ? () => firmaEmp : null;
+      // Representante de la empresa (SOLTEC o técnico) sin firmar todavía → firma y sello de la empresa
+      if (firmaEmp && !d.firma_rep && (repActual() === 'sol' || repActual() === 'tec')) d.firma_rep = firmaEmp;
       SA.LOGOS.soltec = m.logo || SA.LOGOS.soltec; SA.LOGOS.src = m.logo ? 'v2' : 'generico';
       if (m.titulo) document.querySelector('.bar h1 span').textContent = m.titulo;
-      step = 0; refresh(); logoInfo();
+      step = 0; setModo(modo); logoInfo();
     });
     enviar({ tipo: 'au-listo' });
   } else SA.loadLogos().then(() => { refresh(); logoInfo(); });

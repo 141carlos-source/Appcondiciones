@@ -51,6 +51,20 @@ export function representanteDeEmpresa(e) {
   };
 }
 
+/** Datos del representante cuando es el técnico (Ajustes › Empresa › Técnico); domicilio de contacto, el de la empresa. */
+export function representanteDeTecnico(e) {
+  const t = e?.tecnico || {}, em = e?.empresa || {};
+  if (!String(t.nombre || '').trim()) return null;
+  return {
+    aut_nombre: t.nombre || '',
+    aut_nif: (t.nif || '').toUpperCase(),
+    aut_municipio: em.localidad || '',
+    aut_via: em.direccion || '',
+    aut_email: t.email || em.email || '',
+    aut_tel: t.telefono || em.telefono || '',
+  };
+}
+
 /**
  * Datos sugeridos para un formulario nuevo, sacados del aviso y de la empresa.
  * El formulario solo los usa en los campos que estén vacíos: nunca pisa lo ya escrito.
