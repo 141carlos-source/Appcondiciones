@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.13.0';
+export const VERSION = 'V2-1.13.1';
 
 import { h, toast, hace, descargar, activarMayusculas } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';

@@ -29,7 +29,7 @@ try {
   await page.click('#abrir-cuadro');
   const f = page.frameLocator('#iframe-cuadro');
   await f.locator('[data-pal="ID:0"]').waitFor({ timeout: 20000 });
-  await f.locator('[data-pal="ID:0"]').selectOption('1');
+  await f.locator('[data-pal="ID:0"]').selectOption('40|30');
   await f.locator('[data-pal="PIA:1"]').selectOption('16'); // queda seleccionado
   const sel = (etq) => f.locator(`#ed label:has-text("${etq}") select`);
   assert.equal(await sel('TIPO DE CABLE').inputValue(), 'H07Z1-K');
@@ -70,7 +70,7 @@ try {
   ok('Se puede poner un P.I.A. que protege al diferencial y sale en el unifilar');
 
   // Botón para añadir directamente el P.I.A. de cabecera de un diferencial nuevo
-  await f.locator('[data-pal="ID:0"]').selectOption('3');
+  await f.locator('[data-pal="ID:1"]').selectOption('40|30');
   const idNuevo = await f.locator('.dv.on').getAttribute('data-id');
   if (process.env.CAPTURA) await f.locator('#ed').screenshot({ path: '/tmp/claude-0/editor-id.png' });
   const n0 = await f.locator('.dv').count();
@@ -85,7 +85,7 @@ try {
   // (los demás se corren), no se numera como circuito y no suma potencia.
   await f.locator('button', { hasText: /^NUEVO$/ }).click();
   if (await f.locator('#dk').count()) await f.locator('#dk').click();
-  await await f.locator('[data-pal="ID:0"]').selectOption('1');
+  await await f.locator('[data-pal="ID:0"]').selectOption('40|30');
   const idR = await f.locator('.dv.on').getAttribute('data-id');
   const cir = [];
   for (let i = 0; i < 3; i++) { await f.locator('[data-pal="PIA:1"]').selectOption('16'); cir.push(await f.locator('.dv.on').getAttribute('data-id')); }
@@ -118,24 +118,35 @@ try {
   if (await f.locator('#dk').count()) await f.locator('#dk').click();
   assert.equal(await f.locator('[data-new^="IGA:"]').count(), 0, 'el IGA ya no está en la paleta');
   const opciones = (pal) => f.locator(`[data-pal="${pal}"] option`).allTextContents();
-  assert.deepEqual((await opciones('SOB:0')).slice(1), ['3 MÓDULOS', '6 MÓDULOS']);
-  assert.deepEqual((await opciones('SOB:1')).slice(1), ['5 MÓDULOS', '9 MÓDULOS']);
+  assert.deepEqual((await opciones('SOB:0')).slice(1), ['25 A', '32 A', '40 A', '63 A', '80 A']);
+  assert.deepEqual((await opciones('SOB:1')).slice(1), ['25 A', '32 A', '40 A', '63 A', '80 A']);
+  assert.deepEqual((await opciones('SOB:2')).slice(1), ['25 A', '32 A', '40 A', '63 A', '80 A', '100 A', '125 A', '160 A', '200 A']);
+  assert.deepEqual((await opciones('SOB:3')).slice(1), ['25 A', '32 A', '40 A', '63 A', '80 A', '100 A', '125 A', '160 A', '200 A']);
   assert.deepEqual((await opciones('BOR:0')).slice(1), ['MONOFÁSICO', 'TRIFÁSICO']);
-  assert.deepEqual((await opciones('ID:0')).slice(1), ['MONOFÁSICO', 'TRIFÁSICO']);
-  for (const g of [0, 1, 2, 3]) assert.deepEqual((await opciones('PIA:' + g)).slice(1), ['6 A', '10 A', '16 A', '20 A', '25 A', '32 A', '40 A', '50 A', '63 A']);
+  assert.deepEqual((await opciones('ID:0')).slice(1), ['2x25A 30mA', '2x25A 300mA', '2x40A 30mA', '2x40A 300mA', '2x63A 30mA', '2x63A 300mA', '2x80A 30mA', '2x80A 300mA']);
+  assert.deepEqual((await opciones('ID:1')).slice(1), ['4x25A 30mA', '4x25A 300mA', '4x40A 30mA', '4x40A 300mA', '4x63A 30mA', '4x63A 300mA', '4x80A 30mA', '4x80A 300mA']);
+  const hasta80 = ['6 A', '10 A', '16 A', '20 A', '25 A', '32 A', '40 A', '50 A', '63 A', '80 A'];
+  assert.deepEqual((await opciones('PIA:0')).slice(1), hasta80);
+  for (const g of [1, 2, 3]) assert.deepEqual((await opciones('PIA:' + g)).slice(1), hasta80.concat(['100 A', '125 A']));
   const ultimo = async () => f.locator('.dv.on');
-  await f.locator('[data-pal="SOB:1"]').selectOption('9');
+  await f.locator('[data-pal="SOB:3"]').selectOption('160');
   assert.match(await (await ultimo()).getAttribute('style'), new RegExp(`width:${9 * 34 - 2}px`));
+  assert.equal(await sel('INTENSIDAD (A)').inputValue(), '160');
   await f.locator('[data-pal="BOR:0"]').selectOption('3');
   assert.match(await (await ultimo()).innerText(), /TRIFÁSICO/);
-  await f.locator('[data-pal="ID:0"]').selectOption('3');
+  await f.locator('[data-pal="ID:1"]').selectOption('63|300');
   assert.match(await f.locator('#ed').innerText(), /4 MÓD/);
+  assert.equal(await sel('INTENSIDAD (A)').inputValue(), '63');
+  assert.equal(await sel('SENSIBILIDAD (MA)').inputValue(), '300');
   await f.locator('[data-pal="PIA:2"]').selectOption('32');
   assert.equal(await sel('INTENSIDAD (A)').inputValue(), '32');
   assert.equal(await sel('SECCIÓN CABLE').inputValue(), '10');
   assert.match(await f.locator('#ed').innerText(), /3 MÓD/);
   assert.equal(await f.locator('[data-pal="PIA:2"]').inputValue(), '', 'el desplegable vuelve a su título');
-  ok('Paleta: sin IGA; protector 3/6 (mono) y 5/9 (tri); bornero y diferencial mono/tri; PIA 1-4 módulos con intensidad y sección');
+  await f.locator('[data-pal="PIA:3"]').selectOption('125');
+  assert.equal(await sel('SECCIÓN CABLE').inputValue(), '50');
+  assert.match(await (await ultimo()).innerText(), /NXB-125/);
+  ok('Paleta: sin IGA; protector mono 25-80 A y tri 25-200 A; diferencial 2x/4x 25-80 A 30/300 mA; bornero; PIA 1 mód. hasta 80 A y 2-4 mód. hasta 125 A, con sección');
   await f.locator('nav button', { hasText: 'UNIFILAR' }).click();
   assert.doesNotMatch(await f.locator('#t1').innerText(), /I\.G\.A\. PENDIENTE/);
   if (process.env.CAPTURA) await f.locator('#t1 .a4').screenshot({ path: '/tmp/claude-0/cab/uni-nuevo.png' });

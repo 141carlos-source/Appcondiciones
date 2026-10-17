@@ -46,7 +46,7 @@ try {
   assert.ok(await f.getByText('ACEPTAR Y VOLVER').isVisible());
   assert.equal(await f.getByText('GUARDAR COMO').count(), 0);
 
-  await f.locator('[data-pal="ID:0"]').selectOption('1');
+  await f.locator('[data-pal="ID:0"]').selectOption('40|30');
   await f.locator('[data-pal="PIA:0"]').selectOption('16');
   await f.locator('[data-pal="PIA:1"]').selectOption('16');
   assert.equal(await f.locator('.dv').count(), 3);
