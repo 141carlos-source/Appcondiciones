@@ -50,16 +50,32 @@ try {
   await f.locator('#nuevo-cab').click();
   assert.doesNotMatch(await avisos(), /SUMAN 48A\. PON/);
   ok('Sin protector: 48 A tras un diferencial de 40 A → pide P.I.A. de cabecera; al ponerlo, desaparece el aviso');
+  assert.match(await avisos(), /FALTA EL PROTECTOR DE SOBRETENSIONES/);
+  ok('Sin protector de sobretensiones: Comprobaciones lo avisa');
 
   // B) Protector de sobretensiones de 40 A: ya protege al diferencial → no hace falta cabecera
   await montar(40);
   assert.doesNotMatch(await avisos(), /PON UN P\.I\.A\. DE CABECERA/);
   assert.match(await f.locator('#ok-cab').innerText(), /PROTECTOR DE SOBRETENSIONES DE 40A/);
   ok('Protector de sobretensiones de 40 A: puede sumar más de 40 A tras el diferencial sin cabecera');
+  assert.doesNotMatch(await avisos(), /FALTA EL PROTECTOR/);
+  // Nombre automático: DIFERENCIAL 1, DIFERENCIAL 2… en la ficha y en el unifilar
+  assert.equal(await f.locator('#ed label:has-text("NOMBRE") input').first().inputValue(), 'DIFERENCIAL 1');
+  await f.locator('[data-pal="ID:1"]').selectOption('25|300');
+  assert.equal(await f.locator('#ed label:has-text("NOMBRE") input').first().inputValue(), 'DIFERENCIAL 2');
+  const id2 = await f.locator('.dv.on').getAttribute('data-id');
+  await f.locator('[data-pal="PIA:3"]').selectOption('20'); await sel('DEPENDE DE').selectOption(id2);
+  assert.match(await avisos(), /ID 2 DIFERENCIAL 2/);
+  assert.doesNotMatch(await avisos(), /DIFERENCIAL 2 \(25A\/300MA\): LOS/, '20 A tras 25 A: sin aviso');
+  ok('Al poner un diferencial se llama solo DIFERENCIAL 1, DIFERENCIAL 2…');
+  assert.match(await avisos(), /PROTECTOR DE SOBRETENSIONES ES MONOFÁSICO Y HAY APARATOS TRIFÁSICOS: DIFERENCIAL 2/);
+  ok('Comprobaciones: aparatos trifásicos bajo un protector monofásico');
   await f.locator('nav button', { hasText: 'UNIFILAR' }).click();
   const uni = await f.locator('#t1').innerText();
   assert.match(uni, /PROT\. SOBRETENSIONES/);
   assert.match(uni, /MONOFÁSICO 40A/);
+  assert.match(uni, /DIFERENCIAL 1/);
+  assert.match(uni, /DIFERENCIAL 2/);
   if (process.env.CAPTURA) await f.locator('#t1 .a4').screenshot({ path: '/tmp/claude-0/cab/uni-sob.png' });
   await f.locator('nav button').first().click();
   ok('Unifilar: los diferenciales cuelgan del protector de sobretensiones, en cabeza del cuadro');
