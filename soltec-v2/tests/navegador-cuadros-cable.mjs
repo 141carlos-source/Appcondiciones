@@ -146,6 +146,17 @@ try {
   await f.locator('[data-pal="PIA:3"]').selectOption('125');
   assert.equal(await sel('SECCIÓN CABLE').inputValue(), '50');
   assert.match(await (await ultimo()).innerText(), /NXB-125/);
+  // Todas las intensidades de la paleta, monofásicas y trifásicas, con su potencia: CUMPLE (sin falsos NO CUMPLE por redondeo)
+  await page.frame({ url: /cuadrolab/ }).evaluate(() => { S.w = 24; S.r = 8; rd(); });
+  const tabla = { 6: '1.5', 10: '1.5', 16: '2.5', 20: '4', 25: '6', 32: '10', 40: '10', 50: '16', 63: '16', 80: '25', 100: '35', 125: '50' };
+  for (const [g, lista] of [[1, [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125]], [3, [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125]]]) {
+    for (const i of lista) {
+      await f.locator(`[data-pal="PIA:${g}"]`).selectOption(String(i));
+      assert.equal(await sel('SECCIÓN CABLE').inputValue(), tabla[i], `${i} A`);
+      assert.match(await f.locator('#cumple').textContent(), /^CUMPLE/, `${g === 3 ? 'trifásico' : 'monofásico'} ${i} A`);
+    }
+  }
+  ok('Todas las intensidades (6-125 A), monofásicas y trifásicas: sección de la tabla y CUMPLE');
   ok('Paleta: sin IGA; protector mono 25-80 A y tri 25-200 A; diferencial 2x/4x 25-80 A 30/300 mA; bornero; PIA 1 mód. hasta 80 A y 2-4 mód. hasta 125 A, con sección');
   await f.locator('nav button', { hasText: 'UNIFILAR' }).click();
   assert.doesNotMatch(await f.locator('#t1').innerText(), /I\.G\.A\. PENDIENTE/);
