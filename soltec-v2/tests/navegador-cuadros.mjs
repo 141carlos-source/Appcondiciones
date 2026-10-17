@@ -40,15 +40,15 @@ try {
 
   await page.click('#abrir-cuadro');
   const f = page.frameLocator('#iframe-cuadro');
-  await f.locator('[data-new="ID:2"]').waitFor({ timeout: 20000 });
+  await f.locator('[data-pal="ID:0"]').waitFor({ timeout: 20000 });
   assert.match(await f.locator('#hd').textContent(), /SOLTEC/);
   ok('CuadroLab se abre dentro de la app, a pantalla completa');
   assert.ok(await f.getByText('ACEPTAR Y VOLVER').isVisible());
   assert.equal(await f.getByText('GUARDAR COMO').count(), 0);
 
-  await f.locator('[data-new="ID:2"]').click();
-  await f.locator('[data-new="PIA:1"]').click();
-  await f.locator('[data-new="PIA:2"]').click();
+  await f.locator('[data-pal="ID:0"]').selectOption('1');
+  await f.locator('[data-pal="PIA:0"]').selectOption('16');
+  await f.locator('[data-pal="PIA:1"]').selectOption('16');
   assert.equal(await f.locator('.dv').count(), 3);
   ok('Se colocan aparatos en el frontal');
 
@@ -68,7 +68,7 @@ try {
   await page.click('#abrir-cuadro');
   const e1 = page.frameLocator('#iframe-cuadro');
   await e1.locator('.dv').first().waitFor({ timeout: 20000 });
-  await e1.locator('[data-new="PIA:1"]').click();
+  await e1.locator('[data-pal="PIA:0"]').selectOption('16');
   await e1.getByText('ACEPTAR Y VOLVER').click();
   await page.waitForSelector('.capa-cuadro', { state: 'detached' });
   await page.waitForFunction(async () => {

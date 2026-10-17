@@ -28,21 +28,30 @@ try {
   await page.click('summary:has-text("Cuadros eléctricos")');
   await page.click('#abrir-cuadro');
   const f = page.frameLocator('#iframe-cuadro');
-  await f.locator('[data-new="ID:2"]').waitFor({ timeout: 20000 });
-  await f.locator('[data-new="ID:2"]').click();
-  await f.locator('[data-new="PIA:2"]').click(); // queda seleccionado
+  await f.locator('[data-pal="ID:0"]').waitFor({ timeout: 20000 });
+  await f.locator('[data-pal="ID:0"]').selectOption('1');
+  await f.locator('[data-pal="PIA:1"]').selectOption('16'); // queda seleccionado
   const sel = (etq) => f.locator(`#ed label:has-text("${etq}") select`);
   assert.equal(await sel('TIPO DE CABLE').inputValue(), 'H07Z1-K');
   assert.equal(await sel('SECCIÓN CABLE').inputValue(), '2.5', '16 A → 2,5 mm² por defecto');
   await sel('INTENSIDAD (A)').selectOption('25');
+  assert.equal(await sel('SECCIÓN CABLE').inputValue(), '6');
+  await sel('INTENSIDAD (A)').selectOption('20');
   assert.equal(await sel('SECCIÓN CABLE').inputValue(), '4');
+  await sel('INTENSIDAD (A)').selectOption('10');
+  assert.equal(await sel('SECCIÓN CABLE').inputValue(), '1.5');
+  await sel('INTENSIDAD (A)').selectOption('50');
+  assert.equal(await sel('SECCIÓN CABLE').inputValue(), '16');
+  await sel('INTENSIDAD (A)').selectOption('32');
+  assert.equal(await sel('SECCIÓN CABLE').inputValue(), '10');
   await sel('INTENSIDAD (A)').selectOption('40');
   assert.equal(await sel('SECCIÓN CABLE').inputValue(), '10');
   assert.match(await f.locator('#cumple').textContent(), /^CUMPLE/);
-  ok('Al elegir la intensidad se pone sola la sección (16 A → 2,5 · 25 A → 4 · 40 A → 10 mm² con H07Z1-K)');
+  ok('Al elegir la intensidad se pone la sección de la tabla de SOLTEC (10→1,5 · 16→2,5 · 20→4 · 25→6 · 32/40→10 · 50→16 mm²)');
 
   await sel('TIPO DE CABLE').selectOption('RZ1-K');
-  assert.equal(await sel('SECCIÓN CABLE').inputValue(), '6', 'RZ1-K admite más intensidad: 40 A → 6 mm²');
+  assert.equal(await sel('SECCIÓN CABLE').inputValue(), '10', 'la tabla manda también con RZ1-K');
+  await sel('SECCIÓN CABLE').selectOption('6');
   assert.match(await f.locator('#cumple').textContent(), /CUMPLE · IZ 49A RZ1-K 0,6\/1 KV/);
   await sel('SECCIÓN CABLE').selectOption('2.5');
   assert.match(await f.locator('#cumple').textContent(), /^NO CUMPLE/);
@@ -50,7 +59,7 @@ try {
   await sel('SECCIÓN CABLE').selectOption('6');
 
   // PIA de cabecera antes del diferencial
-  await f.locator('[data-new="PIA:2"]').click();
+  await f.locator('[data-pal="PIA:1"]').selectOption('16');
   const cabId = await f.locator('.dv.on').getAttribute('data-id');
   await f.locator('.dv.ID').click();
   await sel('P.I.A. ANTES DEL DIFERENCIAL').selectOption(cabId);
@@ -61,7 +70,7 @@ try {
   ok('Se puede poner un P.I.A. que protege al diferencial y sale en el unifilar');
 
   // Botón para añadir directamente el P.I.A. de cabecera de un diferencial nuevo
-  await f.locator('[data-new="ID:4"]').click();
+  await f.locator('[data-pal="ID:0"]').selectOption('3');
   const idNuevo = await f.locator('.dv.on').getAttribute('data-id');
   if (process.env.CAPTURA) await f.locator('#ed').screenshot({ path: '/tmp/claude-0/editor-id.png' });
   const n0 = await f.locator('.dv').count();
@@ -76,11 +85,10 @@ try {
   // (los demás se corren), no se numera como circuito y no suma potencia.
   await f.locator('button', { hasText: /^NUEVO$/ }).click();
   if (await f.locator('#dk').count()) await f.locator('#dk').click();
-  await f.locator('[data-new="IGA:2"]').click();
-  await f.locator('[data-new="ID:2"]').click();
+  await await f.locator('[data-pal="ID:0"]').selectOption('1');
   const idR = await f.locator('.dv.on').getAttribute('data-id');
   const cir = [];
-  for (let i = 0; i < 3; i++) { await f.locator('[data-new="PIA:2"]').click(); cir.push(await f.locator('.dv.on').getAttribute('data-id')); }
+  for (let i = 0; i < 3; i++) { await f.locator('[data-pal="PIA:1"]').selectOption('16'); cir.push(await f.locator('.dv.on').getAttribute('data-id')); }
   for (const c of cir) { await f.locator(`.dv[data-id="${c}"]`).click(); await sel('DEPENDE DE').selectOption(idR); }
   await f.locator(`.dv[data-id="${idR}"]`).click();
   await f.locator('#nuevo-cab').click();
@@ -105,6 +113,36 @@ try {
     await f.locator('nav button').first().click();
     await f.locator('#ed').screenshot({ path: '/tmp/claude-0/editor.png' });
   }
+  // Paleta nueva: sin IGA; protector mono 3/6 y tri 5/9; bornero y diferencial mono/tri; PIA 1-4 módulos con intensidad
+  await f.locator('button', { hasText: /^NUEVO$/ }).click();
+  if (await f.locator('#dk').count()) await f.locator('#dk').click();
+  assert.equal(await f.locator('[data-new^="IGA:"]').count(), 0, 'el IGA ya no está en la paleta');
+  const opciones = (pal) => f.locator(`[data-pal="${pal}"] option`).allTextContents();
+  assert.deepEqual((await opciones('SOB:0')).slice(1), ['3 MÓDULOS', '6 MÓDULOS']);
+  assert.deepEqual((await opciones('SOB:1')).slice(1), ['5 MÓDULOS', '9 MÓDULOS']);
+  assert.deepEqual((await opciones('BOR:0')).slice(1), ['MONOFÁSICO', 'TRIFÁSICO']);
+  assert.deepEqual((await opciones('ID:0')).slice(1), ['MONOFÁSICO', 'TRIFÁSICO']);
+  for (const g of [0, 1, 2, 3]) assert.deepEqual((await opciones('PIA:' + g)).slice(1), ['6 A', '10 A', '16 A', '20 A', '25 A', '32 A', '40 A', '50 A', '63 A']);
+  const ultimo = async () => f.locator('.dv.on');
+  await f.locator('[data-pal="SOB:1"]').selectOption('9');
+  assert.match(await (await ultimo()).getAttribute('style'), new RegExp(`width:${9 * 34 - 2}px`));
+  await f.locator('[data-pal="BOR:0"]').selectOption('3');
+  assert.match(await (await ultimo()).innerText(), /TRIFÁSICO/);
+  await f.locator('[data-pal="ID:0"]').selectOption('3');
+  assert.match(await f.locator('#ed').innerText(), /4 MÓD/);
+  await f.locator('[data-pal="PIA:2"]').selectOption('32');
+  assert.equal(await sel('INTENSIDAD (A)').inputValue(), '32');
+  assert.equal(await sel('SECCIÓN CABLE').inputValue(), '10');
+  assert.match(await f.locator('#ed').innerText(), /3 MÓD/);
+  assert.equal(await f.locator('[data-pal="PIA:2"]').inputValue(), '', 'el desplegable vuelve a su título');
+  ok('Paleta: sin IGA; protector 3/6 (mono) y 5/9 (tri); bornero y diferencial mono/tri; PIA 1-4 módulos con intensidad y sección');
+  await f.locator('nav button', { hasText: 'UNIFILAR' }).click();
+  assert.doesNotMatch(await f.locator('#t1').innerText(), /I\.G\.A\. PENDIENTE/);
+  if (process.env.CAPTURA) await f.locator('#t1 .a4').screenshot({ path: '/tmp/claude-0/cab/uni-nuevo.png' });
+  await f.locator('nav button').first().click();
+  if (process.env.CAPTURA) await f.locator('#t0').screenshot({ path: '/tmp/claude-0/cab/paleta.png' });
+  ok('Unifilar sin «I.G.A. PENDIENTE»');
+
   assert.deepEqual(errores, []);
   ok('Sin errores en la consola');
 } catch (e) {
