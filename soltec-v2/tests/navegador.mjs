@@ -101,7 +101,8 @@ try {
   await page.click('nav.inferior a[data-ruta=salir]');
   await page.waitForSelector('text=Ya puedes cerrar la aplicación.');
   const pasos = await page.$$eval('.lista-chk li', (ls) => ls.map((l) => l.textContent));
-  assert.ok(pasos.some((p) => /Cambios subidos al PC/.test(p)), pasos.join(' | '));
+  // La subida automática (a los 2 s) puede adelantarse a «Salir»: vale cualquiera de los dos
+  assert.ok(pasos.some((p) => /Cambios subidos al PC|No hay nada pendiente de subir al PC/.test(p)), pasos.join(' | '));
   ok('Salida segura: sube lo pendiente y confirma que se puede cerrar');
   await page.screenshot({ path: join(raiz, 'tests/captura-salir.png') });
 
