@@ -106,11 +106,19 @@ const CAMPOS_CLIENTE = [
   ['suministro.lat', 'Latitud', 'text', { inputmode: 'decimal' }],
   ['suministro.lon', 'Longitud', 'text', { inputmode: 'decimal' }],
 ];
+/** Calibres de IGA y potencia que admiten: 230 V → I·230; 400 V → √3·400·I (en kW, con coma). */
+const IGAS = [25, 40, 63, 80, 100, 125, 250];
+export const potenciaDeIga = (iga, tension) => {
+  const i = Number(iga), v = String(tension);
+  if (!i || !['230', '400'].includes(v)) return '';
+  const kw = v === '400' ? Math.sqrt(3) * 400 * i / 1000 : 230 * i / 1000;
+  return (Math.round(kw * 100) / 100).toString().replace('.', ',');
+};
 const CAMPOS_ELEC = [
-  ['electrico.potenciaKw', 'Potencia (kW)', 'text', { inputmode: 'decimal' }],
   ['electrico.tension', 'Tensión', 'select', { opciones: [['', '—'], ['230', '230 V (monofásico)'], ['400', '400 V (trifásico)']] }],
-  ['electrico.potenciaCalculada', 'Potencia calculada (kW)', 'text', { inputmode: 'decimal' }],
-  ['electrico.iga', 'IGA (A)', 'text', { inputmode: 'numeric' }],
+  ['electrico.iga', 'IGA (A)', 'select', { opciones: [['', '—'], ...IGAS.map((a) => [String(a), a + ' A'])] }],
+  ['electrico.potenciaCalculada', 'Potencia calculada (kW) · según IGA y tensión', 'text', { inputmode: 'decimal', soloLectura: true }],
+  ['electrico.potenciaKw', 'Potencia CNMC (kW) · la que va en la memoria', 'text', { inputmode: 'decimal', placeholder: '¿Qué potencia va en la CNMC?' }],
   ['electrico.contador', 'Contador', 'text'],
   ['electrico.contadorCercano', 'Contador cercano', 'text'],
   ['electrico.uso', 'Uso', 'select', { opciones: [['', '—'], ['vivienda', 'Vivienda'], ['local', 'Local comercial'], ['comunes', 'Servicios comunes'], ['garaje', 'Garaje / recarga'], ['otro', 'Otro']] }],
@@ -199,6 +207,8 @@ export async function vistaFicha(app, id) {
   };
 
   // --- un campo del formulario
+  // Potencia calculada al día con el IGA y la tensión guardados
+  if (draft.electrico && !String(draft.electrico.potenciaCalculada || '').trim()) { const kw = potenciaDeIga(draft.electrico.iga, draft.electrico.tension); if (kw) draft.electrico.potenciaCalculada = kw; }
   const campo = ([ruta, etiqueta, tipo, o = {}]) => {
     const idc = 'f-' + ruta.replace('.', '-');
     let ctrl;
@@ -218,11 +228,19 @@ export async function vistaFicha(app, id) {
         if (p) p.value = draft.suministro.provincia;
       }
       if (['suministro.cups', 'suministro.direccion', 'suministro.numero', 'suministro.piso', 'suministro.puerta', 'suministro.cp'].includes(ruta)) comprobarDuplicados();
+      if (ruta === 'electrico.iga' || ruta === 'electrico.tension') {
+        const kw = potenciaDeIga(draft.electrico?.iga, draft.electrico?.tension);
+        escribir(draft, 'electrico.potenciaCalculada', kw);
+        const c = cont.querySelector('#f-electrico-potenciaCalculada'); if (c) c.value = kw;
+        if (kw && !String(draft.electrico?.potenciaKw || '').trim()) cont.querySelector('#f-electrico-potenciaKw')?.focus();
+      }
       alCambiar();
     };
-    if (tipo === 'select') ctrl = h('select', { id: idc, onchange: on }, ...o.opciones.map(([v, t]) => h('option', { value: v, selected: String(valor) === v || null }, t)));
+    // Un valor guardado que no está en la lista (p. ej. un IGA antiguo) se conserva como opción
+    const opciones = tipo === 'select' && String(valor) && !o.opciones.some(([v]) => v === String(valor)) ? [...o.opciones, [String(valor), String(valor)]] : o.opciones;
+    if (tipo === 'select') ctrl = h('select', { id: idc, onchange: on }, ...opciones.map(([v, t]) => h('option', { value: v, selected: String(valor) === v || null }, t)));
     else if (tipo === 'textarea') ctrl = h('textarea', { id: idc, rows: 3, oninput: on, value: valor });
-    else ctrl = h('input', { id: idc, type: tipo === 'date' ? 'date' : tipo === 'email' ? 'email' : tipo === 'tel' ? 'tel' : 'text', value: valor, inputmode: o.inputmode, class: o.mono ? 'mono' : null, autocomplete: 'off', oninput: on,
+    else ctrl = h('input', { id: idc, type: tipo === 'date' ? 'date' : tipo === 'email' ? 'email' : tipo === 'tel' ? 'tel' : 'text', value: valor, inputmode: o.inputmode, class: o.mono ? 'mono' : null, autocomplete: 'off', oninput: on, readonly: o.soloLectura || null, placeholder: o.placeholder || null,
       onblur: ruta === 'cliente.iban' ? (e) => { const f = formatearIban(e.target.value); if (f) { e.target.value = f; escribir(draft, ruta, f); } }
         : ruta === 'suministro.direccion' ? (e) => {
           // Si el número se escribió junto a la calle y su campo está vacío, se pasa a su sitio
@@ -341,7 +359,14 @@ export async function vistaFicha(app, id) {
       h('a', { class: 'btn', href: registro && isExpediente(draft) ? '#/expedientes' : '#/avisos' }, 'Volver')),
     registro?.deleted ? h('div', { class: 'aviso err' }, 'Este aviso está en la papelera. ', h('button', { class: 'btn peq', type: 'button', onclick: async () => { await app.storage.restore(registro.id); toast('Recuperado'); window.dispatchEvent(new HashChangeEvent('hashchange')); } }, 'Recuperar')) : null,
     resumen, avisoDup,
+    seccion('Plano de situación y fotografías', false, h('label', {}, 'Plano de situación'), planoEl, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
     seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.map(campo)), bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar: () => planoEl.generar({ auto: true }) })),
+    seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
+    seccion('Memoria técnica CNMC', false, bloqueMemoria(app, draft, alCambiar, registro?.id, async (ficha) => {
+      if (!draft.archivos.some((x) => x.hash === ficha.hash)) draft.archivos.push(ficha);
+      await guardar();
+    })),
+    seccion('Autorización de representatividad', false, bloqueAutorizacion(app, draft, alCambiar, () => guardar())),
     seccion('Condiciones y trámite', false,
       h('div', { class: 'grid2' },
         campo(['condiciones.ref', 'Referencia de condiciones', 'text', { mono: true, mayus: true }]),
@@ -350,13 +375,6 @@ export async function vistaFicha(app, id) {
       h('div', { class: 'fila' }, h('button', { class: 'btn', type: 'button', onclick: () => subirPdf.click() }, 'Añadir PDF de condiciones'), subirPdf)),
     seccion('Documentación', false, docsCtrl, h('p', { class: 'muted' }, 'Marcar «Recibido» registra la recepción; no adjunta ningún archivo.'), listaArchivos(app, draft)),
     registro ? seccion('Solicitudes y comunicaciones', false, comunicaciones) : null,
-    seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
-    seccion('Plano de situación y fotografías', false, h('label', {}, 'Plano de situación'), planoEl, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
-    seccion('Memoria técnica CNMC', false, bloqueMemoria(app, draft, alCambiar, registro?.id, async (ficha) => {
-      if (!draft.archivos.some((x) => x.hash === ficha.hash)) draft.archivos.push(ficha);
-      await guardar();
-    })),
-    seccion('Autorización de representatividad', false, bloqueAutorizacion(app, draft, alCambiar, () => guardar())),
     seccion('Cuadros eléctricos', false, bloqueCuadros(app, draft, alCambiar, () => guardar())),
     seccion('Certificados', false, certificados),
     seccion('Obra, fecha y observaciones', false, h('div', { class: 'grid2' }, ...CAMPOS_OBRA.map(campo),
