@@ -134,7 +134,7 @@ try {
   await page.check('#m-viv-0-aplica');
   await page.fill('#m-viv-0-potencia', '9,2');
   await page.selectOption('#m-viv-0-tension', '230 V');
-  await page.waitForSelector('text=Total A+B+C+D: 9,2 kW');
+  await page.waitForSelector('text=Total A+B+C+D+G: 9,2 kW');
   assert.equal(await page.inputValue('#f-electrico-potenciaKw'), '9,2');
   ok('Memoria: total A+B+C+D calculado y usado como potencia del aviso');
   await page.click('#guardar');

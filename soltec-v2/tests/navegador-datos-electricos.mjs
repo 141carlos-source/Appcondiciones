@@ -51,6 +51,34 @@ try {
   assert.equal(await page.getAttribute('#f-electrico-potenciaKw', 'placeholder'), '¿Qué potencia va en la CNMC?');
   ok('Pregunta la potencia CNMC (se pone el cursor ahí si está vacía)');
 
+  // Uso: nave → también «Uso de la finca» de la memoria CNMC
+  assert.ok((await page.$$eval('#f-electrico-uso option', (o) => o.map((x) => x.textContent))).includes('Nave'));
+  await page.selectOption('#f-electrico-uso', 'nave');
+  assert.equal(await page.inputValue('#m-uso'), 'NAVE');
+  await page.selectOption('#f-electrico-uso', 'vivienda');
+  assert.equal(await page.inputValue('#m-uso'), 'VIVIENDA');
+  ok('Uso «Nave» y el uso pasa solo a «Uso de la finca» de la memoria');
+
+  // Memoria: apartado G. Naves que suma en el total
+  await page.click('summary:has-text("Memoria técnica CNMC")');
+  await page.click('summary:has-text("G. Naves")');
+  assert.ok(await page.locator('text=NAVE 1').first().isVisible());
+  assert.match(await page.locator('#bloque-memoria, details:has(summary:has-text("Memoria técnica CNMC"))').first().innerText(), /A\+B\+C\+D\+G/);
+  ok('Memoria CNMC con apartado G. Naves en el total');
+
+  // Obra: nombre por defecto = dirección del suministro
+  await page.fill('#f-suministro-direccion', 'CALLE MAYOR');
+  await page.fill('#f-suministro-numero', '12');
+  await page.click('summary:has-text("Obra, fecha y observaciones")');
+  assert.equal(await page.inputValue('#f-obra'), 'CALLE MAYOR 12');
+  await page.fill('#f-suministro-piso', '2');
+  assert.equal(await page.inputValue('#f-obra'), 'CALLE MAYOR 12, Piso 2');
+  await page.fill('#f-obra', 'REFORMA LOCAL');
+  await page.fill('#f-suministro-numero', '14');
+  assert.equal(await page.inputValue('#f-obra'), 'REFORMA LOCAL', 'si se escribe otro nombre, se respeta');
+  assert.ok(await page.inputValue('#f-fecha'));
+  ok('Obra: el nombre es la dirección del suministro (se respeta si se escribe otro) y la fecha viene puesta');
+
   assert.deepEqual(errores, []);
   ok('Sin errores en la consola');
 } catch (e) {

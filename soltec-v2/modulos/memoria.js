@@ -1,7 +1,7 @@
 // SOLTEC V2 · Formulario de la memoria CNMC dentro del aviso y generación del PDF.
 
 import { h, toast, abrirBlob, compartir, descargar } from '../ui.js';
-import { normalizarMemoria, totales, kw, TIPOS_SOLICITUD, USOS_FINCA, TENSIONES, ALMACENAMIENTO, generarMemoria } from '../core/memoria.js';
+import { normalizarMemoria, totales, kw, usoFincaDeUso, TIPOS_SOLICITUD, USOS_FINCA, TENSIONES, ALMACENAMIENTO, generarMemoria } from '../core/memoria.js';
 import { nombreMemoria, normalizarAviso } from '../core/model.js';
 import { leerEmpresa } from './empresa.js';
 import { cargarPdfLib } from './comunicaciones.js';
@@ -15,10 +15,11 @@ const opciones = (lista, valor, vacio = '—') => [h('option', { value: '' }, va
 export function bloqueMemoria(app, draft, alCambiar, avisoId, guardarArchivo) {
   draft.memoria = normalizarMemoria(draft.memoria);
   const m = draft.memoria;
+  if (!m.usoFinca && draft.electrico?.uso) m.usoFinca = usoFincaDeUso(draft.electrico.uso);
   const totalBox = h('div', { class: 'total-cnmc', id: 'total-cnmc' });
   const actualizarTotal = () => {
     const t = totales(m);
-    totalBox.replaceChildren(h('span', {}, `A ${kw(t.A)} · B ${kw(t.B)} · C ${kw(t.C)} · D ${kw(t.D)} kW`), h('b', {}, `Total A+B+C+D: ${kw(t.total)} kW`));
+    totalBox.replaceChildren(h('span', {}, `A ${kw(t.A)} · B ${kw(t.B)} · C ${kw(t.C)} · D ${kw(t.D)} · G ${kw(t.G)} kW`), h('b', {}, `Total A+B+C+D+G: ${kw(t.total)} kW`));
     if (t.total && !String(draft.electrico?.potenciaKw || '').trim()) {
       draft.electrico.potenciaKw = kw(t.total);
       const p = document.getElementById('f-electrico-potenciaKw');
@@ -85,6 +86,7 @@ export function bloqueMemoria(app, draft, alCambiar, avisoId, guardarArchivo) {
       h('div', { class: 'fila-cnmc' }, check(au, 'm-auto-aplica', 'Aplica'),
         h('div', { class: 'grid2', hidden: !au.aplica || null }, inp(au, 'consumo', 'Capacidad por consumo (kW)', 'm-auto-cons', 'decimal'), inp(au, 'generacion', 'Capacidad para generación (kW)', 'm-auto-gen', 'decimal'),
           h('p', { class: 'muted ancho' }, 'Si aplica, hay que adjuntar el esquema unifilar simplificado.')))),
+    apartado('G. Naves', m.naves, [['aclarador', 'Aclarador'], pot, ten, ['superficie', 'Superficie (m²)', 'num']], 'm-nav'),
     totalBox,
     avisoId ? h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', id: 'generar-memoria', onclick: generar }, 'Generar memoria CNMC (PDF)')) : h('p', { class: 'muted' }, 'Guarda el aviso para generar la memoria.'),
     resultado);

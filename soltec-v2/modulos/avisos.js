@@ -12,6 +12,7 @@ import { provinciaDeCp, formatearIban, validarCups } from '../core/validate.js';
 import { bloqueSeguimiento } from './agenda.js';
 import { bloqueComunicaciones, listaArchivos } from './comunicaciones.js';
 import { bloqueMemoria } from './memoria.js';
+import { usoFincaDeUso } from '../core/memoria.js';
 import { bloqueUbicacion, bloquePlano, bloqueFotos } from './ubicacion.js';
 import { bloqueCertificados } from './certificados.js';
 import { bloqueCuadros } from './cuadros.js';
@@ -121,12 +122,12 @@ const CAMPOS_ELEC = [
   ['electrico.potenciaKw', 'Potencia CNMC (kW) · la que va en la memoria', 'text', { inputmode: 'decimal', placeholder: '¿Qué potencia va en la CNMC?' }],
   ['electrico.contador', 'Contador', 'text'],
   ['electrico.contadorCercano', 'Contador cercano', 'text'],
-  ['electrico.uso', 'Uso', 'select', { opciones: [['', '—'], ['vivienda', 'Vivienda'], ['local', 'Local comercial'], ['comunes', 'Servicios comunes'], ['garaje', 'Garaje / recarga'], ['otro', 'Otro']] }],
+  ['electrico.uso', 'Uso', 'select', { opciones: [['', '—'], ['vivienda', 'Vivienda'], ['local', 'Local comercial'], ['comunes', 'Servicios comunes'], ['garaje', 'Garaje / recarga'], ['nave', 'Nave'], ['otro', 'Otro']] }],
 ];
 const CAMPOS_OBRA = [
   ['fecha', 'Fecha del aviso', 'date'],
   ['estado', 'Estado general', 'select', { opciones: ESTADOS_AVISO.map((e) => [e, e]) }],
-  ['obra', 'Nombre de obra', 'text', { ancho: 2 }],
+  ['obra', 'Nombre de obra (por defecto, la dirección del suministro)', 'text', { ancho: 2 }],
   ['concepto', 'Concepto', 'text', { ancho: 2 }],
   ['observaciones', 'Observaciones', 'textarea', { ancho: 2 }],
 ];
@@ -202,11 +203,20 @@ export async function vistaFicha(app, id) {
     escribir(draft, ruta, valor);
     const el = cont.querySelector('#f-' + ruta.replace('.', '-'));
     if (el) el.value = valor;
-    if (ruta.startsWith('suministro.')) comprobarDuplicados();
+    if (ruta.startsWith('suministro.')) { comprobarDuplicados(); obraDeDireccion(); }
     alCambiar();
   };
 
   // --- un campo del formulario
+  // Nombre de la obra: la dirección del suministro si no tiene otro
+  if (!String(draft.obra || '').trim() && direccionCompleta(draft.suministro)) draft.obra = direccionCompleta(draft.suministro);
+  let obraAuto = !String(draft.obra || '').trim() || draft.obra === direccionCompleta(draft.suministro);
+  /** Nombre de la obra = dirección del suministro, mientras no se haya escrito otro. */
+  const obraDeDireccion = () => {
+    if (!obraAuto) return;
+    draft.obra = direccionCompleta(draft.suministro);
+    const ob = cont.querySelector('#f-obra'); if (ob) ob.value = draft.obra;
+  };
   // Potencia calculada al día con el IGA y la tensión guardados
   if (draft.electrico && !String(draft.electrico.potenciaCalculada || '').trim()) { const kw = potenciaDeIga(draft.electrico.iga, draft.electrico.tension); if (kw) draft.electrico.potenciaCalculada = kw; }
   const campo = ([ruta, etiqueta, tipo, o = {}]) => {
@@ -228,6 +238,13 @@ export async function vistaFicha(app, id) {
         if (p) p.value = draft.suministro.provincia;
       }
       if (['suministro.cups', 'suministro.direccion', 'suministro.numero', 'suministro.piso', 'suministro.puerta', 'suministro.cp'].includes(ruta)) comprobarDuplicados();
+      if (ruta === 'electrico.uso' && draft.memoria) {
+        // El uso pasa también a «Uso de la finca» de la memoria CNMC
+        draft.memoria.usoFinca = usoFincaDeUso(v);
+        const u = cont.querySelector('#m-uso'); if (u) u.value = draft.memoria.usoFinca;
+      }
+      if (['suministro.direccion', 'suministro.numero', 'suministro.piso', 'suministro.puerta', 'suministro.cp', 'suministro.poblacion'].includes(ruta)) obraDeDireccion();
+      if (ruta === 'obra') obraAuto = !v.trim() || v === direccionCompleta(draft.suministro);
       if (ruta === 'electrico.iga' || ruta === 'electrico.tension') {
         const kw = potenciaDeIga(draft.electrico?.iga, draft.electrico?.tension);
         escribir(draft, 'electrico.potenciaCalculada', kw);
@@ -250,6 +267,7 @@ export async function vistaFicha(app, id) {
           e.target.value = calle; escribir(draft, 'suministro.direccion', calle);
           escribir(draft, 'suministro.numero', numero);
           const n = cont.querySelector('#f-suministro-numero'); if (n) n.value = numero;
+          obraDeDireccion();
           comprobarDuplicados(); alCambiar();
         } : null });
     return h('div', { class: 'campo' + (o.ancho === 2 ? ' ancho' : ''), 'data-campo': ruta }, h('label', { for: idc }, etiqueta), ctrl, h('div', { class: 'msg-pend' }));

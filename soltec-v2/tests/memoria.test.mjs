@@ -48,3 +48,17 @@ test('PDF de la memoria CNMC con sus apartados y nombre con dirección, piso y p
   assert.equal(nombreMemoria(aviso), 'CNMC_CIRCULAR_1_2024_ENDESA_CALLE_RAMON_Y_CAJAL_12_PISO_3_PUERTA_B.pdf');
   writeFileSync(new URL('./memoria-ejemplo.pdf', import.meta.url), bytes);
 });
+
+test('apartado G. Naves: suma en el total y uso de la finca desde «Datos eléctricos»', async () => {
+  const { normalizarMemoria, totales, usoFincaDeUso } = await import('../core/memoria.js');
+  const m = normalizarMemoria({ viviendas: [{ aplica: true, potencia: '5,75' }] });
+  assert.equal(m.naves.length, 2);
+  assert.equal(m.naves[0].nombre, 'NAVE 1');
+  m.naves[0].aplica = true; m.naves[0].potencia = '43,65';
+  const t = totales(m);
+  assert.equal(Math.round(t.G * 100), 4365);
+  assert.equal(Math.round(t.total * 100), 4940);
+  assert.equal(usoFincaDeUso('nave'), 'NAVE');
+  assert.equal(usoFincaDeUso('vivienda'), 'VIVIENDA');
+  assert.equal(usoFincaDeUso('local'), 'LOCAL');
+});

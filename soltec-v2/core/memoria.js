@@ -7,6 +7,8 @@ import { textoPdf } from './documentos.js';
 
 export const TIPOS_SOLICITUD = ['NUEVO SUMINISTRO', 'AMPLIACIÓN DE POTENCIA / CAMBIO DE TENSIÓN', 'PROVISIONAL OBRAS', 'SUMINISTRO EVENTUAL O DE TEMPORADA', 'COMPLEMENTARIO O DE SEGURIDAD'];
 export const USOS_FINCA = ['VIVIENDA', 'LOCAL', 'NAVE', 'CAMPA', 'EDIFICIO DE VIVIENDAS', 'OTROS'];
+/** Uso de «Datos eléctricos» → uso de la finca de la memoria. */
+export const usoFincaDeUso = (uso) => ({ vivienda: 'VIVIENDA', local: 'LOCAL', nave: 'NAVE', comunes: 'EDIFICIO DE VIVIENDAS', garaje: 'OTROS', otro: 'OTROS' })[uso] || '';
 export const TENSIONES = ['230 V', '3X230 V', '3X230/400 V'];
 export const ALMACENAMIENTO = ['BATERÍAS', 'VOLANTE DE INERCIA', 'SUPERCONDENSADORES', 'OTROS'];
 
@@ -18,6 +20,7 @@ export function memoriaVacia() {
     locales: filas(2, (i) => ({ aplica: false, nombre: `LOCAL ${i + 1}`, aclarador: '', potencia: '', tension: '', superficie: '' })),
     servicios: ['ESCALERAS', 'ASCENSORES', 'OTROS'].map((nombre) => ({ aplica: false, nombre, aclarador: '', potencia: '', tension: '' })),
     garajes: ['GARAJE', 'PUNTOS RECARGA VE'].map((nombre) => ({ aplica: false, nombre, tipo: '', potencia: '', tension: '', superficie: '' })),
+    naves: filas(2, (i) => ({ aplica: false, nombre: `NAVE ${i + 1}`, aclarador: '', potencia: '', tension: '', superficie: '' })),
     acumulacion: { aplica: false, tipo: '', potencia: '', capacidad: '' },
     autoconsumo: { aplica: false, consumo: '', generacion: '' },
   };
@@ -27,7 +30,7 @@ export function memoriaVacia() {
 export function normalizarMemoria(m = {}) {
   const b = memoriaVacia();
   const out = { ...b, ...m };
-  for (const k of ['viviendas', 'locales', 'servicios', 'garajes']) out[k] = b[k].map((f, i) => ({ ...f, ...((m[k] || [])[i] || {}) }));
+  for (const k of ['viviendas', 'locales', 'servicios', 'garajes', 'naves']) out[k] = b[k].map((f, i) => ({ ...f, ...((m[k] || [])[i] || {}) }));
   out.acumulacion = { ...b.acumulacion, ...(m.acumulacion || {}) };
   out.autoconsumo = { ...b.autoconsumo, ...(m.autoconsumo || {}) };
   return out;
@@ -36,11 +39,11 @@ export function normalizarMemoria(m = {}) {
 const num = (v) => { const x = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(x) ? x : 0; };
 export const kw = (v) => String(Math.round(v * 100) / 100).replace('.', ',');
 
-/** Potencias por apartado y total A+B+C+D (solo filas que aplican). */
+/** Potencias por apartado y total A+B+C+D+G (solo filas que aplican). */
 export function totales(m) {
   const suma = (a) => (a || []).filter((f) => f.aplica).reduce((s, f) => s + num(f.potencia), 0);
-  const t = { A: suma(m.viviendas), B: suma(m.locales), C: suma(m.servicios), D: suma(m.garajes) };
-  t.total = t.A + t.B + t.C + t.D;
+  const t = { A: suma(m.viviendas), B: suma(m.locales), C: suma(m.servicios), D: suma(m.garajes), G: suma(m.naves) };
+  t.total = t.A + t.B + t.C + t.D + t.G;
   return t;
 }
 
@@ -179,7 +182,7 @@ export async function generarMemoria(PDFLib, { aviso, empresa, logo, edist, firm
   await nuevaPagina();
   seccion('4. DATOS TÉCNICOS DE LA PETICIÓN');
   t('Rellenar las tablas que apliquen al tipo de solicitud. Si se requieren más filas, adjuntar anexo.', M, y, { size: 7, color: ACERO }); y -= 12;
-  campos([['Potencia A · Viviendas', kw(tot.A) + ' kW'], ['Potencia B · Locales', kw(tot.B) + ' kW'], ['Potencia C · Servicios comunes', kw(tot.C) + ' kW'], ['Potencia D · Garajes', kw(tot.D) + ' kW']], 4);
+  campos([['Potencia A · Viviendas', kw(tot.A) + ' kW'], ['Potencia B · Locales', kw(tot.B) + ' kW'], ['Potencia C · Serv. comunes', kw(tot.C) + ' kW'], ['Potencia D · Garajes', kw(tot.D) + ' kW'], ['Potencia G · Naves', kw(tot.G) + ' kW']], 5);
   const val = (f, k) => (f.aplica ? f[k] : '');
   const tens = (f) => (f.aplica ? tensionTexto(f.tension) : '');
   t('A. VIVIENDAS', M, y, { size: 8, font: B, color: AZUL }); y -= 6;
@@ -196,8 +199,10 @@ export async function generarMemoria(PDFLib, { aviso, empresa, logo, edist, firm
   t('F. GENERACIÓN ASOCIADA / AUTOCONSUMO', M, y, { size: 8, font: B, color: AZUL }); y -= 14;
   campos([['Aplica', au.aplica ? 'SÍ' : 'NO'], ['Capacidad por consumo', au.aplica && au.consumo ? au.consumo + ' kW' : ''], ['Capacidad para generación', au.aplica && au.generacion ? au.generacion + ' kW' : '']], 3);
   t('Si aplica, es obligatorio adjuntar Esquema Unifilar Simplificado.', M, y, { size: 7, color: ACERO }); y -= 14;
+  t('G. NAVES', M, y, { size: 8, font: B, color: AZUL }); y -= 6;
+  tabla(['CONCEPTO APLICABLE', 'ACLARADOR DE NAVES', 'POTENCIA (kW)', 'TENSIÓN (V)', 'SUPERFICIE (m²)'], m.naves.map((f) => [f.aplica ? f.nombre : '', val(f, 'aclarador'), val(f, 'potencia'), tens(f), val(f, 'superficie')]), [2, 2.5, 1.2, 1.3, 1.2]);
   page.drawRectangle({ x: M, y: y - 20, width: W, height: 22, borderColor: c(ROJO), borderWidth: 1.5, color: rgb(1, 0.969, 0.965) });
-  t(`POTENCIA TOTAL SOLICITADA A+B+C+D: ${kw(tot.total)} kW`, M + 8, y - 13, { size: 10, font: B });
+  t(`POTENCIA TOTAL SOLICITADA A+B+C+D+G: ${kw(tot.total)} kW`, M + 8, y - 13, { size: 10, font: B });
   y -= 30;
 
   // Página 3: plano y foto CGP
