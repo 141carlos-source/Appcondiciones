@@ -45,7 +45,7 @@ test('caracteres que el PDF no admite no rompen el documento', async () => {
 test('resumen y enlace de WhatsApp', () => {
   const t = resumenWhatsApp({ aviso, empresa, seguimiento: { fecha: '2026-10-12', hora: '10:00' } });
   assert.match(t, /Hola María, le escribimos de M\. A\. SOLTEC/);
-  assert.match(t, /• IBAN/);
+  assert.doesNotMatch(t, /• IBAN/);
   assert.match(t, /• CUPS/);
   assert.match(t, /Le enviamos la ficha en PDF/);
   assert.match(t, /Próximo contacto: 2026-10-12 a las 10:00/);

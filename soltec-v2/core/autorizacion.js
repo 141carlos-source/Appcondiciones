@@ -15,6 +15,7 @@ export const CLAVES_AUTORIZACION = [
   'aut_nombre', 'aut_nif', 'aut_municipio', 'aut_via', 'aut_email', 'aut_tel',
   'sum_dir', 'sum_dir2', 'sum_municipio', 'sum_provincia', 'sum_potencia',
   'firma_lugar', 'firma_dia', 'firma_mes', 'firma_anio', 'firma_sol', 'firma_rep', 'firma_dest',
+  'env_correo', 'env_para', 'env_fecha', // envío por correo: 'si' | 'no', destinatario y fecha del último envío
 ];
 const FIRMAS = ['firma_sol', 'firma_rep', 'firma_dest'];
 const esFirma = (v) => typeof v === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(v);
@@ -79,6 +80,8 @@ export function sugerenciasAutorizacion(aviso = {}, empresa = {}) {
     sol_nif: (c.nif || '').toUpperCase(),
     sol_email: c.email || '',
     sol_tel: c.telefono || '',
+    env_correo: c.email ? 'si' : '',
+    env_para: c.email || '',
     sol_opcion: '',
     // Domicilio del promotor: el de facturación si es distinto; si no, el del suministro (se puede cambiar)
     sol_via: (aviso.facturacion?.mismoCliente === false ? '' : (aviso.facturacion?.direccion || '')) || dirSum,
@@ -107,5 +110,6 @@ export function resumenAutorizacion(a) {
   const firmas = FIRMAS.filter((k) => d[k]).length;
   const fact = { rep: 'factura al representante', ter: 'factura a un tercero' }[d.fact_opcion] || 'factura al solicitante';
   const quien = d.sol_nombre || 'solicitante sin nombre';
-  return { hay: true, texto: `${quien} · ${fact} · ${firmas ? `${firmas} firma${firmas > 1 ? 's' : ''}` : 'sin firmas'}`, firmas, actualizado: x.actualizado };
+  const envio = d.env_correo === 'no' ? ' · no se envía por correo' : d.env_fecha ? ` · enviada por correo a ${d.env_para} (${d.env_fecha})` : d.env_correo === 'si' && d.env_para ? ` · para enviar a ${d.env_para}` : '';
+  return { hay: true, texto: `${quien} · ${fact} · ${firmas ? `${firmas} firma${firmas > 1 ? 's' : ''}` : 'sin firmas'}${envio}`, firmas, actualizado: x.actualizado };
 }

@@ -80,7 +80,7 @@ try {
   await page.click('#btn-whatsapp');
   const texto = await page.inputValue('#texto-whatsapp');
   assert.match(texto, /le escribimos de M\. A\. SOLTEC/);
-  assert.match(texto, /• IBAN/);
+  assert.doesNotMatch(texto, /• IBAN/); // el IBAN ya no se pide
   let urlWa = '';
   await ctx.route('https://wa.me/**', (r) => { urlWa = r.request().url(); r.fulfill({ status: 200, body: 'WhatsApp' }); });
   const [pop] = await Promise.all([ctx.waitForEvent('page'), page.click('text=Abrir WhatsApp')]);
@@ -94,7 +94,7 @@ try {
   // Correo de solicitud con revisión previa de datos
   await page.click('text=Correo: solicitar contrato de electricidad');
   await page.waitForSelector('text=Continuar con el borrador');
-  assert.match(await page.textContent('.aviso.info'), /IBAN/);
+  assert.match(await page.textContent('.aviso.info'), /CUPS/);
   await page.click('text=Continuar con el borrador');
   await page.waitForSelector('text=Adjunta el PDF antes de enviarlo');
   ok('Correo de contrato: avisa de los datos que faltan y recuerda adjuntar el PDF');

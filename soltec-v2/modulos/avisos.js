@@ -53,7 +53,6 @@ function tarjetaExpediente(r) {
     h('div', { class: 'insignias' },
       ind(!validarCups(a.suministro?.cups), 'CUPS'),
       ind(a.docs?.contrato === 'recibido' || a.docs?.contrato === 'na', 'Contrato'),
-      a.docs?.contrato === 'na' ? null : ind(!!String(a.cliente?.iban || '').trim(), 'IBAN'),
       a.tramite ? h('span', { class: 'insignia' }, faseLabel(a.tramite)) : null));
 }
 

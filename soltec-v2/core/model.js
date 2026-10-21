@@ -180,7 +180,8 @@ const CHECKS = [
   ['cliente.nif', 'DNI/NIF/CIF', v(validarNif), ['ficha', 'contrato', 'boletin']],
   ['cliente.telefono', 'Teléfono', v(validarTelefono), ['ficha', 'contrato']],
   ['cliente.email', 'Correo', v(validarEmail), ['ficha', 'contrato']],
-  ['cliente.iban', 'IBAN', v(validarIban), ['contrato']],
+  // El IBAN no es obligatorio: solo se avisa si está escrito y mal
+  ['cliente.iban', 'IBAN', (x) => (String(x ?? '').trim() ? validarIban(x) : null), ['contrato']],
   ['suministro.direccion', 'Dirección', requerido('la dirección del suministro'), ['ficha', 'contrato', 'boletin']],
   ['suministro.cp', 'Código postal', v(validarCp), ['ficha', 'contrato', 'boletin']],
   ['suministro.poblacion', 'Población', requerido('la población'), ['ficha', 'contrato', 'boletin']],

@@ -1,4 +1,4 @@
-// Prueba en Chromium: sin contrato, el IBAN vacío no se marca como falta.
+// Prueba en Chromium: el IBAN vacío no se marca como falta (en rojo); escrito mal, sí.
 // Uso: node tests/navegador-iban.mjs
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
@@ -23,18 +23,13 @@ try {
   await page.goto(`http://localhost:${pWeb}/index.html#/aviso/nuevo`);
   await page.waitForSelector('#f-cliente-nombre');
   const iban = () => page.locator('.campo[data-campo="cliente.iban"]');
-  assert.match(await iban().getAttribute('class'), /\bpend\b/);
-  assert.ok(await page.locator('.enlaces-pend button', { hasText: 'IBAN' }).count());
-  await page.click('#sin-contrato');
   assert.doesNotMatch(await iban().getAttribute('class'), /\bpend\b/);
   assert.equal(await page.locator('.enlaces-pend button', { hasText: 'IBAN' }).count(), 0);
-  assert.equal(await page.inputValue('#doc-contrato'), 'na');
-  ok('«No lleva contrato» quita el IBAN de las faltas y marca Contrato: No aplica');
-  await page.click('summary:has-text("Documentación")');
-  await page.selectOption('#doc-contrato', 'pendiente');
+  ok('El IBAN vacío no sale en rojo ni como falta');
+  await page.fill('#f-cliente-iban', 'ES00 1234');
   assert.match(await iban().getAttribute('class'), /\bpend\b/);
-  ok('Si vuelve a haber contrato, el IBAN vuelve a pedirse');
-  await page.selectOption('#doc-contrato', 'na');
+  ok('Si se escribe un IBAN mal, sí avisa');
+  await page.fill('#f-cliente-iban', '');
   await page.fill('#f-cliente-nombre', 'Sin contrato');
   await page.click('#guardar');
   await page.waitForFunction(() => /^Aviso \d/.test(document.querySelector('h1')?.textContent || ''));
