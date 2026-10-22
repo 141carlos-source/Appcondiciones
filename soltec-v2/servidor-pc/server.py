@@ -38,7 +38,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-VERSION = "V2-SERVIDOR-6"
+VERSION = "V2-SERVIDOR-7"
 LEGACY_ROOT = Path(__file__).resolve().parent  # versiones anteriores guardaban todo junto a server.py
 # Los datos y la clave viven fuera de la carpeta del programa: al descomprimir una versión
 # nueva en otra carpeta se conservan la misma clave y los mismos datos.
@@ -47,6 +47,8 @@ DATA = ROOT / "datos"
 BLOBS = DATA / "archivos"
 BACKUPS = ROOT / "copias"
 CONFIG_FILE = ROOT / "soltec-v2-config.json"
+NUBE_FILE = ROOT / "nube.json"  # copia diaria fuera de casa (Google Drive / OneDrive)
+KEEP_NUBE = 30
 DB_FILE = DATA / "soltec-v2.sqlite3"
 DEFAULT_PORT = 8766
 # Carpeta con la aplicación (index.html...). En la instalación del PC está junto a la del servidor.
@@ -164,6 +166,7 @@ class Store:
         self.db_file = Path(db_file or DB_FILE)
         self.blobs = Path(blobs_dir or BLOBS)
         self.backups = Path(backups_dir or BACKUPS)
+        self.nube_file = (self.backups.parent / "nube.json") if backups_dir else NUBE_FILE
         for d in (self.db_file.parent, self.blobs, self.backups):
             d.mkdir(parents=True, exist_ok=True)
         self.lock = threading.Lock()
@@ -315,6 +318,101 @@ class Store:
         return dest
 
 
+
+# ---------------------------------------------------------------- copia diaria en la nube
+def candidatas_nube(home=None):
+    """Carpetas de Google Drive / OneDrive / Dropbox que existen en este PC."""
+    home = Path(home or Path.home())
+    rutas = []
+    for var in ("OneDrive", "OneDriveConsumer", "OneDriveCommercial"):
+        if os.environ.get(var):
+            rutas.append(Path(os.environ[var]))
+    rutas += sorted(home.glob("OneDrive*"))
+    rutas += [home / "Google Drive", home / "Google Drive" / "Mi unidad", home / "Google Drive" / "My Drive", home / "Mi unidad", home / "My Drive", home / "Dropbox"]
+    if os.name == "nt":
+        for letra in "GHIJKLMNOPQRSTUVWXYZ":
+            for sub in ("Mi unidad", "My Drive"):
+                rutas.append(Path(f"{letra}:/") / sub)
+    vistas, out = set(), []
+    for r in rutas:
+        try:
+            if r.is_dir():
+                k = str(r.resolve())
+                if k not in vistas:
+                    vistas.add(k)
+                    nombre = "Google Drive" if ("Google" in k or "unidad" in k or "My Drive" in k) else "OneDrive" if "OneDrive" in k else "Dropbox" if "Dropbox" in k else r.name
+                    out.append({"ruta": k, "nombre": nombre})
+        except OSError:
+            continue
+    return out
+
+
+def leer_nube(path=None):
+    p = Path(path or NUBE_FILE)
+    try:
+        return {"carpeta": "", "activa": False, "ultima": "", "error": "", **json.loads(p.read_text(encoding="utf-8"))}
+    except Exception:  # noqa: BLE001
+        return {"carpeta": "", "activa": False, "ultima": "", "error": ""}
+
+
+def guardar_nube(cfg, path=None):
+    p = Path(path or NUBE_FILE)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, p)
+
+
+def copia_nube(store, carpeta, hoy=None):
+    """Copia del día en <carpeta>/SOLTEC_V2_COPIAS: la base de datos (una por día, se guardan 30)
+    y los archivos (solo los nuevos; nunca se borra ninguno). La clave NO se copia."""
+    base = Path(carpeta)
+    if not base.is_dir():
+        raise ValueError(f"La carpeta {carpeta} no existe en este PC")
+    dest = base / "SOLTEC_V2_COPIAS"
+    (dest / "archivos").mkdir(parents=True, exist_ok=True)
+    dia = hoy or datetime.now().strftime("%Y-%m-%d")
+    final = dest / f"soltec-v2_{dia}.sqlite3"
+    tmp = dest / f".soltec-v2_{dia}.tmp"
+    with store.lock:
+        t = sqlite3.connect(str(tmp))
+        store.db.backup(t)
+        t.close()
+    os.replace(tmp, final)
+    for old in sorted(dest.glob("soltec-v2_*.sqlite3"))[:-KEEP_NUBE]:
+        old.unlink()
+    nuevos = 0
+    for p in store.blobs.glob("*/*"):
+        if not p.is_file():
+            continue
+        q = dest / "archivos" / p.parent.name / p.name
+        if not q.exists():
+            q.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(p, q)
+            nuevos += 1
+    (dest / "LEEME.txt").write_text(
+        "Copias de SOLTEC V2 hechas automáticamente cada día por el PC.\r\n"
+        "Para recuperar: copia el archivo soltec-v2_AAAA-MM-DD.sqlite3 que quieras a\r\n"
+        "SOLTEC_V2_DATOS\\datos\\soltec-v2.sqlite3 y la carpeta archivos a SOLTEC_V2_DATOS\\datos\\archivos\r\n"
+        "(con el servidor parado). La clave de sincronización no se guarda aquí.\r\n", encoding="utf-8")
+    return {"archivo": final.name, "archivosNuevos": nuevos, "carpeta": str(dest)}
+
+
+def nube_si_toca(store, path=None, forzar=False):
+    """Hace la copia del día si está activada y aún no se ha hecho hoy. Devuelve el estado."""
+    cfg = leer_nube(path)
+    hoy = datetime.now().strftime("%Y-%m-%d")
+    if not cfg.get("activa") or not cfg.get("carpeta") or (not forzar and str(cfg.get("ultima", "")).startswith(hoy)):
+        return cfg
+    try:
+        r = copia_nube(store, cfg["carpeta"])
+        cfg.update(ultima=datetime.now().strftime("%Y-%m-%d %H:%M"), error="", ultimoArchivo=r["archivo"], archivosNuevos=r["archivosNuevos"])
+    except Exception as e:  # noqa: BLE001 — se informa en la app, nunca tumba el servidor
+        cfg.update(error=f"{datetime.now().strftime('%Y-%m-%d %H:%M')}: {e}")
+    guardar_nube(cfg, path)
+    return cfg
+
+
 # ---------------------------------------------------------------- HTTP
 def make_handler(store, key):
     class Handler(BaseHTTPRequestHandler):
@@ -408,6 +506,8 @@ def make_handler(store, key):
                     self.end_headers()
                     self.wfile.write(data)
                     return
+                if u.path == "/api/v2/nube":
+                    return self.send_json(200, {"ok": True, **leer_nube(store.nube_file), "candidatas": candidatas_nube()})
                 if u.path == "/api/v2/pull":
                     q = parse_qs(u.query)
                     since = int(q.get("since", ["0"])[0])
@@ -455,6 +555,16 @@ def make_handler(store, key):
                     res = store.latido(str(payload.get("deviceId") or self.headers.get("X-Soltec-Device") or ""),
                                        str(payload.get("nombre") or ""), ab if isinstance(ab, str) and len(ab) < 200 else None)
                     return self.send_json(200, {"ok": True, **res})
+                if u.path == "/api/v2/nube":
+                    cfg = leer_nube(store.nube_file)
+                    carpeta = str(payload.get("carpeta", cfg.get("carpeta", "")) or "").strip()
+                    if carpeta and not Path(carpeta).is_dir():
+                        return self.send_json(400, {"ok": False, "error": f"La carpeta {carpeta} no existe en el PC"})
+                    cfg.update(carpeta=carpeta, activa=bool(payload.get("activa", cfg.get("activa"))) and bool(carpeta))
+                    guardar_nube(cfg, store.nube_file)
+                    if payload.get("ahora") and cfg["activa"]:
+                        cfg = nube_si_toca(store, store.nube_file, forzar=True)
+                    return self.send_json(200, {"ok": True, **cfg, "candidatas": candidatas_nube()})
                 if u.path == "/api/v2/blobs/missing":
                     hashes = [h for h in payload.get("hashes", []) if isinstance(h, str) and HASH_RE.match(h)]
                     return self.send_json(200, {"ok": True, "missing": [h for h in hashes if not store.has_blob(h)]})
@@ -486,6 +596,19 @@ def backup_loop(store, stop, hours=6):
             store.backup_db("auto")
         except Exception as e:  # noqa: BLE001
             print("[AVISO] No se pudo hacer la copia automática:", e)
+
+
+def nube_loop(store, stop, minutos=30):
+    """Comprueba cada media hora si toca la copia del día en la nube (y nada más arrancar)."""
+    while True:
+        try:
+            c = nube_si_toca(store, store.nube_file)
+            if c.get("error"):
+                print("[AVISO] Copia en la nube:", c["error"])
+        except Exception as e:  # noqa: BLE001
+            print("[AVISO] Copia en la nube:", e)
+        if stop.wait(minutos * 60):
+            return
 
 
 class ServidorSoltec(ThreadingHTTPServer):
@@ -525,6 +648,7 @@ def main():
     dest = store.backup_db("inicio")
     stop = threading.Event()
     threading.Thread(target=backup_loop, args=(store, stop), daemon=True).start()
+    threading.Thread(target=nube_loop, args=(store, stop), daemon=True).start()
     httpd.RequestHandlerClass = make_handler(store, cfg["key"])
     print("=" * 62)
     print(f" SOLTEC V2 · servidor del PC ({VERSION})")

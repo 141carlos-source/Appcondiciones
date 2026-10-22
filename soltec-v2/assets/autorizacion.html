@@ -211,6 +211,11 @@ body{background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-syste
 .prevwrap{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:12px 4px;overflow:hidden}
 .acts{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
 </style>
+<script>
+/* SOLTEC V2: los errores de este formulario se anotan en el registro de errores de la app (Ajustes). */
+(function(){if(window.parent===window)return;var o=location.origin,n='autorizacion',m=function(e){try{var x=e&&(e.error||e.reason)||e;parent.postMessage({tipo:'soltec-error',origen:n,mensaje:String(x&&x.message||e&&e.message||x||'Error'),pila:String(x&&x.stack||'')},o)}catch(_){}};addEventListener('error',m);addEventListener('unhandledrejection',m)})();
+</script>
+<link rel="stylesheet" href="soltec-tema.css">
 </head>
 <body>
 <header class="bar" id="bar">

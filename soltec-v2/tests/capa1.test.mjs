@@ -235,3 +235,47 @@ test('el IBAN vacío nunca sale como falta; si se escribe mal, sí', () => {
   a.cliente.iban = 'ES9121000418450200051332';
   assert.ok(!datosPendientes(a).some((p) => p.campo === 'cliente.iban'));
 });
+
+test('liberar espacio: solo se borran los archivos que ya no usa ningún registro ni están por subir', async () => {
+  const s = await abrir();
+  const f1 = await s.putFile({ name: 'a.jpg', mime: 'image/jpeg', bytes: new TextEncoder().encode('foto usada') });
+  const f2 = await s.putFile({ name: 'b.jpg', mime: 'image/jpeg', bytes: new TextEncoder().encode('foto quitada') });
+  const f3 = await s.putFile({ name: 'c.jpg', mime: 'image/jpeg', bytes: new TextEncoder().encode('foto en papelera') });
+  const a = await s.save('aviso', { ...nuevoAviso(), fotos: [f1] });
+  const b = await s.save('aviso', { ...nuevoAviso(), fotos: [f3] });
+  await s.trash(b.id);
+  // f2 sigue en la cola de subida: no se toca aunque nadie la use
+  let e = await s.espacioArchivos();
+  assert.equal(e.archivos, 3);
+  assert.deepEqual(e.sinUso, []);
+  await s._dropBlobOutbox(f2.hash); await s._dropBlobOutbox(f1.hash); await s._dropBlobOutbox(f3.hash);
+  e = await s.espacioArchivos();
+  assert.deepEqual(e.sinUso, [f2.hash]);
+  const r = await s.borrarArchivosSinUso();
+  assert.equal(r.borrados, 1);
+  assert.ok(await s.getFile(f1.hash));
+  assert.ok(await s.getFile(f3.hash), 'lo de la papelera se conserva');
+  assert.equal(await s.getFile(f2.hash), null);
+  assert.ok(a.id);
+});
+
+test('buscador en todo: avisos (también observaciones y archivos), partes y citas, diciendo dónde', async () => {
+  const { buscarTodo } = await import('../core/search.js');
+  const av = (id, data) => ({ id, data: { ...nuevoAviso(), ...data } });
+  const avisos = [
+    av('a1', { numero: '2026-0001', cliente: { nombre: 'Ana Gil' }, observaciones: 'Llamar antes: el perro muerde', archivos: [{ name: 'CONDICIONES_ENDESA.pdf' }] }),
+    av('a2', { numero: '2026-0002', cliente: { nombre: 'Luis Pardo', telefono: '600 111 222' }, suministro: { direccion: 'Calle Mayor', numero: '3' } }),
+  ];
+  const partes = [{ id: 'p1', data: { numero: 'P-7', cliente: { nombre: 'Bar Pepe' }, trabajos: 'Cambio de diferencial en cocina', materiales: [{ ref: 'NXL63', desc: 'Diferencial 2x40' }] } }];
+  const citas = [{ id: 'c1', data: { titulo: 'Revisar CGP', fecha: '2026-10-30', notas: 'Traer escalera' } }];
+  const r1 = buscarTodo({ avisos, partes, citas }, 'perro');
+  assert.equal(r1.length, 1); assert.equal(r1[0].registro.id, 'a1'); assert.equal(r1[0].donde, 'observaciones');
+  assert.match(r1[0].extracto, /perro muerde/);
+  assert.equal(buscarTodo({ avisos }, 'condiciones endesa')[0].donde, 'archivos');
+  assert.equal(buscarTodo({ avisos }, '600111222')[0].registro.id, 'a2');
+  const r2 = buscarTodo({ avisos, partes, citas }, 'diferencial cocina');
+  assert.equal(r2[0].tipo, 'parte');
+  assert.equal(buscarTodo({ avisos, partes, citas }, 'escalera')[0].tipo, 'cita');
+  assert.equal(buscarTodo({ avisos, partes, citas }, 'mayor 3')[0].donde, 'dirección');
+  assert.deepEqual(buscarTodo({ avisos }, ''), []);
+});

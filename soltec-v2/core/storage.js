@@ -327,6 +327,40 @@ export class Storage {
     return { registros: all.length, archivos: hashes.length };
   }
 
+  // ---------- Espacio: archivos que ya no usa ningún registro ----------
+  /**
+   * Archivos guardados en este dispositivo y los que ningún registro (ni la papelera, ni un conflicto,
+   * ni la cola de subida) usa ya. Borrarlos solo quita la copia de ESTE dispositivo: el PC los conserva.
+   */
+  async espacioArchivos() {
+    const tx = this.db.transaction(['records', 'meta', 'blobs', 'blobOutbox']);
+    // Los archivos se recorren de uno en uno (sin cargar todas las fotos a la vez en memoria)
+    const blobs = await new Promise((ok, ko) => {
+      const out = [];
+      const c = tx.objectStore('blobs').openCursor();
+      c.onsuccess = () => { const cur = c.result; if (!cur) return ok(out); out.push({ hash: cur.value.hash, size: cur.value.size || cur.value.bytes?.byteLength || 0 }); cur.continue(); };
+      c.onerror = () => ko(c.error);
+    });
+    const [recs, metas, pend] = await Promise.all([
+      req(tx.objectStore('records').getAll()), req(tx.objectStore('meta').getAll()), req(tx.objectStore('blobOutbox').getAllKeys())]);
+    const usados = new Set(pend);
+    const buscar = (o) => { for (const m of JSON.stringify(o).matchAll(/[0-9a-f]{64}/g)) usados.add(m[0]); };
+    recs.forEach(buscar); metas.forEach(buscar);
+    const sinUso = blobs.filter((b) => !usados.has(b.hash));
+    const suma = (l) => l.reduce((n, b) => n + b.size, 0);
+    return { archivos: blobs.length, bytes: suma(blobs), sinUso: sinUso.map((b) => b.hash), bytesSinUso: suma(sinUso) };
+  }
+
+  /** Borra de este dispositivo los archivos indicados (solo si siguen sin usarse). */
+  async borrarArchivosSinUso() {
+    const { sinUso, bytesSinUso } = await this.espacioArchivos();
+    if (!sinUso.length) return { borrados: 0, bytes: 0 };
+    const tx = this.db.transaction('blobs', 'readwrite');
+    for (const h of sinUso) tx.objectStore('blobs').delete(h);
+    await done(tx);
+    return { borrados: sinUso.length, bytes: bytesSinUso };
+  }
+
   // ---------- Volcado completo (base de la copia de seguridad, capa 2) ----------
   async dumpAll() {
     const tx = this.db.transaction(['records', 'blobs']);

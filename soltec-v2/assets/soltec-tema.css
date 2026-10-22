@@ -1,0 +1,29 @@
+/* SOLTEC V2 · Tema común para los formularios incrustados en la app (CuadroLab y autorización).
+   Solo se aplica cuando se abren desde la app (html.host): sueltos conservan su aspecto propio.
+   Mismos colores, letra y forma de botones que el resto de SOLTEC V2. */
+@font-face { font-family: 'Archivo'; src: url('../vendor/fonts/archivo.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+
+/* ---------- Autorización de representatividad ---------- */
+html.host:root:not(.x) {
+  --bg: #eceff2; --panel: #ffffff; --text: #1e2226; --muted: #5a6169; --line: #dfe3e8;
+  --acc: #1e2226; --acc2: #343a40; --acc-soft: #f3f5f7; --bad: #c4161c; --warn: #8a5600; --ok: #1b6b40;
+  color-scheme: light;
+}
+html.host body { font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; }
+html.host .btn { border-radius: 10px; border-width: 1.5px; font-weight: 600; }
+html.host .btn.pri, html.host .btn.pri:hover { background: #1e2226; border-color: #1e2226; color: #fff; }
+html.host .bar h1 { font-weight: 800; letter-spacing: -0.01em; }
+html.host .seg button[aria-pressed="true"] { background: #1e2226; border-color: #1e2226; color: #fff; }
+html.host .modal .mbox { border-radius: 16px; }
+
+/* ---------- CuadroLab ---------- */
+html.host.cuadrolab { --r: #c4161c; --g: #5a6169; --l: #dfe3e8; }
+html.host.cuadrolab body { font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; background: #eceff2; }
+html.host.cuadrolab .card { border-radius: 12px; border-color: #dfe3e8; }
+html.host.cuadrolab .b { background: #1e2226; border-radius: 10px; font-weight: 700; }
+html.host.cuadrolab .b:hover { background: #343a40; }
+html.host.cuadrolab .s { border: 1.5px solid #dfe3e8; border-radius: 10px; font-weight: 600; }
+html.host.cuadrolab .tl, html.host.cuadrolab .tl.sl { border-radius: 8px; border-color: #c6ccd3; }
+html.host.cuadrolab input, html.host.cuadrolab select { border-radius: 8px; }
+/* La impresión no cambia (unifilar, etiquetas y memoria salen como siempre) */
+@media print { html.host body, html.host.cuadrolab body { background: #fff !important; } }

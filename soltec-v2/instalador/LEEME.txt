@@ -33,3 +33,9 @@ INSTALAR EN OTROS DISPOSITIVOS (tablet, movil, otro PC)
 - Otro PC con Windows: pulsa "Descargar instalador para otro PC", copia el .bat al otro PC
   y abrelo con doble clic. Crea el icono "SOLTEC V2" en el escritorio y pregunta el nombre.
 - Cada dispositivo necesita Tailscale abierto con tu cuenta. El enlace lleva la clave: no lo compartas.
+
+COPIA DIARIA FUERA DE CASA (Google Drive / OneDrive)
+- En SOLTEC V2 > Ajustes > Copia diaria fuera de casa: elige la carpeta de Google Drive u OneDrive
+  del PC y pulsa "Activar y hacer la primera copia".
+- Cada dia el PC copia los datos en <carpeta>\SOLTEC_V2_COPIAS (se guardan 30 dias) y los archivos nuevos.
+- La clave de sincronizacion NO se copia. Para recuperar, lee el LEEME.txt de esa carpeta.

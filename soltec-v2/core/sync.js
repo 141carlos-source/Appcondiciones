@@ -344,4 +344,9 @@ export class SyncManager {
   async enviarCopia(copia) {
     return this._call('POST', '/api/v2/backup', { json: copia });
   }
+
+  /** Copia diaria en la nube que hace el PC (Google Drive / OneDrive): estado y carpetas posibles. */
+  async nube() { return this._call('GET', '/api/v2/nube'); }
+  /** Cambia la carpeta o la activa; {ahora:true} hace la copia en el momento. */
+  async guardarNube(cambios) { return this._call('POST', '/api/v2/nube', { json: cambios }); }
 }

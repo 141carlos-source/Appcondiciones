@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.18.1';
+export const VERSION = 'V2-1.19.0';
 
 import { h, toast, hace, descargar, activarMayusculas } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -15,10 +15,11 @@ import { vistaEmpresa } from './modulos/empresa.js';
 import { vistaFirma } from './modulos/comunicaciones.js';
 import { vistaPartes, vistaParte } from './modulos/partes.js';
 import { vistaImportar, hayV1Local } from './modulos/importar.js';
-import { bandeja, buscar, FILTROS_BANDEJA } from './core/search.js';
+import { bandeja, buscarTodo, FILTROS_BANDEJA } from './core/search.js';
 import { direccionCompleta, hoyLocal, numerosRepetidos, siguienteNumero } from './core/model.js';
 import { codigoAlta, enlaceAlta, leerAlta, nombreSugerido, instaladorWindows, esDireccionLocal } from './core/alta.js';
 import { URL_PUBLICA } from './core/fichaCliente.js';
+import { registrarError, describirError, leerErrores, borrarErrores, informeErrores } from './core/errores.js';
 
 const ICONOS = {
   inicio: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -263,17 +264,28 @@ async function vistaInicio() {
   const exp = avisos.filter((r) => isExpediente(r.data)).length;
   const hoy = hoyLocal();
   const proximas = citas.filter((c) => !c.data.hecho && (c.data.fecha || '') >= hoy).length;
-  const partesAbiertos = (await app.storage.list('parte')).filter((r) => !r.data.cerrado).length;
+  const partes = await app.storage.list('parte');
+  const partesAbiertos = partes.filter((r) => !r.data.cerrado).length;
 
   // Buscador único: avisos y expedientes, activos y finalizados (sin papelera)
-  const resultados = h('div', { class: 'lista' });
-  const busca = h('input', { type: 'search', class: 'buscador', id: 'buscador-unico', placeholder: 'Buscar cliente, teléfono, dirección, CUPS, referencia o nº de aviso', oninput: (e) => {
+  const resultados = h('div', { class: 'lista', id: 'resultados-busqueda' });
+  // Busca en todo: avisos (cliente, dirección, números, observaciones, archivos…), partes de trabajo y citas
+  const tarjetaResultado = ({ tipo, registro: r, donde, extracto, expediente }) => {
+    const d = r.data;
+    const [href, num, etq, titulo, sub] = tipo === 'parte'
+      ? [`#/parte/${r.id}`, d.numero || 'Parte', 'Parte', d.cliente?.nombre || '(sin cliente)', [d.fecha, d.avisoNumero && 'Aviso ' + d.avisoNumero].filter(Boolean).join(' · ')]
+      : tipo === 'cita'
+        ? [`#/cita/${r.id}`, d.fecha || '', 'Cita', d.titulo || 'Cita', [d.hora, d.responsable].filter(Boolean).join(' · ')]
+        : [`#/aviso/${r.id}`, d.numero, expediente ? 'Expediente' : 'Aviso', d.cliente?.nombre || '(sin nombre)', direccionCompleta(d.suministro)];
+    return h('a', { class: 'tarjeta', href },
+      h('div', { class: 'tarjeta-cab' }, h('span', { class: 'mono' }, num), h('span', { class: tipo === 'aviso' && expediente ? 'insignia ok' : 'etiqueta' }, etq)),
+      h('b', {}, titulo), sub ? h('div', { class: 'muted' }, sub) : null,
+      !['cliente', 'dirección', 'cita', 'parte'].includes(donde) ? h('div', { class: 'muted resultado-donde' }, h('b', {}, `En ${donde}: `), extracto) : null);
+  };
+  const busca = h('input', { type: 'search', class: 'buscador', id: 'buscador-unico', placeholder: 'Buscar en todo: cliente, teléfono, dirección, CUPS, nº, observaciones, partes, archivos…', oninput: (e) => {
     const q = e.target.value;
-    const rs = q.trim() ? buscar(avisos, q).slice(0, 20) : [];
-    resultados.replaceChildren(...(q.trim() && !rs.length ? [h('div', { class: 'card muted' }, 'Sin resultados.')] : rs.map(({ registro: r, expediente }) =>
-      h('a', { class: 'tarjeta', href: `#/aviso/${r.id}` },
-        h('div', { class: 'tarjeta-cab' }, h('span', { class: 'mono' }, r.data.numero), expediente ? h('span', { class: 'insignia ok' }, 'Expediente') : h('span', { class: 'etiqueta' }, 'Aviso')),
-        h('b', {}, r.data.cliente?.nombre || '(sin nombre)'), h('div', { class: 'muted' }, direccionCompleta(r.data.suministro))))));
+    const rs = q.trim() ? buscarTodo({ avisos, partes, citas }, q).slice(0, 30) : [];
+    resultados.replaceChildren(...(q.trim() && !rs.length ? [h('div', { class: 'card muted' }, 'Sin resultados.')] : rs.map(tarjetaResultado)));
   } });
 
   // Bandeja «Qué toca hoy»
@@ -436,11 +448,68 @@ function bloqueOtroDispositivo(cfg) {
   return h('details', { class: 'card', id: 'detalles-otro-dispositivo' }, h('summary', {}, 'Instalar en otro dispositivo'), cuerpo);
 }
 
+/** Ajustes › Copias: copia diaria del PC en Google Drive / OneDrive (fuera de casa). */
+function bloqueNube() {
+  const caja = h('div', { id: 'bloque-nube' }, h('p', { class: 'muted' }, 'Consultando el PC…'));
+  const pintar = (n) => {
+    const opciones = [...(n.candidatas || [])];
+    if (n.carpeta && !opciones.some((c) => c.ruta === n.carpeta)) opciones.push({ ruta: n.carpeta, nombre: 'Otra carpeta' });
+    const sel = h('select', { id: 'nube-carpeta' }, h('option', { value: '' }, opciones.length ? 'Elige la carpeta…' : 'No se ha encontrado Google Drive ni OneDrive en el PC'),
+      ...opciones.map((c) => h('option', { value: c.ruta, selected: c.ruta === n.carpeta || null }, `${c.nombre} · ${c.ruta}`)));
+    const otra = h('input', { type: 'text', id: 'nube-otra', placeholder: 'O escribe la ruta de la carpeta en el PC (p. ej. G:\\Mi unidad)', 'data-minusculas': '' });
+    const msg = h('div');
+    const guardar = async (cambios) => {
+      msg.replaceChildren(h('div', { class: 'aviso' }, cambios.ahora ? 'Haciendo la copia en el PC… (la primera vez puede tardar si hay muchas fotos)' : 'Guardando…'));
+      try { pintar(await app.sync.guardarNube(cambios)); toast(cambios.ahora ? 'Copia hecha en la nube' : 'Guardado'); }
+      catch (e) { msg.replaceChildren(h('div', { class: 'aviso err' }, e.message)); }
+    };
+    caja.replaceChildren(...[
+      h('p', { class: n.activa ? '' : 'muted', id: 'nube-estado' }, n.activa
+        ? h('span', {}, h('b', {}, '✓ Activada. '), `Cada día el PC copia los datos y los archivos en ${n.carpeta}\\SOLTEC_V2_COPIAS (se guardan 30 días).`)
+        : 'Desactivada: las copias solo están en el PC. Si el PC se estropea o se pierde, se pierde todo.'),
+      n.ultima ? h('p', { class: 'muted' }, `Última copia en la nube: ${n.ultima}${n.archivosNuevos != null ? ` · ${n.archivosNuevos} archivos nuevos` : ''}`) : null,
+      n.error ? h('div', { class: 'aviso err' }, 'Último error: ' + n.error) : null,
+      h('label', { for: 'nube-carpeta' }, 'Carpeta de Google Drive / OneDrive en el PC'), sel, otra,
+      h('div', { class: 'fila' },
+        h('button', { class: 'btn prim', type: 'button', id: 'nube-activar', onclick: () => guardar({ carpeta: otra.value.trim() || sel.value, activa: true, ahora: true }) }, n.activa ? 'Hacer copia ahora' : 'Activar y hacer la primera copia'),
+        n.activa ? h('button', { class: 'btn', type: 'button', onclick: () => guardar({ activa: false }) }, 'Desactivar') : null),
+      h('p', { class: 'muted' }, 'La clave de sincronización no se copia en la nube. Google Drive / OneDrive debe estar instalado en el PC y con la sesión iniciada.'),
+      msg].filter(Boolean));
+  };
+  app.sync.nube().then(pintar).catch((e) => caja.replaceChildren(h('div', { class: 'aviso err' },
+    /no es el de la V2/.test(e.message) ? 'El servidor del PC aún no tiene esta función: instala en el PC el instalador nuevo (SOLTEC_V2_INSTALADOR.zip).' : e.message)));
+  return caja;
+}
+
+/** Ajustes › Almacenamiento: archivos guardados y limpieza de los que ya no usa nada. */
+function bloqueEspacio() {
+  const mb = (b) => (b / 1048576).toFixed(1).replace('.', ',') + ' MB';
+  const caja = h('div', { id: 'bloque-espacio' }, h('p', { class: 'muted' }, 'Calculando…'));
+  const pintar = async () => {
+    const e = await app.storage.espacioArchivos();
+    caja.replaceChildren(
+      h('p', {}, `Archivos (fotos y PDF) en este dispositivo: ${e.archivos} · ${mb(e.bytes)}`),
+      e.sinUso.length
+        ? h('div', { class: 'fila' }, h('span', { class: 'muted', id: 'espacio-sin-uso' }, `${e.sinUso.length} archivo(s) que ya no usa ningún aviso: ${mb(e.bytesSinUso)}`),
+          h('button', { class: 'btn', type: 'button', id: 'liberar-espacio', onclick: async () => {
+            if (!confirm(`¿Borrar de este dispositivo ${e.sinUso.length} archivo(s) que ya no usa ningún aviso (${mb(e.bytesSinUso)})? El PC los conserva.`)) return;
+            const r = await app.storage.borrarArchivosSinUso();
+            toast(`Liberados ${mb(r.bytes)} (${r.borrados} archivos)`);
+            pintar();
+          } }, 'Liberar espacio'))
+        : h('p', { class: 'muted', id: 'espacio-sin-uso' }, 'No hay archivos sin uso.'),
+      h('p', { class: 'muted' }, 'Las fotos nuevas se guardan reducidas (1.600 px) para que la app y la sincronización vayan ágiles.'));
+  };
+  pintar().catch((err) => caja.replaceChildren(h('div', { class: 'aviso err' }, err.message)));
+  return caja;
+}
+
 async function vistaAjustes() {
   const cfg = await app.sync.config();
   const conflictos = await app.sync.conflictos();
   const ultimaSync = await app.storage.getMeta('ultimaSync');
   const ultimaCopia = await app.storage.getMeta('ultimaCopia');
+  const errores = await leerErrores(app.storage);
   const nConf = Object.keys(conflictos).length;
   const msg = h('div');
   const pon = (cls, t) => msg.replaceChildren(h('div', { class: 'aviso ' + cls }, t));
@@ -511,6 +580,10 @@ async function vistaAjustes() {
             h('button', { class: 'btn', onclick: async () => { await app.sync.resolverConflicto(id, 'servidor'); render(); } }, 'Quedarme la del PC'),
             h('button', { class: 'btn prim', onclick: async () => { await app.sync.resolverConflicto(id, 'local'); await refrescarEstado(); programarSync(500); render(); } }, 'Quedarme la de aquí')))))) : null,
 
+    cfg.url && cfg.clave ? h('details', { class: 'card', id: 'detalles-nube' },
+      h('summary', {}, 'Copia diaria fuera de casa (Google Drive / OneDrive)'),
+      h('div', { class: 'cuerpo' }, bloqueNube())) : null,
+
     h('details', { class: 'card' },
       h('summary', {}, 'Copias de seguridad'),
       h('div', { class: 'cuerpo' },
@@ -536,7 +609,12 @@ async function vistaAjustes() {
           const ok = await navigator.storage?.persist?.();
           toast(ok ? 'Datos protegidos' : 'El navegador no lo ha permitido. Instala la app en la pantalla de inicio y vuelve a intentarlo.', !ok);
           render();
-        } }, 'Proteger datos'))),
+        } }, 'Proteger datos'),
+        bloqueEspacio())),
+
+    h('details', { class: 'card', id: 'detalles-errores' },
+      h('summary', {}, `Registro de errores${errores.length ? ` (${errores.length})` : ''}`),
+      h('div', { class: 'cuerpo' }, bloqueErrores(errores))),
 
     h('details', { class: 'card' },
       h('summary', {}, 'Acerca de'),
@@ -582,6 +660,44 @@ async function vistaSalir() {
   })();
   return cont;
 }
+
+// ---------------------------------------------------------------- registro de errores
+/** Guarda en este dispositivo los errores de la app y de los formularios incrustados (CuadroLab, autorización). */
+function vigilarErrores() {
+  const anotar = async (e, origen = 'app') => {
+    const { mensaje, pila } = describirError(e);
+    if (!mensaje || /ResizeObserver loop/.test(mensaje)) return; // aviso inofensivo del navegador
+    const ruta = rutaActual();
+    const cfg = await app.sync?.config?.().catch(() => ({})) || {};
+    registrarError(app.storage, { mensaje, pila, origen, ruta, version: VERSION, dispositivo: cfg.nombre || '' });
+  };
+  app.anotarError = anotar;
+  window.addEventListener('error', (e) => anotar(e.error || e.message));
+  window.addEventListener('unhandledrejection', (e) => anotar(e.reason));
+  window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin || e.data?.tipo !== 'soltec-error') return;
+    anotar({ message: e.data.mensaje, stack: e.data.pila }, e.data.origen || 'formulario');
+  });
+}
+
+/** Ajustes › Registro de errores. */
+function bloqueErrores(lista) {
+  const navegador = navigator.userAgent;
+  const texto = async () => informeErrores(lista, { version: VERSION, dispositivo: (await app.sync.config()).nombre || app.storage.deviceId, navegador });
+  return h('div', { id: 'bloque-errores' },
+    lista.length ? h('ul', { class: 'lista-chk' }, ...lista.slice(0, 20).map((e) => h('li', {},
+      h('span', { class: 'ico', style: 'color:var(--rojo)' }, '!'),
+      h('span', { style: 'flex:1;min-width:0' }, h('div', {}, h('b', {}, e.mensaje), e.veces > 1 ? ` (×${e.veces})` : ''),
+        h('div', { class: 'muted' }, `${fechaHoraCorta(e.ultimaVez || e.at)} · ${e.origen}${e.ruta ? ' · ' + e.ruta : ''} · ${e.version || ''}`)))))
+      : h('p', { class: 'muted' }, 'Sin errores registrados en este dispositivo.'),
+    lista.length > 20 ? h('p', { class: 'muted' }, `… y ${lista.length - 20} más (salen todos al copiar o enviar).`) : null,
+    lista.length ? h('div', { class: 'fila' },
+      h('button', { class: 'btn', type: 'button', id: 'errores-copiar', onclick: async () => { const t = await texto(); try { await navigator.clipboard.writeText(t); toast('Copiado: pégalo en el chat con Claude o en un correo'); } catch { descargar(new Blob([t], { type: 'text/plain' }), 'SOLTEC_ERRORES.txt'); } } }, 'Copiar'),
+      h('button', { class: 'btn', type: 'button', id: 'errores-descargar', onclick: async () => descargar(new Blob([await texto()], { type: 'text/plain' }), `SOLTEC_ERRORES_${new Date().toISOString().slice(0, 10)}.txt`) }, 'Descargar'),
+      h('button', { class: 'btn', type: 'button', id: 'errores-borrar', onclick: async () => { if (!confirm('¿Borrar el registro de errores de este dispositivo?')) return; await borrarErrores(app.storage); toast('Registro borrado'); render(); } }, 'Borrar')) : null,
+    h('p', { class: 'muted' }, 'Si algo falla, pulsa «Copiar» y pégalo en el chat: así se puede arreglar aunque no se vea el fallo.'));
+}
+const fechaHoraCorta = (iso) => { try { return new Date(iso).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }); } catch { return iso; } };
 
 // ---------------------------------------------------------------- actualización (service worker)
 let swEsperando = null;
@@ -648,6 +764,7 @@ export async function iniciar() {
   }
   app.sync = new SyncManager(app.storage);
   window.soltec = app; // acceso para diagnóstico desde la consola
+  vigilarErrores();
 
   app.storage.subscribe((c) => {
     if (c.sync && (c.sync.bajados || c.sync.conflictos) && ['inicio', 'avisos', 'expedientes', 'agenda'].includes(rutaActual())) render();

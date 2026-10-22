@@ -42,6 +42,70 @@ export function buscar(registros, consulta) {
   }).map((r) => ({ registro: r, expediente: isExpediente(r.data) }));
 }
 
+// ---------------------------------------------------------------- buscador en todo
+const nombresArchivos = (l) => (Array.isArray(l) ? l : []).map((f) => [f?.name, f?.nombre].filter(Boolean).join(' ')).join(' · ');
+/** Campos de un aviso en los que se busca, con su nombre para decir dónde se ha encontrado. */
+function camposAviso(a) {
+  const c = a.cliente || {}, s = a.suministro || {};
+  return [
+    ['cliente', [c.nombre, c.contacto, c.nif, c.email, c.telefono].join(' ')],
+    ['dirección', [calleNumero(s), s.piso, s.puerta, s.cp, s.poblacion, s.provincia].join(' ')],
+    ['nº / referencias', [a.numero, a.condiciones?.ref, s.cups, s.refCatastral, a.v1?.id, a.presupuesto?.numero].join(' ')],
+    ['obra', [a.obra, a.concepto].join(' ')],
+    ['observaciones', a.observaciones],
+    ['archivos', [nombresArchivos(a.archivos), nombresArchivos(a.condiciones?.pdfs), nombresArchivos(a.fotos)].join(' ')],
+    ['facturación', [a.facturacion?.nombre, a.facturacion?.nif, a.facturacion?.direccion].join(' ')],
+    ['certificados', [a.certificados?.tierra?.observaciones, nombresArchivos(a.certificados?.tierra?.fotos)].join(' ')],
+  ];
+}
+function camposParte(p) {
+  const c = p.cliente || {};
+  return [
+    ['parte', [p.numero, p.avisoNumero, p.tecnico, c.nombre, c.direccion, c.numero, c.localidad].join(' ')],
+    ['trabajos', p.trabajos], ['observaciones', p.observaciones], ['resultado', p.resultado],
+    ['materiales', (p.materiales || []).map((m) => [m.ref, m.desc].join(' ')).join(' · ')],
+    ['fotos', nombresArchivos(p.fotos)],
+  ];
+}
+const camposCita = (c) => [['cita', [c.titulo, c.responsable, c.lugar].join(' ')], ['notas', [c.notas, c.texto, c.descripcion].join(' ')]];
+
+/** Trozo del texto alrededor de la primera palabra encontrada (para enseñar dónde está). */
+function trozo(texto, palabra) {
+  const t = String(texto ?? ''), n = norm(t);
+  const i = n.indexOf(palabra);
+  if (i < 0) return t.slice(0, 80);
+  // norm() cambia separadores por espacios pero mantiene la longitud aproximada: se recorta alrededor
+  const ini = Math.max(0, i - 30);
+  return (ini ? '…' : '') + t.slice(ini, ini + 90).trim() + (t.length > ini + 90 ? '…' : '');
+}
+
+/**
+ * Busca en avisos, partes de trabajo y citas (sin papelera). Todas las palabras deben aparecer en el registro.
+ * @returns {{tipo:'aviso'|'parte'|'cita', registro, donde:string, extracto:string, expediente?:boolean}[]}
+ */
+export function buscarTodo({ avisos = [], partes = [], citas = [] }, consulta) {
+  const q = norm(consulta);
+  if (!q) return [];
+  const palabras = q.split(' ');
+  const qDig = digitos(consulta);
+  const out = [];
+  const mirar = (tipo, r, campos) => {
+    const normados = campos.map(([k, v]) => [k, v, norm(v)]);
+    const todo = normados.map((x) => x[2]).join(' | ');
+    let ok = palabras.every((p) => todo.includes(p));
+    if (!ok && tipo === 'aviso' && qDig.length >= 6 && digitos(r.data.cliente?.telefono).includes(qDig)) ok = true;
+    if (!ok) return;
+    const [donde, valor] = normados.find((x) => x[2].includes(palabras[0])) || normados[0];
+    out.push({ tipo, registro: r, donde, extracto: trozo(valor, palabras[0]), ...(tipo === 'aviso' ? { expediente: isExpediente(r.data) } : {}) });
+  };
+  for (const r of avisos) mirar('aviso', r, camposAviso(r.data));
+  for (const r of partes) mirar('parte', r, camposParte(r.data));
+  for (const r of citas) mirar('cita', r, camposCita(r.data));
+  // Primero lo encontrado en el cliente, la dirección o los números (lo más habitual)
+  const peso = { cliente: 0, 'dirección': 1, 'nº / referencias': 2 };
+  return out.sort((a, b) => (peso[a.donde] ?? 5) - (peso[b.donde] ?? 5));
+}
+
 /** Posibles duplicados por CUPS o por dirección+piso+puerta (+CP). No incluye el propio registro. */
 export function duplicados(aviso, registros, idPropio) {
   const s = aviso.suministro || {};

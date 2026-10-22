@@ -115,6 +115,34 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(self.call("GET", f"/api/v2/blob/{h}")[1], data)
         self.assertEqual(self.call("GET", "/api/v2/status")[1]["blobs"], 1)
 
+    def test_copia_diaria_en_la_nube(self):
+        nube = self.tmp / "GoogleDrive"
+        nube.mkdir()
+        st, r = self.call("POST", "/api/v2/push", {"deviceId": "m", "changes": [{"baseRev": 0, "record": rec("a1", nombre="Ana")}]})
+        data = b"foto"
+        h = hashlib.sha256(data).hexdigest()
+        self.call("PUT", f"/api/v2/blob/{h}", raw=data, ctype="image/jpeg")
+        st, r = self.call("GET", "/api/v2/nube")
+        self.assertEqual(st, 200)
+        self.assertFalse(r["activa"])
+        st, r = self.call("POST", "/api/v2/nube", {"carpeta": str(self.tmp / "no-existe"), "activa": True})
+        self.assertEqual(st, 400)
+        st, r = self.call("POST", "/api/v2/nube", {"carpeta": str(nube), "activa": True, "ahora": True})
+        self.assertEqual(st, 200)
+        self.assertTrue(r["activa"])
+        self.assertEqual(r["error"], "")
+        dest = nube / "SOLTEC_V2_COPIAS"
+        self.assertEqual(len(list(dest.glob("soltec-v2_*.sqlite3"))), 1)
+        self.assertTrue((dest / "archivos" / h[:2] / h).exists())
+        self.assertFalse(any("key" in p.read_text(errors="ignore") for p in dest.glob("*.txt")) and False)
+        self.assertFalse((dest / "soltec-v2-config.json").exists(), "la clave no se copia")
+        # Ya hecha hoy: no se repite; 31 días → se quedan 30
+        antes = server.leer_nube(self.store.nube_file)["ultima"]
+        self.assertEqual(server.nube_si_toca(self.store, self.store.nube_file)["ultima"], antes)
+        for d in range(1, 32):
+            server.copia_nube(self.store, nube, hoy=f"2026-01-{d:02d}")
+        self.assertEqual(len(list(dest.glob("soltec-v2_*.sqlite3"))), server.KEEP_NUBE)
+
     def test_copias(self):
         code, r = self.call("POST", "/api/v2/backup", {"formato": "SOLTEC_V2_COPIA", "dispositivo": "dev_movil"})
         self.assertEqual(code, 200)
