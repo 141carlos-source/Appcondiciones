@@ -39,16 +39,23 @@ export function clientesConocidos(avisos, { excluir = null } = {}) {
   // Unión de avisos que comparten algún identificador
   const padre = lista.map((_, i) => i);
   const raiz = (i) => (padre[i] === i ? i : (padre[i] = raiz(padre[i])));
-  const visto = new Map();
+  const visto = new Map(), porNombre = new Map(), sinIds = [];
+  const unir = (i, j) => { padre[raiz(i)] = raiz(j); };
   lista.forEach((r, i) => {
     const c = r.data.cliente || {};
     const ids = [soloNif(c.nif) && 'N' + soloNif(c.nif), soloTel(c.telefono).length >= 9 && 'T' + soloTel(c.telefono), soloMail(c.email).includes('@') && 'E' + soloMail(c.email)].filter(Boolean);
-    if (!ids.length) ids.push('R' + normal(c.nombre));
+    if (!ids.length) { sinIds.push(i); return; }
     for (const id of ids) {
-      if (visto.has(id)) padre[raiz(i)] = raiz(visto.get(id));
+      if (visto.has(id)) unir(i, visto.get(id));
       else visto.set(id, i);
     }
+    if (!porNombre.has(normal(c.nombre))) porNombre.set(normal(c.nombre), i);
   });
+  // Sin NIF, teléfono ni correo: con el cliente del mismo nombre (si lo hay) o con los demás del mismo nombre
+  for (const i of sinIds) {
+    const n = normal(lista[i].data.cliente?.nombre);
+    if (porNombre.has(n)) unir(i, porNombre.get(n)); else porNombre.set(n, i);
+  }
   const grupos = new Map();
   lista.forEach((r, i) => { const g = raiz(i); if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(r); });
   const out = [];
@@ -204,4 +211,80 @@ export function textoSuministro(s) {
   const calle = [x.direccion, x.numero].filter(lleno).join(' ');
   const pp = [x.piso, x.puerta].filter(lleno).join(' ');
   return [calle + (pp ? ', ' + pp : ''), x.poblacion].filter(lleno).join(' · ');
+}
+
+// ---------------------------------------------------------------- partes de trabajo
+/** Un parte visto como aviso (cliente y dirección), para buscar clientes y direcciones también en los partes. */
+export function comoAvisoDeParte(r) {
+  const c = r?.data?.cliente || {};
+  return {
+    id: r.id, deleted: r.deleted, updatedAt: r.updatedAt,
+    data: {
+      numero: r.data?.avisoNumero || r.data?.numero || '',
+      cliente: { nombre: c.nombre || '', contacto: c.contacto || '', nif: c.nif || '', telefono: c.telefono || '', email: c.email || '', iban: '' },
+      suministro: { direccion: c.direccion || '', numero: c.numero || '', piso: c.piso || '', puerta: c.puerta || '', cp: c.cp || '', poblacion: c.localidad || '', provincia: '', refCatastral: '', lat: '', lon: '', cups: '' },
+      electrico: {},
+    },
+  };
+}
+
+/** Materiales ya usados en los partes: referencia + descripción, los más usados primero. */
+export function catalogoMateriales(partes) {
+  const m = new Map();
+  for (const r of partes) {
+    if (!r || r.deleted) continue;
+    for (const x of r.data?.materiales || []) {
+      const ref = String(x.ref || '').trim(), desc = String(x.desc || '').trim();
+      if (!ref && !desc) continue;
+      const k = normal(ref) || 'D' + normal(desc);
+      const e = m.get(k) || { ref, desc, usos: 0, ultimo: '' };
+      e.usos++;
+      if (String(r.updatedAt || '') >= e.ultimo) { e.ultimo = String(r.updatedAt || ''); if (ref) e.ref = ref; if (desc) e.desc = desc; }
+      m.set(k, e);
+    }
+  }
+  return [...m.values()].sort((a, b) => b.usos - a.usos || b.ultimo.localeCompare(a.ultimo));
+}
+
+/** Materiales que encajan (por referencia o descripción). */
+export function buscarMateriales(cat, texto, max = 6) {
+  const t = normal(texto);
+  if (t.length < 2) return [];
+  return cat.map((x) => ({ x, e: Math.max(encaje(normal(x.ref), t), encaje(normal(x.desc), t)) }))
+    .filter((y) => y.e && normal(y.x.ref) !== t && normal(y.x.desc) !== t)
+    .sort((a, b) => b.e - a.e || b.x.usos - a.x.usos).slice(0, max).map((y) => y.x);
+}
+
+// ---------------------------------------------------------------- autorización de representatividad
+export const CLAVES_SOLICITANTE = ['sol_nombre', 'sol_nif', 'sol_municipio', 'sol_via', 'sol_email', 'sol_tel', 'sol_opcion', 'ent_nombre', 'ent_cargo', 'ent_nif', 'ent_email', 'ent_tel'];
+export const CLAVES_TERCERO = ['tf_nombre', 'tf_nif', 'tf_calle', 'tf_cp', 'tf_municipio', 'tf_provincia', 'tf_pais', 'tf_contacto', 'tf_mail'];
+export const CLAVES_DIR3 = ['dir3_oc', 'dir3_oc_d', 'dir3_og', 'dir3_og_d', 'dir3_ut', 'dir3_ut_d'];
+
+/**
+ * Lo ya trabajado para el formulario de autorización (se pasa al formulario al abrirlo):
+ *   sol: solicitantes (y quien firma por la empresa) de autorizaciones anteriores y clientes de los avisos
+ *   tf: destinatarios de facturación «tercero»;  dir3: códigos DIR3 de administraciones;  municipios: los más usados
+ */
+export function conocidosAutorizacion(avisos, { excluir = null } = {}) {
+  const sol = new Map(), tf = new Map(), dir3 = new Map();
+  const tomar = (d, claves) => Object.fromEntries(claves.filter((k) => lleno(d[k])).map((k) => [k, String(d[k])]));
+  for (const r of ordenar(avisos).reverse()) { // el más reciente primero
+    if (r.id === excluir) continue;
+    const d = r.data.autorizacion?.datos;
+    if (!d) continue;
+    const ks = normal(soloNif(d.sol_nif) || d.sol_nombre);
+    if (ks && !sol.has(ks)) sol.set(ks, tomar(d, CLAVES_SOLICITANTE));
+    const kt = normal(soloNif(d.tf_nif) || d.tf_nombre);
+    if (d.fact_opcion === 'ter' && kt && !tf.has(kt)) tf.set(kt, tomar(d, CLAVES_TERCERO));
+    const kd = normal(d.dir3_oc);
+    if (kd && !dir3.has(kd)) dir3.set(kd, tomar(d, CLAVES_DIR3));
+  }
+  // Clientes de los avisos que aún no tienen autorización
+  const nombres = new Set([...sol.values()].map((x) => normal(x.sol_nombre)));
+  for (const c of clientesConocidos(avisos, { excluir })) {
+    const k = normal(soloNif(c.cliente.nif) || c.cliente.nombre);
+    if (!k || sol.has(k) || nombres.has(normal(c.cliente.nombre))) continue;
+    sol.set(k, tomar({ sol_nombre: c.cliente.nombre, sol_nif: String(c.cliente.nif || '').toUpperCase(), sol_tel: c.cliente.telefono, sol_email: c.cliente.email, sol_municipio: c.suministros[0]?.suministro.poblacion || '' }, CLAVES_SOLICITANTE));
+  }
+  return { sol: [...sol.values()].slice(0, 400), tf: [...tf.values()].slice(0, 200), dir3: [...dir3.values()].slice(0, 200), municipios: valoresUsados(avisos, 'suministro.poblacion', 200) };
 }

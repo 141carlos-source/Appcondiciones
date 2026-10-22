@@ -210,6 +210,12 @@ body{background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-syste
 .msg:empty{display:none}
 .prevwrap{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:12px 4px;overflow:hidden}
 .acts{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.sug-auto{position:fixed;z-index:60;background:#fff;border:1.5px solid #dfe3e8;border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.16);max-height:280px;overflow:auto}
+.sug-auto[hidden]{display:none}
+.sug-op{display:flex;flex-direction:column;gap:2px;padding:10px 12px;min-height:44px;justify-content:center;cursor:pointer;border-bottom:1px solid #eef0f3;font-size:14px}
+.sug-op:last-child{border-bottom:0}
+.sug-op span{font-size:12.5px;color:#5a6169}
+.sug-op.act,.sug-op:hover{background:#fdf1d8}
 </style>
 <script src="soltec-dialogo.js"></script>
 <script src="autorizacion-datos.js"></script>
@@ -812,6 +818,77 @@ return { SIG_KEYS, SIG_TITLES, SCHEMA_ID, SCHEMA_VER, KEYS, GROUPS, MESES, empty
   document.addEventListener('click', e => { if (!menu.contains(e.target)) menu.classList.remove('open'); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { menu.classList.remove('open'); const m = document.querySelector('.modal'); if (m) m.click(); } });
   const setAll = nd => { Object.keys(d).forEach(k => d[k] = nd[k] || ''); persist(); refresh(); };
+
+  /* ---------- Autorrelleno con lo ya trabajado (lo manda la app al abrir: solicitantes, terceros, DIR3, municipios) ---------- */
+  let CON = null;
+  const nrm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+  const cif = s => String(s ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const tel = s => { const x = String(s ?? '').replace(/\D/g, ''); return x.length > 9 ? x.replace(/^(0034|34)(?=\d{9}$)/, '') : x; };
+  /** Teléfono español con prefijo: 600123123 → +34 600 123 123 */
+  const conPrefijo = v => { const t = String(v ?? '').trim(), m = /^(?:\+34|0034|34)?([6789]\d{8})$/.exec(t.replace(/[\s.\-()]/g, '')); return m ? '+34 ' + m[1].replace(/^(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3') : t; };
+  const GRUPO = {
+    sol_nombre: ['sol', 'sol_nombre'], sol_nif: ['sol', 'sol_nif'], sol_tel: ['sol', 'sol_tel'], sol_email: ['sol', 'sol_email'],
+    ent_nombre: ['ent', 'ent_nombre'], ent_nif: ['ent', 'ent_nif'],
+    tf_nombre: ['tf', 'tf_nombre'], tf_nif: ['tf', 'tf_nif'],
+    dir3_oc: ['dir3', 'dir3_oc'], dir3_oc_d: ['dir3', 'dir3_oc_d'],
+    sol_municipio: ['mun'], sum_municipio: ['mun'], tf_municipio: ['mun'], rf_municipio: ['mun'], aut_municipio: ['mun'], firma_lugar: ['mun']
+  };
+  const valorDe = (k, v) => /_nif$/.test(k) ? cif(v) : /_tel$/.test(k) ? tel(v) : /_email$|_mail$/.test(k) ? String(v || '').trim().toLowerCase() : nrm(v);
+  function buscarAuto(k, texto) {
+    const g = GRUPO[k]; if (!CON || !g) return [];
+    const t = valorDe(k, texto); if (t.length < (/_tel$/.test(k) ? 3 : 2)) return [];
+    const enc = v => { v = valorDe(k, v); return !v || v === t ? 0 : v.startsWith(t) ? 3 : (' ' + v).includes(' ' + t) ? 2 : t.length >= 3 && v.includes(t) ? 1 : 0; };
+    if (g[0] === 'mun') return (CON.municipios || []).map(v => ({ v, e: enc(v) })).filter(x => x.e).sort((a, b) => b.e - a.e).slice(0, 6).map(x => ({ titulo: x.v, cambios: { [k]: x.v } }));
+    const lista = g[0] === 'ent' ? (CON.sol || []).filter(x => x.ent_nombre) : (CON[g[0]] || []);
+    const campo = g[0] === 'ent' ? k : g[1];
+    const pre = g[0] === 'ent' ? 'ent_' : g[0] === 'sol' ? 'sol_' : g[0] === 'tf' ? 'tf_' : 'dir3_';
+    return lista.map(x => ({ x, e: enc(x[campo]) })).filter(y => y.e).sort((a, b) => b.e - a.e).slice(0, 6).map(({ x }) => {
+      // Solo lo vacío (y el campo que se escribe); con el solicitante también quien firma por la empresa
+      const c = {};
+      for (const [kk, v] of Object.entries(x)) if ((kk.startsWith(pre) || (pre === 'sol_' && kk.startsWith('ent_'))) && v && (kk === k || !String(d[kk] || '').trim())) c[kk] = /_tel$/.test(kk) ? conPrefijo(v) : v;
+      const titulo = g[0] === 'dir3' ? [x.dir3_oc, x.dir3_oc_d].filter(Boolean).join(' · ') : (x[pre + 'nombre'] || '');
+      const sub = g[0] === 'dir3' ? [x.dir3_og_d, x.dir3_ut_d].filter(Boolean).join(' · ') : [x[pre + 'nif'], x[pre + 'tel'], x.sol_municipio || x.tf_municipio].filter(Boolean).join(' · ');
+      return { titulo, sub, cambios: c };
+    });
+  }
+  const capaSug = document.createElement('div'); capaSug.className = 'sug-auto noprint'; capaSug.hidden = true; capaSug.setAttribute('role', 'listbox');
+  document.body.appendChild(capaSug);
+  let sugInput = null, sugItems = [], sugAct = -1;
+  const sugCerrar = () => { capaSug.hidden = true; capaSug.innerHTML = ''; sugItems = []; sugAct = -1; };
+  const sugMarcar = i => { sugAct = i; [...capaSug.children].forEach((el, n) => el.classList.toggle('act', n === i)); };
+  const sugElegir = it => {
+    sugCerrar();
+    Object.assign(d, it.cambios);
+    persist(); refresh();
+    try { SA.syncForm(document.body, d); } catch {}
+    document.querySelectorAll('input[data-k]').forEach(i => { if (i.dataset.k in it.cambios) i.value = d[i.dataset.k]; });
+    SA.toast('Datos rellenados con lo ya trabajado');
+  };
+  const sugAbrir = inp => {
+    sugInput = inp; sugItems = buscarAuto(inp.dataset.k, inp.value);
+    if (!sugItems.length) return sugCerrar();
+    capaSug.innerHTML = '';
+    sugItems.forEach((it, i) => {
+      const o = document.createElement('div'); o.className = 'sug-op'; o.setAttribute('role', 'option');
+      o.innerHTML = `<b>${SA.esc(it.titulo)}</b>${it.sub ? `<span>${SA.esc(it.sub)}</span>` : ''}`;
+      o.addEventListener('pointerdown', e => e.preventDefault()); o.addEventListener('mousedown', e => e.preventDefault());
+      o.addEventListener('click', () => sugElegir(it)); o.addEventListener('mousemove', () => sugMarcar(i));
+      capaSug.appendChild(o);
+    });
+    const r = inp.getBoundingClientRect();
+    capaSug.style.left = Math.max(8, r.left) + 'px'; capaSug.style.width = Math.max(240, r.width) + 'px'; capaSug.style.top = (r.bottom + 2) + 'px';
+    capaSug.hidden = false; sugAct = -1;
+  };
+  document.addEventListener('input', e => { const i = e.target; if (i.matches && i.matches('input[data-k]') && GRUPO[i.dataset.k]) sugAbrir(i); });
+  document.addEventListener('focusout', e => { if (e.target === sugInput) setTimeout(sugCerrar, 150); const i = e.target; if (i.matches && i.matches('input[data-k]') && /_tel$/.test(i.dataset.k) && i.value) { const f = conPrefijo(i.value); if (f !== i.value) { i.value = f; d[i.dataset.k] = f; persist(); refresh(); } } });
+  document.addEventListener('keydown', e => {
+    if (capaSug.hidden || e.target !== sugInput) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); sugMarcar(Math.min(sugItems.length - 1, sugAct + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); sugMarcar(Math.max(0, sugAct - 1)); }
+    else if (e.key === 'Enter' && sugAct >= 0) { e.preventDefault(); e.stopPropagation(); sugElegir(sugItems[sugAct]); }
+    else if (e.key === 'Escape') { e.preventDefault(); sugCerrar(); }
+  }, true);
+  addEventListener('scroll', () => { if (!capaSug.hidden && sugInput) sugAbrir(sugInput); }, true);
   const acts = {
     soltec: () => aplicarRep('sol'),
     tecnico: () => aplicarRep('tec'),
@@ -857,6 +934,7 @@ return { SIG_KEYS, SIG_TITLES, SCHEMA_ID, SCHEMA_VER, KEYS, GROUPS, MESES, empty
     addEventListener('message', e => {
       if (e.origin !== location.origin || e.source !== parent) return;
       const m = e.data || {}; if (m.tipo !== 'au-cargar') return;
+      CON = m.conocidos && typeof m.conocidos === 'object' ? m.conocidos : null;
       const nd = SA.normalize(m.datos), sg = SA.normalize(m.sugeridos);
       for (const k of SA.KEYS) if (!nd[k] && sg[k]) nd[k] = sg[k];
       Object.keys(d).forEach(k => d[k] = nd[k] || '');

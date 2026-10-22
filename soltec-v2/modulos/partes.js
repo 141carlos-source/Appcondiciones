@@ -1,6 +1,8 @@
 // SOLTEC V2 · Partes de trabajo: listado, ficha, firma del cliente, cierre y PDF.
 
-import { h, toast, irORepintar, abrirBlob, compartir, descargar, lienzoFirma, confirmar } from '../ui.js';
+import { h, toast, irORepintar, abrirBlob, compartir, descargar, lienzoFirma, confirmar, sugerencias } from '../ui.js';
+import { clientesConocidos, suministrosConocidos, buscarClientes, buscarSuministros, valoresUsados, datosDeLocalidad, textoSuministro, normal, comoAvisoDeParte, catalogoMateriales, buscarMateriales } from '../core/autorrelleno.js';
+import { formatearTelefono } from '../core/validate.js';
 import { nuevoParte, normalizarParte, siguienteNumeroParte, faltaParaCerrar, generarPartePdf, nombrePartePdf, RESULTADOS, CONCEPTOS, horasNumero } from '../core/partes.js';
 import { normalizarAviso, direccionCompleta, hoyLocal } from '../core/model.js';
 import { norm } from '../core/search.js';
@@ -78,17 +80,101 @@ export async function vistaParte(app, id) {
   app.guardia = () => cambiado;
   const marca = () => { cambiado = true; };
 
-  const inp = (obj, k, etq, { id = `p-${k}`, ancho, tipo = 'text', modo } = {}) => h('div', { class: 'campo' + (ancho ? ' ancho' : '') }, h('label', { for: id }, etq),
-    h('input', { id, type: tipo, value: obj[k] || '', inputmode: modo, disabled: bloqueado || null, oninput: (e) => { obj[k] = e.target.value; marca(); } }));
+  // --- autorrelleno con clientes, direcciones, técnicos y materiales ya trabajados (avisos y otros partes)
+  const [avisosTodos, partesTodos] = bloqueado ? [[], []] : await Promise.all([app.storage.list('aviso'), app.storage.list('parte')]);
+  const otrosPartes = partesTodos.filter((r) => r.id !== reg?.id);
+  const fuentes = [...avisosTodos, ...otrosPartes.map(comoAvisoDeParte)];
+  const conocidos = clientesConocidos(fuentes);
+  const sumsConocidos = suministrosConocidos(fuentes);
+  const materiales = catalogoMateriales(otrosPartes);
+  let clienteElegido = null;
+  const lleno = (v) => String(v ?? '').trim() !== '';
+  const ID_CLIENTE = { nombre: 'p-cliente', nif: 'p-nif', telefono: 'p-telefono', contacto: 'p-contacto', email: 'p-email', direccion: 'p-direccion', numero: 'p-numero', piso: 'p-piso', puerta: 'p-puerta', cp: 'p-cp', localidad: 'p-localidad' };
+  /** Pone datos del cliente del parte (en el parte y en sus campos). */
+  const ponerCliente = (cambios) => {
+    for (let [k, v] of Object.entries(cambios)) {
+      if (k === 'telefono') v = formatearTelefono(v);
+      p.cliente[k] = v;
+      const el = document.getElementById(ID_CLIENTE[k]); if (el) el.value = v;
+    }
+    marca();
+  };
+  const direccionDe = (x, campo = '') => {
+    const c = {}, s = x.suministro, vacia = !['direccion', 'numero', 'piso', 'puerta', 'cp', 'localidad'].some((k) => k !== campo && lleno(p.cliente[k]));
+    for (const [k, de] of [['direccion', 'direccion'], ['numero', 'numero'], ['piso', 'piso'], ['puerta', 'puerta'], ['cp', 'cp'], ['localidad', 'poblacion']]) if (lleno(s[de]) && (k === campo || vacia || !lleno(p.cliente[k]))) c[k] = s[de];
+    return c;
+  };
+  const opcionDir = (x) => ({ titulo: textoSuministro(x), sub: [x.cliente, x.numero && 'aviso ' + x.numero].filter(Boolean).join(' · '), x });
+  const sugerenciasParte = (k, input) => {
+    if (['nombre', 'nif', 'telefono', 'contacto', 'email'].includes(k)) {
+      return sugerencias(input, {
+        buscar: (t) => buscarClientes(conocidos, k, t).map((c) => ({ titulo: c.cliente.nombre, sub: [c.cliente.nif, c.cliente.telefono, textoSuministro(c.suministros[0] || {})].filter(Boolean).join(' · '), c })),
+        elegir: (it) => {
+          const c = {};
+          for (const f of ['nombre', 'nif', 'telefono', 'contacto', 'email']) if (lleno(it.c.cliente[f]) && (f === k || !lleno(p.cliente[f]))) c[f] = it.c.cliente[f];
+          // Dirección: la última del cliente si aún no hay ninguna (las demás, al tocar «Calle»)
+          if (it.c.suministros[0] && !lleno(p.cliente.direccion)) Object.assign(c, direccionDe(it.c.suministros[0]));
+          clienteElegido = it.c;
+          ponerCliente(c);
+          toast(`Datos de ${it.c.cliente.nombre} rellenados`);
+        },
+      });
+    }
+    if (k === 'direccion') {
+      return sugerencias(input, {
+        alEnfocar: true,
+        buscar: (t) => (t.trim() ? buscarSuministros(sumsConocidos, 'direccion', t) : (clienteElegido?.suministros || []).slice(1).map((x) => ({ ...x, cliente: clienteElegido.cliente.nombre }))).map(opcionDir),
+        elegir: (it) => ponerCliente(direccionDe(it.x, 'direccion')),
+      });
+    }
+    if (k === 'localidad' || k === 'cp') {
+      let usados = null;
+      const ruta = k === 'cp' ? 'suministro.cp' : 'suministro.poblacion';
+      return sugerencias(input, {
+        buscar: (t) => { usados ??= valoresUsados(fuentes, ruta); const q = normal(t); return usados.filter((v) => normal(v) !== q && (normal(v).startsWith(q) || normal(v).includes(' ' + q))).slice(0, 6).map((v) => ({ titulo: v, v })); },
+        elegir: (it) => {
+          const c = { [k]: it.v }, loc = datosDeLocalidad(fuentes, k === 'cp' ? { cp: it.v } : { poblacion: it.v });
+          if (k === 'localidad' && loc.cp && !lleno(p.cliente.cp)) c.cp = loc.cp;
+          if (k === 'cp' && loc.poblacion && !lleno(p.cliente.localidad)) c.localidad = loc.poblacion;
+          ponerCliente(c);
+        },
+      });
+    }
+    return null;
+  };
+  const inp = (obj, k, etq, { id = `p-${k}`, ancho, tipo = 'text', modo } = {}) => {
+    const input = h('input', { id, type: tipo, value: obj[k] || '', inputmode: modo, autocomplete: 'off', disabled: bloqueado || null, oninput: (e) => { obj[k] = e.target.value; marca(); },
+      onblur: obj === p.cliente && k === 'telefono' ? (e) => { const f = formatearTelefono(e.target.value); if (f !== e.target.value) { e.target.value = f; obj[k] = f; marca(); } } : null });
+    let sug = null;
+    if (!bloqueado && obj === p.cliente) sug = sugerenciasParte(k, input);
+    if (!bloqueado && obj === p && k === 'tecnico') {
+      const usados = valoresUsados(otrosPartes, 'tecnico');
+      sug = sugerencias(input, { alEnfocar: true, buscar: (t) => usados.filter((v) => normal(v) !== normal(t) && normal(v).includes(normal(t))).slice(0, 6).map((v) => ({ titulo: v, v })), elegir: (it) => { input.value = it.v; p.tecnico = it.v; marca(); } });
+    }
+    return h('div', { class: 'campo' + (ancho ? ' ancho' : '') }, h('label', { for: id }, etq), input, sug);
+  };
   const area = (k, etq, filas = 4) => h('div', { class: 'campo ancho' }, h('label', { for: 'p-' + k }, etq),
     h('textarea', { id: 'p-' + k, rows: filas, value: p[k] || '', disabled: bloqueado || null, oninput: (e) => { p[k] = e.target.value; marca(); } }));
   const det = (titulo, abierto, ...c) => h('details', { class: 'card', open: abierto || null }, h('summary', {}, titulo), h('div', { class: 'cuerpo' }, ...c));
 
-  // Materiales
+  // Materiales (referencia ⇄ descripción de los ya usados en otros partes)
+  const campoMaterial = (m, k, i) => {
+    const input = h('input', { type: 'text', class: k === 'desc' ? 'm-desc' : null, id: `p-mat-${k}-${i}`, placeholder: k === 'ref' ? 'Referencia' : 'Descripción', value: m[k] || '', 'aria-label': k === 'ref' ? 'Referencia' : 'Descripción', autocomplete: 'off', disabled: bloqueado || null, oninput: (e) => { m[k] = e.target.value; marca(); } });
+    if (bloqueado || !materiales.length) return [input];
+    const lista = sugerencias(input, {
+      buscar: (t) => buscarMateriales(materiales, t).map((x) => ({ titulo: [x.ref, x.desc].filter(Boolean).join(' · '), sub: `${x.usos} ${x.usos === 1 ? 'vez' : 'veces'}`, x })),
+      elegir: (it) => {
+        m.ref = it.x.ref || m.ref; m.desc = it.x.desc || m.desc; marca();
+        const fila = input.closest('.material');
+        fila.querySelector(`#p-mat-ref-${i}`).value = m.ref || ''; fila.querySelector(`#p-mat-desc-${i}`).value = m.desc || '';
+        fila.querySelector('[aria-label="Cantidad"]')?.focus();
+      },
+    });
+    return [input, lista];
+  };
   const mats = h('div');
   const pintarMats = () => mats.replaceChildren(...p.materiales.map((m, i) => h('div', { class: 'material' },
-    h('input', { type: 'text', placeholder: 'Referencia', value: m.ref || '', 'aria-label': 'Referencia', disabled: bloqueado || null, oninput: (e) => { m.ref = e.target.value; marca(); } }),
-    h('input', { type: 'text', class: 'm-desc', placeholder: 'Descripción', value: m.desc || '', 'aria-label': 'Descripción', disabled: bloqueado || null, oninput: (e) => { m.desc = e.target.value; marca(); } }),
+    ...campoMaterial(m, 'ref', i), ...campoMaterial(m, 'desc', i),
     h('input', { type: 'text', placeholder: 'Cant.', value: m.cantidad || '', 'aria-label': 'Cantidad', inputmode: 'decimal', disabled: bloqueado || null, oninput: (e) => { m.cantidad = e.target.value; marca(); } }),
     bloqueado ? null : h('button', { class: 'btn peq', type: 'button', 'aria-label': 'Quitar material', onclick: () => { p.materiales.splice(i, 1); marca(); pintarMats(); } }, '✕'))));
   pintarMats();

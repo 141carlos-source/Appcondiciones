@@ -74,6 +74,20 @@ export function validarTelefono(v) {
   return /^[6789]\d{8}$/.test(s) ? null : 'Teléfono español de 9 cifras (empieza por 6, 7, 8 o 9)';
 }
 
+/**
+ * Teléfono con el prefijo del país: «600123123», «0034 600 12 31 23» o «34600123123» → «+34 600 123 123».
+ * Un número de otro país que ya lleva su «+» se deja tal cual (sin espacios de más). Lo que no se reconoce, igual.
+ */
+export function formatearTelefono(v) {
+  const t = String(v ?? '').trim();
+  if (!t) return '';
+  const d = t.replace(/[\s.\-()]/g, '');
+  const m = /^(?:\+34|0034|34)?([6789]\d{8})$/.exec(d);
+  if (m) return '+34 ' + m[1].replace(/^(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3');
+  if (/^(\+|00)\d{6,15}$/.test(d)) return t.replace(/\s+/g, ' ');
+  return t;
+}
+
 export function validarEmail(v) {
   const s = String(v ?? '').trim();
   if (!s) return 'Falta el correo';

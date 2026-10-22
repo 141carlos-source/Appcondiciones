@@ -2,6 +2,7 @@
 // El formulario (assets/autorizacion.html) se abre a pantalla completa y habla con la ficha por mensajes:
 // no guarda nada por su cuenta. Los datos vuelven al aviso (draft.autorizacion) y, si cambiaron, el aviso se guarda solo al volver.
 
+import { conocidosAutorizacion } from '../core/autorrelleno.js';
 import { h, toast, hace, confirmar } from '../ui.js';
 import { normalizarAutorizacion, datosAutorizacion, sugerenciasAutorizacion, representanteDeEmpresa, representanteDeTecnico, resumenAutorizacion } from '../core/autorizacion.js';
 import { leerEmpresa } from './empresa.js';
@@ -76,7 +77,7 @@ export function bloqueAutorizacion(app, draft, alCambiar, alVolver) {
         h('b', {}, titulo),
         h('button', { class: 'btn peq', type: 'button', id: 'volver-autorizacion', onclick: cerrar }, '← Volver al aviso')),
       iframe);
-    function alMensaje(e) {
+    async function alMensaje(e) {
       if (e.origin !== location.origin || e.source !== iframe.contentWindow) return;
       const m = e.data || {};
       if (m.tipo === 'au-listo') {
@@ -86,6 +87,7 @@ export function bloqueAutorizacion(app, draft, alCambiar, alVolver) {
           sugeridos: sugerenciasAutorizacion(draft, empresa),
           representante: representanteDeEmpresa(empresa),
           tecnico: representanteDeTecnico(empresa),
+          conocidos: conocidosAutorizacion((await app.storage.list('aviso')).filter((r) => !draft.numero || r.data.numero !== draft.numero)),
           firmaEmpresa,
           logo,
           titulo: [draft.numero ? `Aviso ${draft.numero}` : '', draft.cliente?.nombre].filter(Boolean).join(' · '),

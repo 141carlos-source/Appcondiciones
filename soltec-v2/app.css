@@ -278,7 +278,7 @@ textarea#texto-whatsapp { font-size: 15px; }
 .total-cnmc b { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
 
 /* Partes */
-.material { display: grid; grid-template-columns: 1fr 2fr 70px auto; gap: 6px; margin-top: 6px; }
+.material { display: grid; grid-template-columns: 1fr 2fr 70px auto; gap: 6px; margin-top: 6px; position: relative; }
 .material input { min-height: 40px; padding: 8px; font-size: 14px; min-width: 0; }
 @media (max-width: 420px) {
   .accesos { grid-template-columns: 1fr 1fr; }

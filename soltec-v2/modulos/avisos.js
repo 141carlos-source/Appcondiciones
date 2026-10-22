@@ -9,7 +9,7 @@ import {
   separarNumero,
 } from '../core/model.js';
 import { buscar, duplicados } from '../core/search.js';
-import { provinciaDeCp, formatearIban, validarCups } from '../core/validate.js';
+import { provinciaDeCp, formatearIban, validarCups, formatearTelefono } from '../core/validate.js';
 import { bloqueSeguimiento } from './agenda.js';
 import { bloqueComunicaciones, listaArchivos } from './comunicaciones.js';
 import { bloqueMemoria } from './memoria.js';
@@ -213,7 +213,8 @@ export async function vistaFicha(app, id) {
   let clienteElegido = null;
   /** Escribe varios datos a la vez en el aviso y en sus campos. */
   const aplicar = (cambios) => {
-    for (const [ruta, v] of Object.entries(cambios)) {
+    for (let [ruta, v] of Object.entries(cambios)) {
+      if (ruta === 'cliente.telefono') v = formatearTelefono(v);
       escribir(draft, ruta, v);
       const el = cont.querySelector('#f-' + ruta.replace('.', '-'));
       if (el) {
@@ -348,6 +349,7 @@ export async function vistaFicha(app, id) {
     else if (tipo === 'textarea') ctrl = h('textarea', { id: idc, rows: 3, oninput: on, value: valor });
     else ctrl = h('input', { id: idc, type: tipo === 'date' ? 'date' : tipo === 'email' ? 'email' : tipo === 'tel' ? 'tel' : 'text', value: valor, inputmode: o.inputmode, class: o.mono ? 'mono' : null, autocomplete: 'off', oninput: on, readonly: o.soloLectura || null, placeholder: o.placeholder || null,
       onblur: ruta === 'cliente.iban' ? (e) => { const f = formatearIban(e.target.value); if (f) { e.target.value = f; escribir(draft, ruta, f); } }
+        : ruta === 'cliente.telefono' ? (e) => { const f = formatearTelefono(e.target.value); if (f !== e.target.value) { e.target.value = f; escribir(draft, ruta, f); alCambiar(); } }
         : ruta === 'suministro.direccion' ? (e) => {
           // Si el número se escribió junto a la calle y su campo está vacío, se pasa a su sitio
           if (String(draft.suministro.numero || '').trim()) return;

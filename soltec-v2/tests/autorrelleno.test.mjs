@@ -101,3 +101,54 @@ test('valores usados (los más frecuentes primero) y población ⇄ CP ⇄ provi
   assert.deepEqual(datosDeLocalidad(AVISOS, { cp: '50003' }), { poblacion: 'ZARAGOZA', provincia: 'ZARAGOZA' });
   assert.deepEqual(datosDeLocalidad(AVISOS, { cp: '501' }), {});
 });
+
+import { formatearTelefono } from '../core/validate.js';
+import { comoAvisoDeParte, catalogoMateriales, buscarMateriales, conocidosAutorizacion } from '../core/autorrelleno.js';
+
+test('teléfono con el prefijo del país (+34)', () => {
+  assert.equal(formatearTelefono('600123123'), '+34 600 123 123');
+  assert.equal(formatearTelefono('600 12 31 23'), '+34 600 123 123');
+  assert.equal(formatearTelefono('0034600123123'), '+34 600 123 123');
+  assert.equal(formatearTelefono('34 600123123'), '+34 600 123 123');
+  assert.equal(formatearTelefono('+34 600-123-123'), '+34 600 123 123');
+  assert.equal(formatearTelefono('976111222'), '+34 976 111 222', 'fijos también');
+  assert.equal(formatearTelefono('+33  6 12 34 56 78'), '+33 6 12 34 56 78', 'otro país: se deja');
+  assert.equal(formatearTelefono('12345'), '12345', 'lo que no se reconoce no se toca');
+  assert.equal(formatearTelefono(''), '');
+});
+
+test('partes: clientes y direcciones de otros partes; materiales referencia ⇄ descripción', () => {
+  const parte = (id, cliente, materiales = [], dia = 1) => ({ id, type: 'parte', deleted: false, updatedAt: `2026-02-0${dia}T10:00:00.000Z`, data: { numero: 'P-' + id, cliente, materiales } });
+  const ps = [
+    parte('p1', { nombre: 'BAR EL CRUCE', telefono: '976 333 444', direccion: 'CALLE SOL', numero: '3', cp: '50171', localidad: 'LA PUEBLA DE ALFINDÉN' }, [{ ref: 'NZ-2201', desc: 'Interruptor Zenit blanco', cantidad: '2' }, { ref: '', desc: 'Cable 2,5 mm²', cantidad: '20' }], 1),
+    parte('p2', { nombre: 'BAR EL CRUCE' }, [{ ref: 'nz-2201', desc: 'Interruptor Zenit blanco', cantidad: '1' }], 2),
+  ];
+  const cs = clientesConocidos(ps.map(comoAvisoDeParte));
+  assert.equal(cs.length, 1);
+  assert.equal(cs[0].suministros[0].suministro.poblacion, 'LA PUEBLA DE ALFINDÉN');
+  const cat = catalogoMateriales(ps);
+  assert.deepEqual(cat.map((x) => [x.ref, x.usos]), [['nz-2201', 2], ['', 1]]);
+  assert.equal(buscarMateriales(cat, 'zenit')[0].ref, 'nz-2201', 'por descripción');
+  assert.equal(buscarMateriales(cat, 'NZ-22')[0].desc, 'Interruptor Zenit blanco', 'por referencia');
+  assert.equal(buscarMateriales(cat, 'cable')[0].desc, 'Cable 2,5 mm²');
+  assert.equal(buscarMateriales(cat, 'z').length, 0);
+});
+
+test('autorización: solicitantes, terceros y DIR3 de autorizaciones anteriores; clientes sin autorización', () => {
+  const aut = (id, datos, cliente = {}) => ({ id, type: 'aviso', deleted: false, updatedAt: '2026-03-01T10:00:00.000Z', data: nuevoAviso({ numero: id, cliente: cli({ nombre: datos.sol_nombre || cliente.nombre || '', ...cliente }), autorizacion: { v: 1, datos } }) });
+  const avs = [
+    aut('2026-0101', { sol_nombre: 'COMUNIDAD SOL', sol_nif: 'H50000000', sol_via: 'C/ SOL 2', sol_municipio: 'ZARAGOZA', ent_nombre: 'PEDRO GIL', ent_cargo: 'PRESIDENTE', ent_nif: '12345678Z', fact_opcion: 'ter', tf_nombre: 'ADMINISTRACIÓN FINCAS', tf_nif: 'B99999999', tf_calle: 'C/ COSO 1' }),
+    aut('2026-0102', { sol_nombre: 'AYUNTAMIENTO DE ALFAJARÍN', sol_nif: 'P5001200A', dir3_oc: 'L01500124', dir3_oc_d: 'Alcaldía', dir3_og: 'L01500124', dir3_ut: 'L01500124' }),
+    { id: 'x', type: 'aviso', deleted: false, updatedAt: '2026-01-01T10:00:00.000Z', data: nuevoAviso({ numero: '2026-0050', cliente: cli({ nombre: 'MARÍA RUIZ', nif: '87654321X', telefono: '+34 611 222 333' }) }) },
+  ];
+  const k = conocidosAutorizacion(avs);
+  assert.equal(k.sol.length, 3);
+  const com = k.sol.find((x) => x.sol_nif === 'H50000000');
+  assert.equal(com.ent_nombre, 'PEDRO GIL');
+  assert.equal(com.sol_via, 'C/ SOL 2');
+  assert.equal('tf_nombre' in com, false, 'el tercero va aparte');
+  assert.deepEqual(k.tf.map((x) => x.tf_nombre), ['ADMINISTRACIÓN FINCAS']);
+  assert.deepEqual(k.dir3.map((x) => x.dir3_oc), ['L01500124']);
+  const maria = k.sol.find((x) => x.sol_nombre === 'MARÍA RUIZ');
+  assert.equal(maria.sol_tel, '+34 611 222 333');
+});

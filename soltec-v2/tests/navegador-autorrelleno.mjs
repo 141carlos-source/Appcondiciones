@@ -47,7 +47,7 @@ try {
   await page.tap('[data-campo="cliente.nombre"] .sugerencia');
   assert.equal(await val('#f-cliente-nombre'), 'TALLERES EBRO SL');
   assert.equal(await val('#f-cliente-nif'), 'B12345674');
-  assert.equal(await val('#f-cliente-telefono'), '976111222');
+  assert.equal(await val('#f-cliente-telefono'), '+34 976 111 222', 'con el prefijo del país');
   assert.equal(await val('#f-cliente-email'), 'admin@ebro.es');
   assert.equal(await val('#f-cliente-contacto'), 'PILAR');
   assert.equal(await val('#f-cliente-iban'), 'ES9121000418450200051332');
