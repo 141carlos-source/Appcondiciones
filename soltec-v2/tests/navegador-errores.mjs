@@ -56,6 +56,7 @@ try {
   ok('«Copiar» deja el informe listo para pegarlo en el chat');
 
   await page.click('#errores-borrar');
+  await page.click('.sd-fondo #dk');
   await page.click('summary:has-text("Registro de errores")');
   assert.match(await page.textContent('#bloque-errores'), /Sin errores registrados/);
   ok('«Borrar» vacía el registro');

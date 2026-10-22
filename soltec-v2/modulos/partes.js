@@ -1,6 +1,6 @@
 // SOLTEC V2 · Partes de trabajo: listado, ficha, firma del cliente, cierre y PDF.
 
-import { h, toast, irORepintar, abrirBlob, compartir, descargar, lienzoFirma } from '../ui.js';
+import { h, toast, irORepintar, abrirBlob, compartir, descargar, lienzoFirma, confirmar } from '../ui.js';
 import { nuevoParte, normalizarParte, siguienteNumeroParte, faltaParaCerrar, generarPartePdf, nombrePartePdf, RESULTADOS, CONCEPTOS, horasNumero } from '../core/partes.js';
 import { normalizarAviso, direccionCompleta, hoyLocal } from '../core/model.js';
 import { norm } from '../core/search.js';
@@ -191,7 +191,7 @@ export async function vistaParte(app, id) {
     reg ? det('PDF del parte', bloqueado, h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', id: 'p-pdf', onclick: pdf }, 'Generar PDF del parte')), resultadoPdf) : null,
     h('div', { class: 'barra-guardar' },
       bloqueado
-        ? h('button', { class: 'btn ancho', type: 'button', id: 'p-reabrir', onclick: () => { if (confirm('¿Reabrir el parte para modificarlo? Quedará anotado.')) guardar({ reabrir: true }); } }, 'Reabrir parte')
+        ? h('button', { class: 'btn ancho', type: 'button', id: 'p-reabrir', onclick: async () => { if (await confirmar('¿Reabrir el parte para modificarlo? Quedará anotado.', { si: 'Reabrir' })) guardar({ reabrir: true }); } }, 'Reabrir parte')
         : h('div', { class: 'fila', style: 'margin:0' },
           h('button', { class: 'btn prim', type: 'submit', id: 'p-guardar', style: 'flex:1' }, reg ? 'Guardar' : 'Crear parte'),
           h('button', { class: 'btn rojo', type: 'button', id: 'p-cerrar', style: 'flex:1', onclick: () => guardar({ cerrar: true }) }, 'Cerrar parte'))));

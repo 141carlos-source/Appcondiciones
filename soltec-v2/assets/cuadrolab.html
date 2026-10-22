@@ -52,6 +52,7 @@ input,select{font-size:16px;min-height:38px}button.b,button.s{padding:10px 14px;
 <header id="hd"></header><nav id="nv" class="noprint"></nav>
 <main><section class="sec" id="t0"></section><section class="sec" id="t1"></section><section class="sec" id="t2"></section><section class="sec" id="t3"></section><section class="sec" id="t4"></section><section class="sec" id="t5"></section></main>
 <datalist id="nl"></datalist><input type="file" id="fi" hidden accept=".json" onchange="op(this)">
+<script src="soltec-dialogo.js"></script>
 <script src="cuadro-reglas.js"></script>
 <script src="cuadro-frontal.js"></script>
 <script src="cuadro-unifilar.js"></script>
@@ -74,7 +75,7 @@ const store=()=>{localStorage.cl_cu=JSON.stringify(CU);localStorage.cl_ph=JSON.s
 const opt=(a,v)=>a.map(x=>`<option ${x==v?'selected':''}>${x}</option>`).join(''),rg=(a,b)=>Array.from({length:b-a+1},(_,i)=>a+i);
 const ord=RG.ord,V=t=>RG.V(S,t);
 const ds=d=>(d.t=='PIA'||d.t=='SOB'&&d.in)?`${d.in}A ${d.cu}`:d.t=='ID'?`${d.in}A/${d.sn}`:d.t=='BOR'||d.t=='SOB'?FSN(FS(d)):(d.t=='IGA'||d.t=='CON')?`${d.in}A`:d.v?Object.values(d.v).filter(Boolean).join(' '):'';
-function dlg(m,ok,inp,no,opts){document.querySelectorAll('.dlgx').forEach(x=>x.remove());const d=document.createElement('div'),q=s=>d.querySelector(s);d.className='dlgx';d.style.cssText='position:fixed;inset:0;background:#0006;display:flex;align-items:center;justify-content:center;z-index:99';d.innerHTML=`<div class="card" style="min-width:280px;margin:0"><p>${E(m)}</p>${inp?(opts?`<select id="dg" style="width:100%;margin-bottom:10px">${opts.map(o=>`<option value="${E(o[0])}">${E(o[1])}</option>`).join('')}</select>`:'<input id="dg" style="width:100%;margin-bottom:10px">'):''}<div class="bar" style="margin:0"><button class="b" id="dk">ACEPTAR</button>${ok?'<button class="s" id="dc">CANCELAR</button>':''}</div></div>`;document.body.appendChild(d);q('#dk').onclick=()=>{const v=inp?q('#dg').value:1;d.remove();ok&&ok(v)};if(q('#dc'))q('#dc').onclick=()=>{d.remove();no&&no()};if(inp)q('#dg').focus()}
+function dlg(m,ok,inp,no,opts){const SD=SoltecDialogo,o={si:'ACEPTAR',no:'CANCELAR',opciones:opts,mayusculas:!opts};(inp?SD.preguntar(m,o):ok?SD.confirmar(m,o):SD.aviso(m,o)).then(v=>{if(inp)v===null?no&&no():ok&&ok(v);else if(ok)v?ok(1):no&&no()})}
 window.alert=m=>dlg(m);
 function cm(){S.ck=S.ck||'q'+Date.now().toString(36);S.cs=S.cs||[];const o={k:S.ck,c:S.p.c,w:S.w,r:S.r,dv:S.dv,lbl:S.lbl,n:S.n,pa:S.pa||'',ig:S.ig},i=S.cs.findIndex(q=>q.k==S.ck);if(i<0)S.cs.push(o);else S.cs[i]=o}
 function allq(){cm();return S.cs}

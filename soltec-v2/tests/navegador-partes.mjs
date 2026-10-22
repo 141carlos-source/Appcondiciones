@@ -90,6 +90,7 @@ try {
 
   await page.click(`.tarjeta:has-text("${numero}")`);
   await page.click('#p-reabrir');
+  await page.click('.sd-fondo #dk');
   await page.waitForSelector('#p-cerrar');
   ok('Se puede reabrir, y queda anotado');
 

@@ -1,4 +1,5 @@
 // SOLTEC V2 · Utilidades de interfaz compartidas por la carcasa y los módulos.
+import './assets/soltec-dialogo.js';
 
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -176,3 +177,12 @@ export function activarMayusculas(raiz = document) {
   raiz.addEventListener('focusout', alSalir, true);
   raiz.addEventListener('change', alSalir, true);
 }
+
+// --- Ventanas de aviso / confirmación / pregunta (las mismas que CuadroLab y la autorización: assets/soltec-dialogo.js)
+const ventana = () => globalThis.SoltecDialogo;
+/** Aviso con un botón «Aceptar». */
+export const aviso = (mensaje, o) => ventana().aviso(mensaje, o);
+/** Pregunta Sí/No: devuelve true si se acepta. o = { si, no, peligro, titulo } */
+export const confirmar = (mensaje, o) => ventana().confirmar(mensaje, o);
+/** Pide un texto (o elegir de una lista con o.opciones): devuelve el valor o null si se cancela. */
+export const preguntar = (mensaje, o) => ventana().preguntar(mensaje, o);

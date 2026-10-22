@@ -78,7 +78,9 @@ try {
   await page.fill('#f-suministro-cp', '44001');
   await page.waitForSelector('text=Posible duplicado:');
   ok('Aviso de posible duplicado por la misma dirección, piso y puerta');
-  await page.click('#guardar'); // el diálogo de confirmación se acepta
+  await page.click('#guardar');
+  assert.match(await page.textContent('.sd-fondo .sd-texto'), /mismo CUPS o la misma dirección/);
+  await page.click('.sd-fondo #dk'); // «Crear igualmente»
   await page.waitForSelector('h1:has-text("Aviso 2026-0002")');
   const id2 = page.url().split('/').pop();
   ok('Se puede crear igualmente tras confirmar que es otra actuación');
@@ -137,6 +139,7 @@ try {
   // Papelera y recuperación
   await page.goto(base + '#/aviso/' + id2);
   await page.click('text=Enviar a la papelera');
+  await page.click('.sd-fondo #dk');
   await page.waitForSelector('h1:has-text("Avisos")');
   assert.match(await page.textContent('main'), /Todavía no hay avisos/);
   await page.goto(base + '#/avisos?ver=papelera');
@@ -153,20 +156,28 @@ try {
   await page.waitForSelector('#f-cliente-contacto', { state: 'attached' });
   await page.click('summary:has-text("Cliente y suministro")');
   await page.fill('#f-cliente-contacto', 'Juan (hijo)');
-  respuesta = 'cancelar';
   await page.click('nav.inferior a[data-ruta=inicio]');
+  await page.waitForSelector('.sd-fondo');
+  assert.match(await page.textContent('.sd-fondo .sd-texto'), /cambios sin guardar/);
+  assert.match(page.url(), /#\/aviso\//, 'mientras pregunta sigue en la ficha');
+  await page.click('.sd-fondo #dc'); // «Seguir aquí»
   await page.waitForTimeout(300);
   assert.match(page.url(), /#\/aviso\//);
   assert.equal(await page.inputValue('#f-cliente-contacto'), 'JUAN (HIJO)');
-  respuesta = 'aceptar';
   await page.click('nav.inferior a[data-ruta=inicio]');
+  await page.waitForSelector('.sd-fondo');
+  await page.keyboard.press('Escape'); // Esc = cancelar
+  await page.waitForSelector('.sd-fondo', { state: 'detached' });
+  assert.match(page.url(), /#\/aviso\//);
+  await page.click('nav.inferior a[data-ruta=inicio]');
+  await page.click('.sd-fondo #dk'); // «Salir sin guardar»
   await page.waitForSelector('#buscador-unico');
-  ok('Salir de una ficha con cambios sin guardar pide confirmación');
+  ok('Salir de una ficha con cambios sin guardar pide confirmación en la ventana de SOLTEC (Seguir aquí / Esc / Salir sin guardar)');
 
   assert.deepEqual(errores, []);
   ok('Sin errores en la consola');
 } catch (e) {
-  console.error('✗', e.message);
+  console.error('✗', e.message); try { console.error('VENTANA:', await page.textContent('.sd-fondo')); } catch {}
   process.exitCode = 1;
 } finally {
   await browser?.close();

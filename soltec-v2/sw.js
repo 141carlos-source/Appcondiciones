@@ -2,11 +2,11 @@
 // Solo guarda los archivos de la aplicación. Los datos viven en IndexedDB y nunca se tocan aquí.
 // Una versión nueva se instala en segundo plano y espera a que pulses «Actualizar».
 
-const VERSION = 'V2-1.19.3';
+const VERSION = 'V2-1.19.4';
 const CACHE = 'SOLTEC-V2-' + VERSION;
 const SHELL = [
   './', './index.html', './app.css', './app.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',
-  './core/db.js', './core/storage.js', './core/model.js', './core/validate.js', './core/search.js', './core/backup.js', './core/sync.js', './ui.js', './modulos/avisos.js', './modulos/agenda.js', './modulos/empresa.js', './modulos/comunicaciones.js', './core/empresa.js', './core/documentos.js', './core/memoria.js', './modulos/memoria.js', './core/geo.js', './modulos/ubicacion.js', './core/partes.js', './modulos/partes.js', './core/importarV1.js', './core/calendario.js', './core/plano.js', './core/fichaCliente.js', './core/certificados.js', './core/tinta.js', './modulos/certificados.js', './cliente.html', './cliente.js', './modulos/importar.js', './core/cuadros.js', './modulos/cuadros.js', './assets/cuadrolab.html', './core/autorizacion.js', './modulos/autorizacion.js', './assets/autorizacion.html', './vendor/pdf-lib.min.js', './vendor/qrcode.mjs', './core/alta.js', './core/errores.js', './assets/soltec-tema.css', './assets/cuadro-reglas.js', './assets/cuadro-frontal.js', './assets/cuadro-unifilar.js', './vendor/fonts/archivo.woff2', './assets/logo_e-distribucion.jpg',
+  './core/db.js', './core/storage.js', './core/model.js', './core/validate.js', './core/search.js', './core/backup.js', './core/sync.js', './ui.js', './modulos/avisos.js', './modulos/agenda.js', './modulos/empresa.js', './modulos/comunicaciones.js', './core/empresa.js', './core/documentos.js', './core/memoria.js', './modulos/memoria.js', './core/geo.js', './modulos/ubicacion.js', './core/partes.js', './modulos/partes.js', './core/importarV1.js', './core/calendario.js', './core/plano.js', './core/fichaCliente.js', './core/certificados.js', './core/tinta.js', './modulos/certificados.js', './cliente.html', './cliente.js', './modulos/importar.js', './core/cuadros.js', './modulos/cuadros.js', './assets/cuadrolab.html', './core/autorizacion.js', './modulos/autorizacion.js', './assets/autorizacion.html', './vendor/pdf-lib.min.js', './vendor/qrcode.mjs', './core/alta.js', './core/errores.js', './assets/soltec-tema.css', './assets/cuadro-reglas.js', './assets/cuadro-frontal.js', './assets/cuadro-unifilar.js', './assets/soltec-dialogo.js', './vendor/fonts/archivo.woff2', './assets/logo_e-distribucion.jpg',
 ];
 
 self.addEventListener('install', (e) => {

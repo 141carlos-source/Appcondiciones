@@ -1,7 +1,7 @@
 // SOLTEC V2 · Capa 6 · Agenda: citas y seguimientos de avisos (un único tipo de registro, «cita»).
 // Un seguimiento es una cita con ref = id del aviso; completarla o reabrirla queda en el historial del aviso.
 
-import { h, toast, ir, descargar } from '../ui.js';
+import { h, toast, ir, descargar, confirmar } from '../ui.js';
 import { ANTELACIONES, debeSonar, momentoAlarma, enlaceGoogle, icsCita, nombreIcs } from '../core/calendario.js';
 import { hoyLocal, direccionCompleta } from '../core/model.js';
 import { buscar } from '../core/search.js';
@@ -152,7 +152,7 @@ export async function vistaCita(app, id) {
       h('label', {}, 'Aviso'), avisoSel),
     cita ? h('div', { class: 'fila' },
       h('button', { class: 'btn', type: 'button', onclick: async () => { await cambiarHecho(app, cita, !d.hecho); cambiado = false; toast(d.hecho ? 'Reabierta' : 'Hecha'); ir('agenda'); } }, d.hecho ? 'Reabrir' : 'Marcar como hecha'),
-      h('button', { class: 'btn', type: 'button', onclick: async () => { if (!confirm('¿Enviar esta cita a la papelera?')) return; await app.storage.trash(cita.id); cambiado = false; ir('agenda'); } }, 'Eliminar')) : null,
+      h('button', { class: 'btn', type: 'button', onclick: async () => { if (!(await confirmar('¿Enviar esta cita a la papelera?', { si: 'Enviar a la papelera', peligro: true }))) return; await app.storage.trash(cita.id); cambiado = false; ir('agenda'); } }, 'Eliminar')) : null,
     h('div', { class: 'barra-guardar' }, h('button', { class: 'btn prim ancho', type: 'submit', id: 'guardar-cita' }, 'Guardar cita')));
 }
 

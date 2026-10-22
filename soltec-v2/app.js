@@ -6,9 +6,9 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.19.3';
+export const VERSION = 'V2-1.19.4';
 
-import { h, toast, hace, descargar, activarMayusculas } from './ui.js';
+import { h, toast, hace, descargar, activarMayusculas, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
 import { vistaAgenda, vistaCita, iniciarAlarmas } from './modulos/agenda.js';
 import { vistaEmpresa } from './modulos/empresa.js';
@@ -57,11 +57,15 @@ let renderN = 0;
 let hashActual = location.hash;
 let ignorarHash = false;
 /** Cambio de pantalla: si la actual tiene cambios sin guardar, se pregunta antes. */
-function alCambiarHash() {
+async function alCambiarHash() {
   if (ignorarHash) { ignorarHash = false; return; }
-  if (app.guardia?.() && location.hash !== hashActual && !confirm('Hay cambios sin guardar. ¿Salir sin guardar?')) {
+  if (app.guardia?.() && location.hash !== hashActual) {
+    const destino = location.hash;
     ignorarHash = true;
-    location.hash = hashActual; // se vuelve a la pantalla con los cambios
+    location.hash = hashActual; // se queda en la pantalla con los cambios mientras se pregunta
+    if (!(await confirmar('Hay cambios sin guardar. ¿Salir sin guardar?', { si: 'Salir sin guardar', no: 'Seguir aquí', peligro: true }))) return;
+    app.guardia = null;
+    location.hash = destino;
     return;
   }
   render();
@@ -432,7 +436,7 @@ function bloqueOtroDispositivo(cfg) {
       qr,
       h('div', { class: 'fila' },
         navigator.share ? h('button', { class: 'btn', type: 'button', onclick: () => navigator.share({ title: 'Conectar con SOLTEC V2', text: 'Enlace para conectar este dispositivo con SOLTEC V2 (no lo compartas):', url: enlace }).catch(() => {}) }, 'Compartir enlace') : null,
-        h('button', { class: 'btn', type: 'button', id: 'alta-copiar', onclick: async () => { try { await navigator.clipboard.writeText(enlace); toast('Enlace copiado'); } catch { prompt('Copia el enlace:', enlace); } } }, 'Copiar enlace')),
+        h('button', { class: 'btn', type: 'button', id: 'alta-copiar', onclick: async () => { try { await navigator.clipboard.writeText(enlace); toast('Enlace copiado'); } catch { preguntar('Copia el enlace:', { valor: enlace, si: 'Hecho' }); } } }, 'Copiar enlace')),
       h('p', {}, h('b', {}, 'Otro PC con Windows: '), 'descarga este instalador, cópialo al otro PC (pendrive, correo…) y ábrelo con doble clic. Crea el icono «SOLTEC V2» en el escritorio y te pregunta el nombre del PC.'),
       h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', id: 'alta-bat', onclick: bat }, 'Descargar instalador para otro PC')),
       h('p', { class: 'muted' }, 'El enlace y el instalador llevan dentro la clave del PC: no los compartas con nadie. Cada dispositivo necesita Tailscale abierto con tu cuenta. Si cambias la clave del PC, genera uno nuevo.'),
@@ -492,7 +496,7 @@ function bloqueEspacio() {
       e.sinUso.length
         ? h('div', { class: 'fila' }, h('span', { class: 'muted', id: 'espacio-sin-uso' }, `${e.sinUso.length} archivo(s) que ya no usa ningún aviso: ${mb(e.bytesSinUso)}`),
           h('button', { class: 'btn', type: 'button', id: 'liberar-espacio', onclick: async () => {
-            if (!confirm(`¿Borrar de este dispositivo ${e.sinUso.length} archivo(s) que ya no usa ningún aviso (${mb(e.bytesSinUso)})? El PC los conserva.`)) return;
+            if (!(await confirmar(`¿Borrar de este dispositivo ${e.sinUso.length} archivo(s) que ya no usa ningún aviso (${mb(e.bytesSinUso)})? El PC los conserva.`, { si: 'Liberar espacio' }))) return;
             const r = await app.storage.borrarArchivosSinUso();
             toast(`Liberados ${mb(r.bytes)} (${r.borrados} archivos)`);
             pintar();
@@ -533,7 +537,7 @@ async function vistaAjustes() {
     try {
       const copia = JSON.parse(await f.text());
       const v = await verificar(copia);
-      if (!confirm(`Copia del ${new Date(v.creada).toLocaleString('es-ES')}\n${v.registros} registros y ${v.archivos} archivos.\n\nSe añadirá a lo que hay. No se borra nada. ¿Continuar?`)) return;
+      if (!(await confirmar(`Copia del ${new Date(v.creada).toLocaleString('es-ES')}\n${v.registros} registros y ${v.archivos} archivos.\n\nSe añadirá a lo que hay. No se borra nada. ¿Continuar?`, { si: 'Restaurar' }))) return;
       const inf = await importar(app.storage, copia);
       toast(`Importado: ${inf.nuevos} nuevos, ${inf.actualizados} actualizados${inf.conflictos.length ? `, ${inf.conflictos.length} conservados por tener cambios sin subir` : ''}`);
       await refrescarEstado();
@@ -571,8 +575,8 @@ async function vistaAjustes() {
       h('div', { class: 'cuerpo' },
         h('p', { class: 'muted' }, 'El mismo registro cambió aquí y en otro dispositivo. Ahora se ve la versión del PC; la de este dispositivo está guardada. Elige cuál se queda.'),
         nConf > 1 ? h('div', { class: 'fila', id: 'conflictos-todos' },
-          h('button', { class: 'btn', type: 'button', onclick: async () => { if (!confirm(`¿Quedarte con la versión del PC en los ${nConf}?`)) return; await app.sync.resolverTodos('servidor'); toast('Conflictos resueltos con lo del PC'); render(); } }, `Todos: la del PC (${nConf})`),
-          h('button', { class: 'btn', type: 'button', onclick: async () => { if (!confirm(`¿Quedarte con la versión de este dispositivo en los ${nConf}?`)) return; await app.sync.resolverTodos('local'); await refrescarEstado(); programarSync(500); toast('Conflictos resueltos con lo de este dispositivo'); render(); } }, `Todos: la de aquí (${nConf})`)) : null,
+          h('button', { class: 'btn', type: 'button', onclick: async () => { if (!(await confirmar(`¿Quedarte con la versión del PC en los ${nConf}?`))) return; await app.sync.resolverTodos('servidor'); toast('Conflictos resueltos con lo del PC'); render(); } }, `Todos: la del PC (${nConf})`),
+          h('button', { class: 'btn', type: 'button', onclick: async () => { if (!(await confirmar(`¿Quedarte con la versión de este dispositivo en los ${nConf}?`))) return; await app.sync.resolverTodos('local'); await refrescarEstado(); programarSync(500); toast('Conflictos resueltos con lo de este dispositivo'); render(); } }, `Todos: la de aquí (${nConf})`)) : null,
         ...Object.entries(conflictos).map(([id, c]) => h('div', { class: 'card' },
           h('b', {}, c.local.data?.numero || c.local.data?.titulo || c.local.type), h('div', { class: 'muted mono' }, id),
           h('div', { class: 'muted' }, `Este dispositivo: ${hace(c.local.updatedAt)} · PC: ${hace(c.servidor.updatedAt)}`),
@@ -694,7 +698,7 @@ function bloqueErrores(lista) {
     lista.length ? h('div', { class: 'fila' },
       h('button', { class: 'btn', type: 'button', id: 'errores-copiar', onclick: async () => { const t = await texto(); try { await navigator.clipboard.writeText(t); toast('Copiado: pégalo en el chat con Claude o en un correo'); } catch { descargar(new Blob([t], { type: 'text/plain' }), 'SOLTEC_ERRORES.txt'); } } }, 'Copiar'),
       h('button', { class: 'btn', type: 'button', id: 'errores-descargar', onclick: async () => descargar(new Blob([await texto()], { type: 'text/plain' }), `SOLTEC_ERRORES_${new Date().toISOString().slice(0, 10)}.txt`) }, 'Descargar'),
-      h('button', { class: 'btn', type: 'button', id: 'errores-borrar', onclick: async () => { if (!confirm('¿Borrar el registro de errores de este dispositivo?')) return; await borrarErrores(app.storage); toast('Registro borrado'); render(); } }, 'Borrar')) : null,
+      h('button', { class: 'btn', type: 'button', id: 'errores-borrar', onclick: async () => { if (!(await confirmar('¿Borrar el registro de errores de este dispositivo?', { si: 'Borrar', peligro: true }))) return; await borrarErrores(app.storage); toast('Registro borrado'); render(); } }, 'Borrar')) : null,
     h('p', { class: 'muted' }, 'Si algo falla, pulsa «Copiar» y pégalo en el chat: así se puede arreglar aunque no se vea el fallo.'));
 }
 const fechaHoraCorta = (iso) => { try { return new Date(iso).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }); } catch { return iso; } };

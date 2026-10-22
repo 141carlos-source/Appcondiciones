@@ -211,6 +211,7 @@ body{background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-syste
 .prevwrap{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:12px 4px;overflow:hidden}
 .acts{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
 </style>
+<script src="soltec-dialogo.js"></script>
 <script>
 /* SOLTEC V2: los errores de este formulario se anotan en el registro de errores de la app (Ajustes). */
 (function(){if(window.parent===window)return;var o=location.origin,n='autorizacion',m=function(e){try{var x=e&&(e.error||e.reason)||e;parent.postMessage({tipo:'soltec-error',origen:n,mensaje:String(x&&x.message||e&&e.message||x||'Error'),pila:String(x&&x.stack||'')},o)}catch(_){}};addEventListener('error',m);addEventListener('unhandledrejection',m)})();
@@ -700,7 +701,7 @@ function exportJSON(d, name) {
 function importJSON(cb) {
   const i = document.createElement('input'); i.type = 'file'; i.accept = '.json,application/json';
   i.onchange = () => { const f = i.files[0]; if (!f) return; f.text().then(t => {
-    try { const o = JSON.parse(t); cb(normalize(o && o.data ? o.data : o)); } catch { alert('El archivo no es un JSON válido.'); }
+    try { const o = JSON.parse(t); cb(normalize(o && o.data ? o.data : o)); } catch { SoltecDialogo.aviso('El archivo no es un JSON válido.'); }
   }); };
   i.click();
 }
@@ -1007,9 +1008,9 @@ return { SIG_KEYS, SIG_TITLES, SCHEMA_ID, SCHEMA_VER, KEYS, GROUPS, MESES, empty
   const refresh = () => actual && actual.refresh();
 
   /* ---------- Imprimir ---------- */
-  function doPrint() {
+  async function doPrint() {
     const is = SA.issues(d);
-    if (is.length && !confirm(`Hay ${is.length} dato(s) pendientes. ¿Imprimir igualmente?`)) return;
+    if (is.length && !(await SoltecDialogo.confirmar(`Hay ${is.length} dato(s) pendientes. ¿Imprimir igualmente?`, { si: 'Imprimir' }))) return;
     SA.printDoc(d);
   }
   $('bPrint').onclick = doPrint;
@@ -1106,7 +1107,7 @@ return { SIG_KEYS, SIG_TITLES, SCHEMA_ID, SCHEMA_VER, KEYS, GROUPS, MESES, empty
     hoy: () => { SA.fillToday(d); persist(); refresh(); },
     export: () => SA.exportJSON(d),
     import: () => SA.importJSON(nd => { setAll(nd); SA.toast('Datos importados'); }),
-    clear: () => { if (confirm('¿Empezar una autorización nueva? Se borran los datos actuales.')) { step = 0; setAll(SA.empty()); } },
+    clear: async () => { if (await SoltecDialogo.confirmar('¿Empezar una autorización nueva? Se borran los datos actuales.', { si: 'Empezar de nuevo', peligro: true })) { step = 0; setAll(SA.empty()); } },
     logoLoad: () => {
       const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/png,image/jpeg,image/svg+xml,image/webp';
       i.onchange = () => { const f = i.files[0]; if (!f) return; const fr = new FileReader();

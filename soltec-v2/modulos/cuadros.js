@@ -2,7 +2,7 @@
 // CuadroLab (assets/cuadrolab.html) se abre a pantalla completa dentro de la app y se comunica por mensajes:
 // no guarda nada por su cuenta. El proyecto vuelve a la ficha del aviso (draft.cuadro) y, si cambió, el aviso se guarda solo al volver.
 
-import { h, toast, hace } from '../ui.js';
+import { h, toast, hace, confirmar } from '../ui.js';
 import { normalizarCuadro, resumenCuadro, textoResumen, esProyecto } from '../core/cuadros.js';
 import { leerEmpresa } from './empresa.js';
 
@@ -41,8 +41,8 @@ export function bloqueCuadros(app, draft, alCambiar, alVolver) {
       h('p', { class: 'muted' }, 'El cuadro se guarda solo dentro del aviso al volver del diseñador. Unifilar, etiquetas, pedido y memoria se imprimen desde el propio diseñador.'));
   };
 
-  const quitar = () => {
-    if (!confirm('¿Quitar el cuadro eléctrico de este aviso? Se borrará al guardar el aviso.')) return;
+  const quitar = async () => {
+    if (!(await confirmar('¿Quitar el cuadro eléctrico de este aviso? Se borrará al guardar el aviso.', { si: 'Quitar', peligro: true }))) return;
     draft.cuadro = normalizarCuadro(null);
     alCambiar(); pintar();
   };

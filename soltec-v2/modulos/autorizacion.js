@@ -2,7 +2,7 @@
 // El formulario (assets/autorizacion.html) se abre a pantalla completa y habla con la ficha por mensajes:
 // no guarda nada por su cuenta. Los datos vuelven al aviso (draft.autorizacion) y, si cambiaron, el aviso se guarda solo al volver.
 
-import { h, toast, hace } from '../ui.js';
+import { h, toast, hace, confirmar } from '../ui.js';
 import { normalizarAutorizacion, datosAutorizacion, sugerenciasAutorizacion, representanteDeEmpresa, representanteDeTecnico, resumenAutorizacion } from '../core/autorizacion.js';
 import { leerEmpresa } from './empresa.js';
 
@@ -45,8 +45,8 @@ export function bloqueAutorizacion(app, draft, alCambiar, alVolver) {
       h('p', { class: 'muted' }, 'Modelo de e-distribución para representante y destinatario de facturación. Se rellena con los datos del aviso y de Ajustes › Empresa (incluido el logo). Se imprime o guarda en PDF desde el propio formulario.'));
   };
 
-  const quitar = () => {
-    if (!confirm('¿Quitar la autorización de este aviso? Se borrará al guardar el aviso.')) return;
+  const quitar = async () => {
+    if (!(await confirmar('¿Quitar la autorización de este aviso? Se borrará al guardar el aviso.', { si: 'Quitar', peligro: true }))) return;
     draft.autorizacion = { v: 1, datos: null, actualizado: new Date().toISOString() };
     alCambiar(); pintar();
   };

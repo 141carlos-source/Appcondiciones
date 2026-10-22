@@ -1,7 +1,7 @@
 // SOLTEC V2 · Capa 6 · Avisos y Expedientes: listados y ficha.
 // Un expediente es un aviso con referencia o PDF de condiciones: misma ficha, distinto listado.
 
-import { h, toast, fecha, fechaHora, abrirBlob, compartir, ir } from '../ui.js';
+import { h, toast, fecha, fechaHora, abrirBlob, compartir, ir, confirmar } from '../ui.js';
 import {
   nuevoAviso, normalizarAviso, siguienteNumero, isExpediente, conPdfCondiciones, pdfCondicionesActual, datosPendientes,
   docsPendientes, direccionCompleta, FASES_TRAMITE, DOCUMENTOS, ESTADOS_DOC, ESTADOS_AVISO, EVENTOS, EVENTOS_MANUALES, DESTINOS,
@@ -327,7 +327,7 @@ export async function vistaFicha(app, id) {
       const actual = await app.storage.get(registro.id);
       if (actual && actual.updatedAt !== registro.updatedAt) {
         // Otro dispositivo lo cambió mientras lo editabas (llegó por sincronización).
-        if (!confirm('Este aviso se ha modificado en otro dispositivo mientras lo editabas.\n\nAceptar: guardar tus cambios encima.\nCancelar: no guardar y ver la versión nueva.')) {
+        if (!(await confirmar('Este aviso se ha modificado en otro dispositivo mientras lo editabas.\n\n«Guardar los míos»: tus cambios quedan encima.\n«Ver la nueva»: no se guarda y se abre la versión nueva.', { si: 'Guardar los míos', no: 'Ver la nueva' }))) {
           cambiado = false;
           window.dispatchEvent(new HashChangeEvent('hashchange'));
           return;
@@ -336,7 +336,7 @@ export async function vistaFicha(app, id) {
     }
     if (nuevoReg) {
       const d = comprobarDuplicados();
-      if (d.length && !confirm(`Hay ${d.length} aviso(s) con el mismo CUPS o la misma dirección.\n\n${d.map((x) => `· ${x.registro.data.numero} ${x.registro.data.cliente?.nombre || ''}`).join('\n')}\n\n¿Es otra actuación y quieres crear el aviso igualmente?`)) return;
+      if (d.length && !(await confirmar(`Hay ${d.length} aviso(s) con el mismo CUPS o la misma dirección.\n\n${d.map((x) => `· ${x.registro.data.numero} ${x.registro.data.cliente?.nombre || ''}`).join('\n')}\n\n¿Es otra actuación y quieres crear el aviso igualmente?`, { si: 'Crear igualmente' }))) return;
       draft.numero = siguienteNumero(await app.storage.list('aviso', { includeDeleted: true }));
     }
     // Eventos del historial según lo que cambió
@@ -411,7 +411,7 @@ export async function vistaFicha(app, id) {
     registro && !registro.deleted ? h('div', { class: 'fila' },
       h('a', { class: 'btn', href: `#/aviso/duplicar?de=${registro.id}` }, 'Duplicar con los mismos datos'),
       h('button', { class: 'btn', type: 'button', onclick: async () => {
-        if (!confirm('¿Enviar este aviso a la papelera? Podrás recuperarlo.')) return;
+        if (!(await confirmar('¿Enviar este aviso a la papelera? Podrás recuperarlo.', { si: 'Enviar a la papelera', peligro: true }))) return;
         await app.storage.trash(registro.id);
         toast('Enviado a la papelera');
         ir('avisos');
