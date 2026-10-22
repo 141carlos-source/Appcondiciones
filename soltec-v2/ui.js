@@ -139,16 +139,40 @@ export function vaEnMayusculas(el) {
   return !NO_MAYUS.test([el.id, el.name, el.className, el.getAttribute('autocomplete') || ''].join(' '));
 }
 
-/** Convierte a mayúsculas lo que se escribe o se pega, sin mover el cursor. */
+/**
+ * Mayúsculas en todos los campos de texto (salvo correos, webs, claves y buscadores).
+ * · Con ratón y teclado físico (PC): se convierte al escribir, sin mover el cursor.
+ * · En pantalla táctil (móvil y tablet) NO se toca el texto mientras se escribe: cambiar el valor
+ *   a mitad de palabra hace que algunos teclados (Samsung, Gboard) se cierren o pierdan lo escrito.
+ *   Se ve en mayúsculas (CSS) y se convierte al salir del campo.
+ */
 export function activarMayusculas(raiz = document) {
+  const tactil = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  const convertir = (el) => {
+    const v = el.value, m = v.toLocaleUpperCase('es-ES');
+    if (m === v) return false;
+    el.value = m;
+    return true;
+  };
+  raiz.addEventListener('focusin', (e) => {
+    const el = e.target;
+    if (!vaEnMayusculas(el)) return;
+    if (!el.hasAttribute('autocapitalize')) el.setAttribute('autocapitalize', 'characters');
+    if (tactil()) el.style.textTransform = 'uppercase';
+  }, true);
   raiz.addEventListener('input', (e) => {
     const el = e.target;
-    if (e.isComposing || !vaEnMayusculas(el)) return;
-    const v = el.value;
-    const m = v.toLocaleUpperCase('es-ES');
-    if (m === v) return;
-    const ini = el.selectionStart, fin = el.selectionEnd;
-    el.value = m;
-    if (m.length === v.length && ini != null) { try { el.setSelectionRange(ini, fin); } catch { /* sin cursor */ } }
+    if (e.isComposing || tactil() || !vaEnMayusculas(el)) return;
+    const ini = el.selectionStart, fin = el.selectionEnd, largo = el.value.length;
+    if (!convertir(el)) return;
+    if (el.value.length === largo && ini != null) { try { el.setSelectionRange(ini, fin); } catch { /* sin cursor */ } }
   }, true); // en captura: el valor ya va en mayúsculas cuando lo lee el formulario
+  // Al salir del campo (o al confirmar) se guarda en mayúsculas: se avisa al formulario con un «input»
+  const alSalir = (e) => {
+    const el = e.target;
+    if (!vaEnMayusculas(el) || !convertir(el)) return;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  raiz.addEventListener('focusout', alSalir, true);
+  raiz.addEventListener('change', alSalir, true);
 }

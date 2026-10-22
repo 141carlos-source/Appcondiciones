@@ -87,7 +87,7 @@ export async function bloqueCertificados(app, draft, alCambiar, planoEl, guardar
     };
     const formMedidor = (orig = null) => {
       const m = { ...medidorVacio(), ...(orig || {}) };
-      const f = (k, etq, tipoI = 'text') => h('div', { class: 'campo' }, h('label', { for: 'md-' + k }, etq), h('input', { id: 'md-' + k, type: tipoI, value: m[k] || '', oninput: (e) => { m[k] = e.target.value; } }));
+      const f = (k, etq, tipoI = 'text') => h('div', { class: 'campo' }, h('label', { for: 'md-' + k }, etq), h('input', { id: 'md-' + k, type: tipoI, value: m[k] || '', autocomplete: 'off', enterkeyhint: 'next', oninput: (e) => { m[k] = e.target.value; } }));
       zonaMedidor.replaceChildren(h('div', { class: 'card' },
         h('b', {}, orig ? 'Editar equipo de medida' : 'Nuevo equipo de medida'),
         h('p', { class: 'muted' }, 'Se guarda en la empresa: no hay que volver a escribirlo.'),

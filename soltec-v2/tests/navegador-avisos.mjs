@@ -49,6 +49,9 @@ try {
   assert.equal(await page.inputValue('#f-cliente-email'), 'Maria@Ejemplo.es');
   await page.click('#f-cliente-contacto');
   await page.keyboard.type('ana');
+  // En táctil se ve en mayúsculas al escribir y se guarda así al salir del campo
+  assert.equal(await page.$eval('#f-cliente-contacto', (e) => getComputedStyle(e).textTransform), 'uppercase');
+  await page.locator('#f-cliente-contacto').blur();
   assert.equal(await page.inputValue('#f-cliente-contacto'), 'ANA');
   await page.fill('#f-cliente-contacto', '');
   ok('Todo se escribe en MAYÚSCULAS salvo el correo');

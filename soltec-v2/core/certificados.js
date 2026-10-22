@@ -201,17 +201,43 @@ export async function generarCertTierra(PDFLib, { aviso, empresa, cert, medidor,
     t(res, xr, y - 48, { size: 13, font: B, color: ev.apto ? VERDE : ROJO });
   } else t('Falta el valor medido.', xr, y - 30, { size: 9, color: ROJO });
   y -= alto + 8;
+  const espacio = async (n) => { if (y - n < M) await nueva(); };
+
+  // Fotografías de la medición: justo después del resultado
+  if (fotos.length) {
+    const cols = 3, gap = 8, cw = (W - gap * (cols - 1)) / cols, ch = 150;
+    const filas = Math.ceil(fotos.length / cols);
+    await espacio(20 + ch + 16);
+    seccion('FOTOGRAFÍAS DE LA MEDICIÓN');
+    for (let f = 0; f < filas; f++) {
+      await espacio(ch + 16);
+      for (let k = 0; k < cols; k++) {
+        const i = f * cols + k;
+        if (i >= fotos.length) break;
+        const x = M + k * (cw + gap), top = y;
+        page.drawRectangle({ x, y: top - ch, width: cw, height: ch, borderColor: LINEA, borderWidth: 0.6 });
+        await imgCaja(fotos[i], x + 3, top - 3, cw - 6, ch - 6);
+        t(fotos[i].nombre || `Foto ${i + 1}`, x, top - ch - 9, { size: 6.5, color: ACERO, maxW: cw });
+      }
+      y -= ch + 16;
+    }
+    y -= 4;
+  }
+
+  await espacio(20 + 2 * 24);
   seccion('6. EQUIPO DE MEDIDA');
   campos([
     ['Equipo', [medidor?.tipo, medidor?.marca, medidor?.modelo].filter(Boolean).join(' ')], ['Nº de serie', medidor?.serie], ['Certificado de calibración', medidor?.certificado],
     ['Fecha de calibración', fechaEs(medidor?.calibracion)], ['Calibración válida hasta', fechaEs(medidor?.validoHasta)],
   ]);
   if (c.observaciones) {
+    await espacio(20 + 60);
     seccion('7. OBSERVACIONES');
     envolver(c.observaciones, 8.5, W).slice(0, 5).forEach((l) => { t(l, M, y, { size: 8.5 }); y -= 11; });
     y -= 4;
   }
-  // Declaración, firma y sello
+  // Declaración, firma y sello (en la misma página: si no caben, a la siguiente)
+  await espacio(40 + 70 + 24);
   y -= 4;
   envolver(`El instalador abajo firmante certifica que ha realizado la medición de la resistencia de la toma de tierra de la instalación indicada, con el equipo de medida reseñado, obteniendo los valores que constan en este certificado.`, 7.5, W)
     .forEach((l) => { t(l, M, y, { size: 7.5, color: ACERO }); y -= 10; });
@@ -227,29 +253,13 @@ export async function generarCertTierra(PDFLib, { aviso, empresa, cert, medidor,
   y -= hFirma + 10;
   t(`En ${e.localidad || su.poblacion || ''}, a ${fechaEs(c.fecha) || new Date().toLocaleDateString('es-ES')}  ·  ${tec.nombre || ''}`, M, Math.max(y, M - 6), { size: 8 });
 
-  // ---- Página 2: plano y fotografías
-  if (plano || fotos.length) {
+  // ---- Plano de situación (última página)
+  if (plano) {
     await nueva();
-    if (plano) {
-      seccion('PLANO DE SITUACIÓN');
-      const hh = await img(plano, M, y, W, 260);
-      y -= hh + 4;
-      t(`Coordenadas ETRS89: ${su.lat || ''}, ${su.lon || ''}${su.refCatastral ? '  ·  Ref. catastral ' + su.refCatastral : ''}  ·  Cartografía © IGN`, M, y - 6, { size: 7, color: ACERO, maxW: W });
-      y -= 18;
-    }
-    if (fotos.length) {
-      seccion('FOTOGRAFÍAS');
-      const cols = 3, gap = 8, cw = (W - gap * (cols - 1)) / cols;
-      const filas = Math.ceil(fotos.length / cols);
-      const ch = Math.min(170, (y - M - filas * 14) / filas);
-      for (let i = 0; i < fotos.length; i++) {
-        const col = i % cols, fila = Math.floor(i / cols);
-        const x = M + col * (cw + gap), top = y - fila * (ch + 16);
-        page.drawRectangle({ x, y: top - ch, width: cw, height: ch, borderColor: LINEA, borderWidth: 0.6 });
-        await imgCaja(fotos[i], x + 3, top - 3, cw - 6, ch - 6);
-        t(fotos[i].nombre || `Foto ${i + 1}`, x, top - ch - 9, { size: 6.5, color: ACERO, maxW: cw });
-      }
-    }
+    seccion('PLANO DE SITUACIÓN');
+    const hh = await img(plano, M, y, W, 330);
+    y -= hh + 4;
+    t(`Coordenadas ETRS89: ${su.lat || ''}, ${su.lon || ''}${su.refCatastral ? '  ·  Ref. catastral ' + su.refCatastral : ''}  ·  Cartografía © IGN`, M, y - 6, { size: 7, color: ACERO, maxW: W });
   }
   return pdf.save();
 }

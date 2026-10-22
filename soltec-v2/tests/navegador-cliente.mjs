@@ -56,6 +56,7 @@ try {
   ok('El cliente ve sus datos ya puestos y lo que falta en rojo');
 
   await cli.fill('#c-cliente-nif', '12345678z');
+  await cli.locator('#c-cliente-nif').blur();
   assert.equal(await cli.inputValue('#c-cliente-nif'), '12345678Z');
   await cli.fill('#c-cliente-email', 'Ana@Correo.es');
   await cli.fill('#c-cliente-iban', 'es9121000418450200051332');

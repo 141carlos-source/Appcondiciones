@@ -42,7 +42,7 @@ test('PDF del certificado con plano y 6 fotos', async () => {
   const cert = { fecha: '2026-10-14', medida: '12,3', seccion: '16', observaciones: 'Medida con terreno húmedo tras lluvia.' };
   const bytes = await generarCertTierra(PDFLib, { aviso, empresa, cert, medidor: { tipo: 'Telurómetro', marca: 'FLUKE', modelo: '1625-2', serie: 'A123', calibracion: '2026-03-01', validoHasta: '2027-03-01' }, logo: jpg, firma: jpg, sello: jpg, plano: jpg, fotos: Array.from({ length: 6 }, (_, i) => ({ ...jpg, nombre: 'Foto ' + (i + 1) })) });
   const doc = await PDFLib.PDFDocument.load(bytes);
-  assert.equal(doc.getPageCount(), 2);
+  assert.equal(doc.getPageCount(), 3, 'datos y medición + fotos, equipo y firma + plano');
   assert.equal(nombreCertTierra(aviso), 'CERTIFICADO_TOMA_TIERRA_CALLE_MAYOR_10.pdf');
   writeFileSync(new URL('./cert-tierra-ejemplo.pdf', import.meta.url), bytes);
 });
