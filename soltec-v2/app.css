@@ -370,3 +370,17 @@ body.con-capa { overflow: hidden; }
 .tarjeta.recordatorio { border-left: 4px solid var(--aviso); }
 .recordatorio-texto { color: var(--aviso); display: block; }
 .aviso.recordatorio .fila { margin-top: 8px; }
+
+/* Sugerencias de autorrelleno bajo un campo */
+.campo { position: relative; }
+.sugerencias { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; margin-top: 2px; background: #fff; border: 1.5px solid var(--linea, #dfe3e8); border-radius: 12px; box-shadow: 0 10px 28px rgba(0,0,0,.14); max-height: 280px; overflow: auto; }
+.sugerencias[hidden] { display: none; }
+.sugerencia { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; min-height: 44px; justify-content: center; cursor: pointer; border-bottom: 1px solid var(--linea, #eef0f3); text-transform: none; }
+.sugerencia:last-child { border-bottom: 0; }
+.sugerencia b { font-weight: 700; overflow-wrap: anywhere; }
+.sugerencia .muted { font-size: 13px; }
+.sugerencia.activa, .sugerencia:hover { background: var(--aviso-tinte, #f3f5f7); }
+.sum-cliente { margin: 6px 0 4px; }
+.sum-cliente .fila { flex-wrap: wrap; }
+.grid2 > .sum-cliente { grid-column: 1 / -1; }
+.sum-cliente:empty { display: none; }

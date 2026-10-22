@@ -186,3 +186,44 @@ export const aviso = (mensaje, o) => ventana().aviso(mensaje, o);
 export const confirmar = (mensaje, o) => ventana().confirmar(mensaje, o);
 /** Pide un texto (o elegir de una lista con o.opciones): devuelve el valor o null si se cancela. */
 export const preguntar = (mensaje, o) => ventana().preguntar(mensaje, o);
+
+// --- Sugerencias bajo un campo de texto (autorrelleno con lo ya trabajado)
+/**
+ * Lista desplegable bajo un campo con lo que encaja con lo escrito. Tocar una opción (o Intro / flechas en el PC) la elige.
+ * No quita el foco al campo (el teclado del móvil no se cierra) y no cambia nada hasta que se elige.
+ * @param {HTMLInputElement} input
+ * @param {{buscar: (texto:string) => Array<{titulo:string, sub?:string}>, elegir: (item) => void, alEnfocar?: boolean}} o
+ *        alEnfocar: también al entrar en el campo vacío (p. ej. las direcciones del cliente elegido)
+ */
+export function sugerencias(input, { buscar, elegir, alEnfocar = false }) {
+  const lista = h('div', { class: 'sugerencias', role: 'listbox', hidden: true });
+  let items = [], activo = -1, cerrarT = null;
+  const cerrar = () => { lista.hidden = true; lista.replaceChildren(); items = []; activo = -1; input.removeAttribute('aria-expanded'); };
+  const marcar = (i) => { activo = i; [...lista.children].forEach((el, k) => el.classList.toggle('activa', k === i)); };
+  const escoger = (it) => { cerrar(); elegir(it); };
+  const abrir = () => {
+    clearTimeout(cerrarT);
+    items = (input.value.trim() || alEnfocar) ? (buscar(input.value) || []) : [];
+    if (!items.length) { cerrar(); return; }
+    lista.replaceChildren(...items.map((it, i) => h('div', {
+      class: 'sugerencia', role: 'option',
+      // pointerdown + preventDefault: el campo no pierde el foco y el teclado sigue abierto
+      onpointerdown: (e) => { e.preventDefault(); }, onmousedown: (e) => e.preventDefault(),
+      onclick: () => escoger(it), onmousemove: () => marcar(i),
+    }, h('b', {}, it.titulo), it.sub ? h('span', { class: 'muted' }, it.sub) : null)));
+    lista.hidden = false; activo = -1;
+    input.setAttribute('aria-expanded', 'true');
+  };
+  input.addEventListener('input', abrir);
+  input.addEventListener('focus', () => { if (alEnfocar || input.value.trim()) abrir(); });
+  input.addEventListener('blur', () => { cerrarT = setTimeout(cerrar, 150); });
+  input.addEventListener('keydown', (e) => {
+    if (lista.hidden) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); marcar(Math.min(items.length - 1, activo + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); marcar(Math.max(0, activo - 1)); }
+    else if (e.key === 'Enter' && activo >= 0) { e.preventDefault(); escoger(items[activo]); }
+    else if (e.key === 'Escape') { e.preventDefault(); cerrar(); }
+  });
+  input.setAttribute('aria-autocomplete', 'list');
+  return lista;
+}

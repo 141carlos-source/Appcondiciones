@@ -1,7 +1,8 @@
 // SOLTEC V2 · Capa 6 · Avisos y Expedientes: listados y ficha.
 // Un expediente es un aviso con referencia o PDF de condiciones: misma ficha, distinto listado.
 
-import { h, toast, fecha, fechaHora, abrirBlob, compartir, ir, confirmar } from '../ui.js';
+import { h, toast, fecha, fechaHora, abrirBlob, compartir, ir, confirmar, sugerencias } from '../ui.js';
+import { clientesConocidos, suministrosConocidos, buscarClientes, buscarSuministros, rellenoCliente, rellenoSuministro, valoresUsados, datosDeLocalidad, textoSuministro, normal } from '../core/autorrelleno.js';
 import {
   nuevoAviso, normalizarAviso, siguienteNumero, isExpediente, conPdfCondiciones, pdfCondicionesActual, datosPendientes,
   docsPendientes, direccionCompleta, FASES_TRAMITE, DOCUMENTOS, ESTADOS_DOC, ESTADOS_AVISO, EVENTOS, EVENTOS_MANUALES, DESTINOS,
@@ -205,6 +206,87 @@ export async function vistaFicha(app, id) {
     w.querySelector('input,select,textarea')?.focus({ preventScroll: true });
   };
   const alCambiar = () => { cambiado = true; marcarPendientes(); };
+
+  // --- autorrelleno con lo ya trabajado (clientes, suministros y valores usados otras veces)
+  const conocidos = clientesConocidos(todos, { excluir: registro?.id });
+  const sumsConocidos = suministrosConocidos(todos, { excluir: registro?.id });
+  let clienteElegido = null;
+  /** Escribe varios datos a la vez en el aviso y en sus campos. */
+  const aplicar = (cambios) => {
+    for (const [ruta, v] of Object.entries(cambios)) {
+      escribir(draft, ruta, v);
+      const el = cont.querySelector('#f-' + ruta.replace('.', '-'));
+      if (el) {
+        if (el.tagName === 'SELECT' && v && ![...el.options].some((o) => o.value === String(v))) el.append(h('option', { value: String(v) }, String(v)));
+        el.value = v;
+      }
+      if (ruta === 'electrico.uso' && draft.memoria) { draft.memoria.usoFinca = usoFincaDeUso(v); const u = cont.querySelector('#m-uso'); if (u) u.value = draft.memoria.usoFinca; }
+    }
+    if (Object.keys(cambios).some((r) => r.startsWith('suministro.'))) { comprobarDuplicados(); obraDeDireccion(); }
+    alCambiar();
+    return Object.keys(cambios).length;
+  };
+  const opcionSuministro = (x) => ({ titulo: textoSuministro(x) || x.suministro.cups, sub: [x.suministro.cups, x.cliente, x.numero && 'aviso ' + x.numero].filter(Boolean).join(' · '), sum: x });
+  const elegirSuministro = (campo) => (it) => {
+    const n = aplicar(rellenoSuministro(draft, it.sum, campo));
+    toast(n ? 'Suministro rellenado con lo del aviso ' + (it.sum.numero || 'anterior') : 'Ya estaba todo escrito');
+    sumCliente.replaceChildren();
+  };
+  // Direcciones de suministro del cliente elegido, para elegir con un toque
+  const sumCliente = h('div', { class: 'sum-cliente', id: 'sum-cliente' });
+  const pintarSumCliente = () => {
+    const ss = clienteElegido?.suministros || [];
+    const hayDireccion = String(draft.suministro?.direccion || '').trim();
+    sumCliente.replaceChildren(...(ss.length && !hayDireccion ? [
+      h('div', { class: 'muted' }, ss.length === 1 ? 'Suministro de este cliente:' : `Suministros de este cliente (${ss.length}):`),
+      h('div', { class: 'fila' }, ...ss.slice(0, 6).map((x) => h('button', { class: 'btn peq', type: 'button', onclick: () => { elegirSuministro('')(opcionSuministro({ ...x, cliente: '' })); } }, textoSuministro(x)))),
+      h('div', { class: 'muted' }, 'O escribe una dirección nueva.')] : []));
+  };
+  const AUTO_CLIENTE = { 'cliente.nombre': 'nombre', 'cliente.contacto': 'contacto', 'cliente.nif': 'nif', 'cliente.telefono': 'telefono', 'cliente.email': 'email' };
+  const AUTO_SUMINISTRO = { 'suministro.direccion': 'direccion', 'suministro.cups': 'cups', 'suministro.refCatastral': 'refCatastral' };
+  const AUTO_VALORES = ['suministro.poblacion', 'suministro.provincia', 'suministro.cp', 'concepto', 'electrico.contador', 'electrico.contadorCercano'];
+  /** Lista de sugerencias para un campo (o null si ese campo no tiene). */
+  const sugerenciasDe = (ruta, input) => {
+    if (AUTO_CLIENTE[ruta]) {
+      const k = AUTO_CLIENTE[ruta];
+      return sugerencias(input, {
+        buscar: (t) => buscarClientes(conocidos, k, t).map((c) => ({ titulo: c.cliente.nombre, sub: [c.cliente.nif, c.cliente.telefono, c.cliente.email].filter(Boolean).join(' · ') + ` · ${c.avisos} aviso${c.avisos > 1 ? 's' : ''}`, c })),
+        elegir: (it) => {
+          aplicar(rellenoCliente(draft, it.c, k));
+          clienteElegido = it.c;
+          pintarSumCliente();
+          toast(`Datos de ${it.c.cliente.nombre} rellenados`);
+        },
+      });
+    }
+    if (AUTO_SUMINISTRO[ruta]) {
+      const k = AUTO_SUMINISTRO[ruta];
+      return sugerencias(input, {
+        alEnfocar: k === 'direccion',
+        buscar: (t) => (t.trim() ? buscarSuministros(sumsConocidos, k, t) : (clienteElegido?.suministros || []).map((x) => ({ ...x, cliente: clienteElegido.cliente.nombre }))).map(opcionSuministro),
+        elegir: elegirSuministro(k),
+      });
+    }
+    if (AUTO_VALORES.includes(ruta)) {
+      let usados = null;
+      return sugerencias(input, {
+        buscar: (t) => {
+          usados ??= valoresUsados(todos, ruta);
+          const q = normal(t);
+          return usados.filter((v) => { const n = normal(v); return n !== q && (n.startsWith(q) || n.includes(' ' + q) || (q.length >= 3 && n.includes(q))); }).slice(0, 6).map((v) => ({ titulo: v, v }));
+        },
+        elegir: (it) => {
+          const c = { [ruta]: it.v };
+          if (ruta === 'suministro.poblacion' || ruta === 'suministro.cp') {
+            const loc = datosDeLocalidad(todos, ruta === 'suministro.poblacion' ? { poblacion: it.v } : { cp: it.v });
+            for (const [k, v] of Object.entries(loc)) if (!String(draft.suministro?.[k] || '').trim()) c['suministro.' + k] = v;
+          }
+          aplicar(c);
+        },
+      });
+    }
+    return null;
+  };
   /** Escribe un dato desde otro módulo (localización, catastro…) en el aviso y en su campo. */
   const poner = (ruta, valor) => {
     escribir(draft, ruta, valor);
@@ -277,7 +359,8 @@ export async function vistaFicha(app, id) {
           obraDeDireccion();
           comprobarDuplicados(); alCambiar();
         } : null });
-    return h('div', { class: 'campo' + (o.ancho === 2 ? ' ancho' : ''), 'data-campo': ruta }, h('label', { for: idc }, etiqueta), ctrl, h('div', { class: 'msg-pend' }));
+    const sug = ctrl.tagName === 'INPUT' && !o.soloLectura ? sugerenciasDe(ruta, ctrl) : null;
+    return h('div', { class: 'campo' + (o.ancho === 2 ? ' ancho' : ''), 'data-campo': ruta }, h('label', { for: idc }, etiqueta), ctrl, sug, h('div', { class: 'msg-pend' }));
   };
   const seccion = (titulo, abierta, ...hijos) => h('details', { class: 'card', open: abierta || null }, h('summary', {}, titulo), h('div', { class: 'cuerpo' }, ...hijos));
 
@@ -385,7 +468,7 @@ export async function vistaFicha(app, id) {
     registro?.deleted ? h('div', { class: 'aviso err' }, 'Este aviso está en la papelera. ', h('button', { class: 'btn peq', type: 'button', onclick: async () => { await app.storage.restore(registro.id); toast('Recuperado'); window.dispatchEvent(new HashChangeEvent('hashchange')); } }, 'Recuperar')) : null,
     resumen, recordatoriosEl, avisoDup,
     seccion('Plano de situación y fotografías', false, h('label', {}, 'Plano de situación'), planoEl, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
-    seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.map(campo)), bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar: () => planoEl.generar({ auto: true }) })),
+    seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.flatMap((c) => (c[0] === 'suministro.direccion' ? [sumCliente, campo(c)] : [campo(c)]))), bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar: () => planoEl.generar({ auto: true }) })),
     seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
     seccion('Memoria técnica CNMC', false, bloqueMemoria(app, draft, alCambiar, registro?.id, async (ficha) => {
       if (!draft.archivos.some((x) => x.hash === ficha.hash)) draft.archivos.push(ficha);
