@@ -49,6 +49,8 @@ export const EVENTOS = {
   parte_creado: 'Parte de trabajo creado',
   parte_cerrado: 'Parte de trabajo cerrado',
   parte_reabierto: 'Parte de trabajo reabierto',
+  reclamado: 'Reclamado',
+  recordatorio_resuelto: 'Recordatorio quitado',
   // Manuales
   solicitud_presentada: 'Solicitud presentada',
   condiciones_recibidas: 'Condiciones recibidas',

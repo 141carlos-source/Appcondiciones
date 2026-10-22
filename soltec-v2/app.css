@@ -365,3 +365,8 @@ body.con-capa { overflow: hidden; }
 .capa-instalar > .card { max-width: 460px; width: 100%; }
 .pasos-instalar { margin: 6px 0 4px; padding-left: 20px; line-height: 1.5; }
 @media (max-width: 400px) { .instalar-cab { padding: 6px 8px; } }
+
+/* Recordatorios automáticos (condiciones, autorización o documentación sin respuesta) */
+.tarjeta.recordatorio { border-left: 4px solid var(--aviso); }
+.recordatorio-texto { color: var(--aviso); display: block; }
+.aviso.recordatorio .fila { margin-top: 8px; }

@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.19.5';
+export const VERSION = 'V2-1.20.0';
 
 import { h, toast, hace, descargar, activarMayusculas, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -19,6 +19,7 @@ import { bandeja, buscarTodo, FILTROS_BANDEJA } from './core/search.js';
 import { direccionCompleta, hoyLocal, numerosRepetidos, siguienteNumero } from './core/model.js';
 import { codigoAlta, enlaceAlta, leerAlta, nombreSugerido, instaladorWindows, esDireccionLocal } from './core/alta.js';
 import { URL_PUBLICA } from './core/fichaCliente.js';
+import { calcularRecordatorios, tarjetasRecordatorios, bloquePlazos } from './modulos/recordatorios.js';
 import { registrarError, describirError, leerErrores, borrarErrores, informeErrores } from './core/errores.js';
 
 const ICONOS = {
@@ -270,6 +271,7 @@ async function vistaInicio() {
   const proximas = citas.filter((c) => !c.data.hecho && (c.data.fecha || '') >= hoy).length;
   const partes = await app.storage.list('parte');
   const partesAbiertos = partes.filter((r) => !r.data.cerrado).length;
+  const recs = await calcularRecordatorios(app, { avisos });
 
   // Buscador único: avisos y expedientes, activos y finalizados (sin papelera)
   const resultados = h('div', { class: 'lista', id: 'resultados-busqueda' });
@@ -336,6 +338,7 @@ async function vistaInicio() {
       segHoy ? [', ', h('b', {}, segHoy), segHoy === 1 ? ' seguimiento hoy' : ' seguimientos hoy'] : null,
       vencidos ? [' y ', h('b', { style: 'color:var(--rojo-oscuro)' }, vencidos), vencidos === 1 ? ' vencido' : ' vencidos'] : null, '.']
     : [avisos.length ? 'Nada pendiente por ahora.' : 'Empieza creando tu primer aviso.'];
+  if (recs.length) resumen.push(' ', h('b', { style: 'color:var(--aviso)' }, recs.length), recs.length === 1 ? ' recordatorio sin respuesta.' : ' recordatorios sin respuesta.');
   return h('div', {},
     h('section', { class: 'hoy' },
       h('p', { class: 'hoy-dia' }, diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1)),
@@ -353,6 +356,9 @@ async function vistaInicio() {
       h('a', { class: 'btn', href: '#/partes', id: 'acceso-partes' }, `Partes de trabajo${partesAbiertos ? ` (${partesAbiertos} abiertos)` : ''}`),
       h('a', { class: 'btn', href: '#/aviso/nuevo' }, '+ Nuevo aviso'),
       h('a', { class: 'btn', href: '#/empresa' }, 'Empresa')),
+    recs.length ? h('section', { id: 'recordatorios' },
+      h('h2', {}, `Recordatorios (${recs.length})`),
+      h('div', { class: 'lista' }, ...tarjetasRecordatorios(app, recs, { alCambiar: () => render() }))) : null,
     h('h2', {}, 'Qué toca hoy'), chips, h('div', { class: 'lista' }, ...tarjetas),
     h('h2', {}, 'Sincronización con el PC'),
     h('div', { class: 'card' },
@@ -615,6 +621,10 @@ async function vistaAjustes() {
           render();
         } }, 'Proteger datos'),
         bloqueEspacio())),
+
+    h('details', { class: 'card', id: 'detalles-recordatorios' },
+      h('summary', {}, 'Recordatorios automáticos'),
+      h('div', { class: 'cuerpo' }, bloquePlazos(app))),
 
     h('details', { class: 'card', id: 'detalles-errores' },
       h('summary', {}, `Registro de errores${errores.length ? ` (${errores.length})` : ''}`),

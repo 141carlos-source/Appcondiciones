@@ -18,6 +18,7 @@ import { bloqueCertificados } from './certificados.js';
 import { bloqueCuadros } from './cuadros.js';
 import { bloqueAutorizacion } from './autorizacion.js';
 import { bloquePartes } from './partes.js';
+import { calcularRecordatorios, tarjetasRecordatorios } from './recordatorios.js';
 
 const faseLabel = (id) => FASES_TRAMITE.find((f) => f.id === id)?.label || '';
 const leer = (o, ruta) => ruta.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
@@ -156,6 +157,13 @@ export async function vistaFicha(app, id) {
   // --- datos pendientes y duplicados, recalculados en cada cambio
   const resumen = h('div');
   const avisoDup = h('div');
+  // Recordatorios automáticos de este aviso (condiciones, autorización o documentación sin respuesta)
+  const recordatoriosEl = h('div', { id: 'recordatorios-aviso' });
+  const pintarRecordatorios = async () => {
+    if (!registro || registro.deleted) return;
+    const items = await calcularRecordatorios(app, { avisos: [registro], avisoId: registro.id });
+    recordatoriosEl.replaceChildren(...tarjetasRecordatorios(app, items, { enFicha: true, alCambiar: () => { pintarRecordatorios(); pintarHistorial(); } }));
+  };
   const marcarPendientes = () => {
     const pend = datosPendientes(draft);
     const porCampo = new Map(pend.map((p) => [p.campo, p.problema]));
@@ -357,7 +365,7 @@ export async function vistaFicha(app, id) {
     cambiado = false;
     toast(nuevoReg ? `Aviso ${draft.numero} creado` : 'Guardado');
     if (nuevoReg) ir('aviso/' + r.id);
-    else { registro = r; Object.assign(original, clonar(draft)); pdfsNuevos.length = 0; pintarHistorial(); }
+    else { registro = r; Object.assign(original, clonar(draft)); pdfsNuevos.length = 0; pintarHistorial(); pintarRecordatorios(); }
   };
 
   const seguimiento = registro ? await bloqueSeguimiento(app, registro.id) : null;
@@ -375,7 +383,7 @@ export async function vistaFicha(app, id) {
       h('div', {}, h('h1', {}, titulo), registro && isExpediente(draft) ? h('span', { class: 'insignia ok' }, 'Expediente') : null, draft.v1?.id ? h('span', { class: 'insignia', style: 'margin-left:6px' }, `V1.35 nº ${draft.v1.id}`) : null),
       h('a', { class: 'btn', href: registro && isExpediente(draft) ? '#/expedientes' : '#/avisos' }, 'Volver')),
     registro?.deleted ? h('div', { class: 'aviso err' }, 'Este aviso está en la papelera. ', h('button', { class: 'btn peq', type: 'button', onclick: async () => { await app.storage.restore(registro.id); toast('Recuperado'); window.dispatchEvent(new HashChangeEvent('hashchange')); } }, 'Recuperar')) : null,
-    resumen, avisoDup,
+    resumen, recordatoriosEl, avisoDup,
     seccion('Plano de situación y fotografías', false, h('label', {}, 'Plano de situación'), planoEl, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
     seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.map(campo)), bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar: () => planoEl.generar({ auto: true }) })),
     seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
@@ -420,6 +428,7 @@ export async function vistaFicha(app, id) {
 
   marcarPendientes();
   comprobarDuplicados();
+  pintarRecordatorios();
   // «Completar datos» desde Inicio: abre el desplegable y lleva al campo
   const pedido = new URLSearchParams(location.hash.split('?')[1] || '').get('campo');
   if (pedido) setTimeout(() => irACampo(pedido), 60);
