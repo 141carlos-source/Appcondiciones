@@ -1,7 +1,8 @@
 // Recordatorios automáticos (core/recordatorios.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { recordatorios, plazosDe, fechaEnvio, diasDesde, PLAZOS_RECORDATORIO } from '../core/recordatorios.js';
+import { recordatorios, plazosDe, fechaEnvio, diasDesde, PLAZOS_RECORDATORIO, pendientesDeAvisar, contenidoNotificacion } from '../core/recordatorios.js';
+import { readFileSync } from 'node:fs';
 
 const AHORA = new Date(2026, 9, 22, 18, 0); // 22/10/2026 18:00 (hora local)
 const hace = (dias, h = 10) => new Date(2026, 9, 22 - dias, h, 0).toISOString();
@@ -97,4 +98,41 @@ test('fechas: envío «dd/mm/aaaa hh:mm» o ISO y días naturales', () => {
   assert.equal(fechaEnvio('ayer'), null);
   assert.equal(diasDesde(new Date(2026, 9, 21, 23, 59), new Date(2026, 9, 22, 0, 1)), 1, 'cambia de día a medianoche');
   assert.equal(diasDesde(new Date(2026, 9, 22, 1), AHORA), 0);
+});
+
+test('notificaciones: una vez al día por recordatorio, solo de 8:00 a 21:00', () => {
+  const lista = recordatorios([aviso('a'), aviso('b')], [ev('a', 'solicitud_presentada', hace(20)), ev('b', 'solicitud_presentada', hace(16))], AHORA);
+  const p1 = pendientesDeAvisar(lista, {}, AHORA);
+  assert.equal(p1.nuevos.length, 2);
+  const p2 = pendientesDeAvisar(lista, p1.avisados, new Date(2026, 9, 22, 20, 30));
+  assert.equal(p2.nuevos.length, 0, 'el mismo día no se repite');
+  const manana = new Date(2026, 9, 23, 9, 0);
+  assert.equal(pendientesDeAvisar(recordatorios([aviso('a')], [ev('a', 'solicitud_presentada', hace(20))], manana), p2.avisados, manana).nuevos.length, 1, 'al día siguiente vuelve a avisar');
+  assert.equal(pendientesDeAvisar(lista, {}, new Date(2026, 9, 22, 7, 59)).nuevos.length, 0, 'de madrugada no');
+  assert.equal(pendientesDeAvisar(lista, {}, new Date(2026, 9, 22, 21, 0)).nuevos.length, 0, 'de noche no');
+  const viejo = { 'x|condiciones|2026-01-01|2026-01-01': new Date(2026, 0, 1).toISOString() };
+  assert.deepEqual(Object.keys(pendientesDeAvisar([], viejo, AHORA).avisados), [], 'se olvidan los de hace más de 14 días');
+});
+
+test('contenido: una notificación aunque haya varios recordatorios, y abre el aviso o Inicio', () => {
+  const uno = recordatorios([aviso('a')], [ev('a', 'solicitud_presentada', hace(20))], AHORA);
+  const n1 = contenidoNotificacion(uno);
+  assert.equal(n1.titulo, 'SOLTEC · Recordatorio');
+  assert.equal(n1.cuerpo, 'Condiciones solicitadas hace 20 días sin respuesta\n2026-a · Cliente a');
+  assert.equal(n1.url, '#/aviso/a');
+  const muchos = recordatorios(['a', 'b', 'c', 'd', 'e', 'f'].map((x) => aviso(x)), ['a', 'b', 'c', 'd', 'e', 'f'].map((x) => ev(x, 'solicitud_presentada', hace(20))), AHORA);
+  const n = contenidoNotificacion(muchos);
+  assert.equal(n.titulo, 'SOLTEC · 6 recordatorios sin respuesta');
+  assert.equal(n.url, '#/inicio');
+  assert.equal(n.cuerpo.split('\n').length, 5);
+  assert.match(n.cuerpo, /… y 2 más$/);
+  assert.equal(contenidoNotificacion([]), null);
+});
+
+test('el service worker carga las mismas reglas y avisa con la app cerrada', () => {
+  const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
+  assert.match(sw, /importScripts\('\.\/core\/recordatorios-reglas\.js'\)/);
+  assert.ok(sw.includes("'./core/recordatorios-reglas.js'"), 'en el caché');
+  assert.match(sw, /addEventListener\('periodicsync'/);
+  assert.match(sw, /notification\.data && e\.notification\.data\.url/);
 });

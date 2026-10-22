@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.20.0';
+export const VERSION = 'V2-1.21.0';
 
 import { h, toast, hace, descargar, activarMayusculas, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -19,7 +19,7 @@ import { bandeja, buscarTodo, FILTROS_BANDEJA } from './core/search.js';
 import { direccionCompleta, hoyLocal, numerosRepetidos, siguienteNumero } from './core/model.js';
 import { codigoAlta, enlaceAlta, leerAlta, nombreSugerido, instaladorWindows, esDireccionLocal } from './core/alta.js';
 import { URL_PUBLICA } from './core/fichaCliente.js';
-import { calcularRecordatorios, tarjetasRecordatorios, bloquePlazos } from './modulos/recordatorios.js';
+import { calcularRecordatorios, tarjetasRecordatorios, bloquePlazos, bloqueNotificaciones, iniciarAvisosRecordatorios, activarNotificaciones, ofrecerNotificaciones } from './modulos/recordatorios.js';
 import { registrarError, describirError, leerErrores, borrarErrores, informeErrores } from './core/errores.js';
 
 const ICONOS = {
@@ -358,6 +358,7 @@ async function vistaInicio() {
       h('a', { class: 'btn', href: '#/empresa' }, 'Empresa')),
     recs.length ? h('section', { id: 'recordatorios' },
       h('h2', {}, `Recordatorios (${recs.length})`),
+      ofrecerNotificaciones() ? h('div', { class: 'fila' }, h('button', { class: 'btn peq', type: 'button', id: 'recordatorios-notificar', onclick: async () => { if (await activarNotificaciones(app)) render(); } }, '🔔 Avisarme también con notificación')) : null,
       h('div', { class: 'lista' }, ...tarjetasRecordatorios(app, recs, { alCambiar: () => render() }))) : null,
     h('h2', {}, 'Qué toca hoy'), chips, h('div', { class: 'lista' }, ...tarjetas),
     h('h2', {}, 'Sincronización con el PC'),
@@ -624,7 +625,7 @@ async function vistaAjustes() {
 
     h('details', { class: 'card', id: 'detalles-recordatorios' },
       h('summary', {}, 'Recordatorios automáticos'),
-      h('div', { class: 'cuerpo' }, bloquePlazos(app))),
+      h('div', { class: 'cuerpo' }, bloquePlazos(app), bloqueNotificaciones(app))),
 
     h('details', { class: 'card', id: 'detalles-errores' },
       h('summary', {}, `Registro de errores${errores.length ? ` (${errores.length})` : ''}`),
@@ -807,5 +808,6 @@ export async function iniciar() {
   await render();
   app.revisarAlarmas = iniciarAlarmas(app);
   registrarSW().catch((e) => console.warn('Service worker no registrado:', e));
+  app.revisarRecordatorios = iniciarAvisosRecordatorios(app);
   if (app.estado.configurado) programarSync(500);
 }
