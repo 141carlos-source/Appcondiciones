@@ -69,7 +69,7 @@ test('un aviso con autorización la conserva al normalizarse', () => {
 });
 
 test('las claves coinciden con las del formulario', () => {
-  const html = readFileSync(join(raiz, 'assets/autorizacion.html'), 'utf8');
+  const html = readFileSync(join(raiz, 'assets/autorizacion-datos.js'), 'utf8'); // modelo del formulario
   const m = /const KEYS = \[([\s\S]*?)\];/.exec(html);
   const claves = [...m[1].replace(/\/\/.*$/gm, '').matchAll(/'([a-z0-9_]+)'/g)].map((x) => x[1]);
   assert.deepEqual(claves, CLAVES_AUTORIZACION);
@@ -77,7 +77,7 @@ test('las claves coinciden con las del formulario', () => {
 
 test('el service worker guarda el formulario para usarlo sin conexión', () => {
   const sw = readFileSync(join(raiz, 'sw.js'), 'utf8');
-  for (const f of ['./assets/autorizacion.html', './core/autorizacion.js', './modulos/autorizacion.js']) assert.ok(sw.includes(`'${f}'`), f);
+  for (const f of ['./assets/autorizacion.html', './assets/autorizacion-datos.js', './assets/autorizacion-pdf.js', './core/autorizacion.js', './modulos/autorizacion.js']) assert.ok(sw.includes(`'${f}'`), f);
   const app = readFileSync(join(raiz, 'app.js'), 'utf8');
   assert.equal(/VERSION = '([^']+)'/.exec(sw)[1], /VERSION = '([^']+)'/.exec(app)[1]);
 });
