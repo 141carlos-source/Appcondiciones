@@ -384,3 +384,12 @@ body.con-capa { overflow: hidden; }
 .sum-cliente .fila { flex-wrap: wrap; }
 .grid2 > .sum-cliente { grid-column: 1 / -1; }
 .sum-cliente:empty { display: none; }
+
+/* Prueba en real guiada */
+.volver-pruebas { position: fixed; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 40; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
+.prueba.ok { border-left: 4px solid var(--ok); }
+.prueba.falla { border-left: 4px solid var(--rojo); }
+.prueba p { margin: 6px 0; }
+.prueba-nota { width: 100%; margin-top: 8px; }
+.prueba-auto { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; }
+.btn.peligro { background: var(--rojo); border-color: var(--rojo); color: #fff; }

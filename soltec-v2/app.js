@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.23.1';
+export const VERSION = 'V2-1.24.0';
 
 import { h, toast, hace, descargar, activarMayusculas, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -20,6 +20,7 @@ import { direccionCompleta, hoyLocal, numerosRepetidos, siguienteNumero } from '
 import { codigoAlta, enlaceAlta, leerAlta, nombreSugerido, instaladorWindows, esDireccionLocal } from './core/alta.js';
 import { URL_PUBLICA } from './core/fichaCliente.js';
 import { calcularRecordatorios, tarjetasRecordatorios, bloquePlazos, bloqueNotificaciones, iniciarAvisosRecordatorios, activarNotificaciones, ofrecerNotificaciones } from './modulos/recordatorios.js';
+import { vistaPruebas, pruebaEnCurso, botonVolverPruebas } from './modulos/pruebas.js';
 import { registrarError, describirError, leerErrores, borrarErrores, informeErrores } from './core/errores.js';
 
 const ICONOS = {
@@ -49,6 +50,7 @@ const RUTAS = {
   parte: { titulo: 'Parte', vista: (id) => vistaParte(app, id), nav: 'inicio' },
   ajustes: { titulo: 'Ajustes', vista: vistaAjustes },
   alta: { titulo: 'Conectar este dispositivo', vista: (c) => vistaAlta(c), nav: 'ajustes' },
+  pruebas: { titulo: 'Probar en este dispositivo', vista: () => vistaPruebas(app, { version: VERSION }), nav: 'ajustes' },
   salir: { titulo: 'Salir', vista: vistaSalir },
 };
 const partesRuta = () => location.hash.replace(/^#\/?/, '').split('?')[0].split('/');
@@ -84,6 +86,9 @@ async function render() {
   const vista = await RUTAS[ruta].vista(partesRuta()[1]);
   if (n !== renderN) return; // el usuario ya ha cambiado de pantalla
   document.querySelector('main').replaceChildren(vista);
+  // Prueba en real en curso: botón para volver a la lista desde cualquier pantalla
+  document.getElementById('volver-pruebas')?.remove();
+  if (ruta !== 'pruebas' && pruebaEnCurso()) document.body.append(botonVolverPruebas());
   window.scrollTo(0, 0);
 }
 
@@ -622,6 +627,8 @@ async function vistaAjustes() {
           render();
         } }, 'Proteger datos'),
         bloqueEspacio())),
+
+    h('a', { class: 'card enlace-card', href: '#/pruebas', id: 'ir-pruebas' }, h('b', {}, 'Probar en este dispositivo'), h('span', { class: 'muted' }, 'Prueba guiada de lo nuevo, con informe para pegar en el chat ›')),
 
     h('details', { class: 'card', id: 'detalles-recordatorios' },
       h('summary', {}, 'Recordatorios automáticos'),

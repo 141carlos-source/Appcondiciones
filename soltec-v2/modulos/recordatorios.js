@@ -172,3 +172,21 @@ export function bloqueNotificaciones(app) {
   pintar();
   return caja;
 }
+
+/** Para la prueba en real: notificación de prueba (pide permiso si hace falta). */
+export async function probarNotificacion(app) {
+  if (!hayNotificaciones()) return false;
+  if (Notification.permission !== 'granted' && !(await activarNotificaciones(app))) return false;
+  return mostrar(app, { titulo: 'SOLTEC · Prueba', cuerpo: 'Así llegarán los recordatorios.', url: '#/pruebas', tag: 'soltec-prueba' });
+}
+
+/** Para la prueba en real: ¿avisa con la app cerrada? 'si' | 'permitido' | 'denegado' | 'no' */
+export async function estadoPeriodico(app) {
+  try {
+    const reg = app.reg || (await navigator.serviceWorker?.getRegistration?.());
+    if (!reg?.periodicSync) return 'no';
+    if ((await reg.periodicSync.getTags()).includes(PERIODICO)) return 'si';
+    const st = await navigator.permissions?.query?.({ name: 'periodic-background-sync' }).catch(() => null);
+    return st && st.state !== 'granted' ? 'denegado' : 'permitido';
+  } catch { return 'no'; }
+}
