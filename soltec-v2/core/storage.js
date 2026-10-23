@@ -85,6 +85,23 @@ export class Storage {
     return type ? all.filter((r) => r.type === type) : all;
   }
 
+  /** Fecha (ISO) del cambio pendiente de subir más antiguo (registros o archivos), o null si no hay. */
+  async pendienteMasAntiguo() {
+    const tx = this.db.transaction(['outbox', 'blobOutbox']);
+    const [a, b] = await Promise.all([req(tx.objectStore('outbox').getAll()), req(tx.objectStore('blobOutbox').getAll())]);
+    return a.concat(b).reduce((m, x) => (x.queuedAt && (!m || x.queuedAt < m) ? x.queuedAt : m), null);
+  }
+
+  /** Registros vinculados a varios (p. ej. el historial de los avisos abiertos), en una sola lectura. */
+  async listByRefs(refs, type) {
+    if (!refs.length) return [];
+    const tx = this.db.transaction('records');
+    const idx = tx.objectStore('records').index('ref');
+    const partes = await Promise.all(refs.map((r) => req(idx.getAll(r))));
+    const all = partes.flat();
+    return type ? all.filter((r) => r.type === type) : all;
+  }
+
   /** Historial cronológico de un registro. */
   async history(ref) {
     const ev = await this.listByRef(ref, 'evento');

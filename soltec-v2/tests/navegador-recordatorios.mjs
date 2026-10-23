@@ -65,7 +65,8 @@ try {
 
   await page.goto(base + '#/inicio');
   await page.waitForSelector('#buscador-unico');
-  assert.equal(await page.locator('#recordatorios').count(), 0);
+  await page.waitForSelector('#recordatorios[data-listo]', { state: 'attached' });
+  assert.equal(await page.locator('#recordatorios:not([hidden])').count(), 0);
   ok('Sin recordatorios pendientes, Inicio no muestra el bloque');
 
   // Plazos en Ajustes: documentación enviada hace 5 días no avisa con 10 días, sí con 3
@@ -76,7 +77,8 @@ try {
   assert.equal(await page.inputValue('#plazo-documentacion'), '10');
   await page.goto(base + '#/inicio');
   await page.waitForSelector('#buscador-unico');
-  assert.equal(await page.locator('#recordatorios').count(), 0, 'con 10 días aún no avisa');
+  await page.waitForSelector('#recordatorios[data-listo]', { state: 'attached' });
+  assert.equal(await page.locator('#recordatorios:not([hidden])').count(), 0, 'con 10 días aún no avisa');
   await page.goto(base + '#/ajustes');
   await page.click('summary:has-text("Recordatorios automáticos")');
   await page.fill('#plazo-documentacion', '3');

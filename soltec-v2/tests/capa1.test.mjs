@@ -279,3 +279,18 @@ test('buscador en todo: avisos (también observaciones y archivos), partes y cit
   assert.equal(buscarTodo({ avisos, partes, citas }, 'mayor 3')[0].donde, 'dirección');
   assert.deepEqual(buscarTodo({ avisos }, ''), []);
 });
+
+test('storage: historial de varios registros a la vez y cambio sin subir más antiguo', async () => {
+  const s = await abrir();
+  assert.equal(await s.pendienteMasAntiguo(), null);
+  const a = await s.save('aviso', nuevoAviso({ numero: '2026-0001' }));
+  const b = await s.save('aviso', nuevoAviso({ numero: '2026-0002' }));
+  await s.addEvent(a.id, 'nota', 'uno');
+  await s.addEvent(b.id, 'nota', 'dos');
+  const ev = await s.listByRefs([a.id, b.id], 'evento');
+  assert.deepEqual(ev.map((e) => e.ref).sort(), [a.id, b.id].sort(), 'la nota de cada uno');
+  assert.ok(ev.every((e) => e.type === 'evento'));
+  assert.deepEqual(await s.listByRefs([], 'evento'), []);
+  const m = await s.pendienteMasAntiguo();
+  assert.ok(m && m <= new Date().toISOString());
+});

@@ -9,12 +9,14 @@ const leerEmpresaRaw = async (app) => { const r = await app.storage.get(ID_EMPRE
 
 /** Recordatorios de todos los avisos (o solo de uno). */
 export async function calcularRecordatorios(app, { avisos, avisoId } = {}) {
-  const [lista, eventos, empresa] = await Promise.all([
-    avisos ? Promise.resolve(avisos) : app.storage.list('aviso'),
-    avisoId ? app.storage.listByRef(avisoId, 'evento') : app.storage.list('evento'),
-    leerEmpresaRaw(app),
-  ]);
+  const [lista, empresa] = await Promise.all([avisos ? Promise.resolve(avisos) : app.storage.list('aviso'), leerEmpresaRaw(app)]);
   const solo = avisoId ? lista.filter((r) => r.id === avisoId) : lista;
+  // Solo el historial de los avisos abiertos (los finalizados o cerrados no dan recordatorios): con años de
+  // trabajo es una fracción del historial completo y Inicio abre mucho antes
+  const abiertos = solo.filter((r) => !r.deleted && r.data?.tramite !== 'finalizado' && r.data?.estado !== 'Cerrado');
+  const eventos = avisoId ? await app.storage.listByRef(avisoId, 'evento')
+    : abiertos.length <= 300 ? await app.storage.listByRefs(abiertos.map((r) => r.id), 'evento') // lo normal: pocos abiertos
+      : await app.storage.list('evento'); // muchísimos abiertos: una sola lectura de todo es más rápida
   return recordatorios(solo, eventos, new Date(), plazosDe(empresa));
 }
 

@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.24.1';
+export const VERSION = 'V2-1.25.0';
 
 import { h, toast, hace, descargar, activarMayusculas, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -20,6 +20,7 @@ import { direccionCompleta, hoyLocal, numerosRepetidos, siguienteNumero } from '
 import { codigoAlta, enlaceAlta, leerAlta, nombreSugerido, instaladorWindows, esDireccionLocal } from './core/alta.js';
 import { URL_PUBLICA } from './core/fichaCliente.js';
 import { calcularRecordatorios, tarjetasRecordatorios, bloquePlazos, bloqueNotificaciones, iniciarAvisosRecordatorios, activarNotificaciones, ofrecerNotificaciones } from './modulos/recordatorios.js';
+import { alertaSincronizacion } from './core/estadoSync.js';
 import { vistaPruebas, pruebaEnCurso, botonVolverPruebas } from './modulos/pruebas.js';
 import { registrarError, describirError, leerErrores, borrarErrores, informeErrores } from './core/errores.js';
 
@@ -276,7 +277,20 @@ async function vistaInicio() {
   const proximas = citas.filter((c) => !c.data.hecho && (c.data.fecha || '') >= hoy).length;
   const partes = await app.storage.list('parte');
   const partesAbiertos = partes.filter((r) => !r.data.cerrado).length;
-  const recs = await calcularRecordatorios(app, { avisos });
+  // ¿Riesgo de perder trabajo? Cambios sin subir al PC desde hace mucho, o dispositivo sin conectar
+  const pend = await app.storage.pendingCounts();
+  const alerta = alertaSincronizacion({
+    configurado: app.estado.configurado, registros: avisos.length + citas.length + partes.length,
+    pendientes: pend.records, archivos: pend.files, masAntiguo: await app.storage.pendienteMasAntiguo(), ultima: app.estado.ultima,
+  });
+  const alertaSync = alerta ? h('div', { class: 'aviso ' + alerta.nivel + ' alerta-sync', id: 'alerta-sync', role: 'alert' },
+    h('b', {}, alerta.titulo), h('div', {}, alerta.texto),
+    h('div', { class: 'fila' }, alerta.accion === 'configurar'
+      ? h('a', { class: 'btn peq prim', href: '#/ajustes' }, 'Conectar con el PC')
+      : h('button', { class: 'btn peq prim', type: 'button', id: 'alerta-sync-ahora', onclick: async () => { await sincronizar(); render(); } }, 'Sincronizar ahora'))) : null;
+  // Los recordatorios se calculan después de pintar Inicio (no lo hacen esperar)
+  const recsEl = h('section', { id: 'recordatorios', hidden: true });
+  const recsResumen = h('span', { id: 'recordatorios-resumen' });
 
   // Buscador único: avisos y expedientes, activos y finalizados (sin papelera)
   const resultados = h('div', { class: 'lista', id: 'resultados-busqueda' });
@@ -343,12 +357,27 @@ async function vistaInicio() {
       segHoy ? [', ', h('b', {}, segHoy), segHoy === 1 ? ' seguimiento hoy' : ' seguimientos hoy'] : null,
       vencidos ? [' y ', h('b', { style: 'color:var(--rojo-oscuro)' }, vencidos), vencidos === 1 ? ' vencido' : ' vencidos'] : null, '.']
     : [avisos.length ? 'Nada pendiente por ahora.' : 'Empieza creando tu primer aviso.'];
-  if (recs.length) resumen.push(' ', h('b', { style: 'color:var(--aviso)' }, recs.length), recs.length === 1 ? ' recordatorio sin respuesta.' : ' recordatorios sin respuesta.');
+  resumen.push(recsResumen);
+  const recsP = calcularRecordatorios(app, { avisos }); // en paralelo con el resto de Inicio
+  const pintarRecs = async () => {
+    const recs = await recsP;
+    for (let i = 0; i < 100 && !recsEl.isConnected; i++) await new Promise((r) => setTimeout(r, 20)); // espera a que Inicio esté en pantalla
+    if (!recsEl.isConnected) return; // ya se ha cambiado de pantalla
+    recsResumen.replaceChildren(...(recs.length ? [' ', h('b', { style: 'color:var(--aviso)' }, recs.length), recs.length === 1 ? ' recordatorio sin respuesta.' : ' recordatorios sin respuesta.'] : []));
+    recsEl.hidden = !recs.length;
+    recsEl.dataset.listo = '1';
+    recsEl.replaceChildren(...(recs.length ? [
+      h('h2', {}, `Recordatorios (${recs.length})`),
+      ofrecerNotificaciones() ? h('div', { class: 'fila' }, h('button', { class: 'btn peq', type: 'button', id: 'recordatorios-notificar', onclick: async () => { if (await activarNotificaciones(app)) render(); } }, '🔔 Avisarme también con notificación')) : null,
+      h('div', { class: 'lista' }, ...tarjetasRecordatorios(app, recs, { alCambiar: () => render() }))] : []));
+  };
+  setTimeout(() => pintarRecs().catch(() => {}), 0);
   return h('div', {},
     h('section', { class: 'hoy' },
       h('p', { class: 'hoy-dia' }, diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1)),
       h('h1', {}, ahora.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })),
       h('p', { class: 'hoy-resumen' }, ...resumen)),
+    alertaSync,
     bloqueInstalar({ cerrable: true }),
     !avisos.length && hayV1Local() ? h('a', { class: 'card enlace-card', href: '#/importar' }, h('b', {}, 'Hay datos de la V1.35 en este navegador'), h('span', { class: 'muted' }, 'Tráelos a la V2 sin tocar la V1.35 ›')) : null,
     busca, resultados,
@@ -361,10 +390,7 @@ async function vistaInicio() {
       h('a', { class: 'btn', href: '#/partes', id: 'acceso-partes' }, `Partes de trabajo${partesAbiertos ? ` (${partesAbiertos} abiertos)` : ''}`),
       h('a', { class: 'btn', href: '#/aviso/nuevo' }, '+ Nuevo aviso'),
       h('a', { class: 'btn', href: '#/empresa' }, 'Empresa')),
-    recs.length ? h('section', { id: 'recordatorios' },
-      h('h2', {}, `Recordatorios (${recs.length})`),
-      ofrecerNotificaciones() ? h('div', { class: 'fila' }, h('button', { class: 'btn peq', type: 'button', id: 'recordatorios-notificar', onclick: async () => { if (await activarNotificaciones(app)) render(); } }, '🔔 Avisarme también con notificación')) : null,
-      h('div', { class: 'lista' }, ...tarjetasRecordatorios(app, recs, { alCambiar: () => render() }))) : null,
+    recsEl,
     h('h2', {}, 'Qué toca hoy'), chips, h('div', { class: 'lista' }, ...tarjetas),
     h('h2', {}, 'Sincronización con el PC'),
     h('div', { class: 'card' },
