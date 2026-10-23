@@ -21,7 +21,7 @@ button.s{background:#fff;color:#222;border:1px solid #9aa0a6;padding:7px 13px;cu
 .lib{display:flex;flex-wrap:wrap;gap:10px 22px}.lg{display:flex;gap:6px;align-items:center}.lg span{font-size:10px;color:var(--g)}
 .tl{border:1px solid #8a9096;background:#fff;padding:7px 6px;cursor:grab;font-size:10px;min-width:34px;text-align:center} .tl.sl{cursor:pointer;font:inherit;font-size:10px;font-weight:700;padding:6px 4px;border-radius:0;color:#111}
 .row{position:relative;height:190px;margin:0 0 10px;border:1px solid #9aa0a6;background:linear-gradient(90deg,#e3e5e8 1px,transparent 1px) 0 0/34px 100%,#fafafa}
-.dv{position:absolute;top:4px;bottom:4px;border:1px solid #333;border-top:4px solid #333;background:#fff;display:flex;flex-direction:column;align-items:center;padding:0 1px 3px;font-size:9px;cursor:grab;overflow:hidden;text-align:center}
+.row.td{outline:2px dashed #B3141C;outline-offset:-2px}.dv,div[data-new]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}.dv{position:absolute;top:4px;bottom:4px;border:1px solid #333;border-top:4px solid #333;background:#fff;display:flex;flex-direction:column;align-items:center;padding:0 1px 3px;font-size:9px;cursor:grab;overflow:hidden;text-align:center}
 .dv.ID{border-top-color:var(--r)}.dv.IGA{background:#e9eaec;border-top-color:#111}.dv.on{outline:2px solid var(--r)}
 .dv i{font-style:normal;flex:1;overflow:hidden;margin-top:3px;line-height:1.1;word-break:break-word;text-align:center;width:100%}
 table{border-collapse:collapse;width:100%}td,th{border:1px solid #c4c8cc;padding:6px 8px;text-align:left}th{background:#2b2e33;color:#fff;font-size:11px}
@@ -140,11 +140,35 @@ function up(k,v){const d=S.dv.find(x=>x.id==sel);d[k]=['in','sn','se','pw','pr']
 function cabSel(iid,pid){const i=S.dv.find(x=>x.id==iid);if(!i)return;i.pp=pid;const p=S.dv.find(x=>x.id==pid);if(p)p.dep='';rd()}
 function cabNew(iid){const i=S.dv.find(x=>x.id==iid);if(!i)return;const h=FR.huecoCabecera(S,i);if(!h)return alert('NO HAY ESPACIO LIBRE');S.dv.forEach(d=>{if(h.correr.includes(d.id))d.col+=h.m});put('PIA',h.m,h.r,h.c);const p=S.dv.find(x=>x.id==sel);if(!p||p.t!='PIA'||p.id==iid)return;Object.assign(p,FR.datosCabecera(S,i));i.pp=p.id;rd()}
 function del(){S.dv=S.dv.filter(d=>d.id!=sel);sel=null;rd()}
-document.addEventListener('dragstart',e=>{const t=e.target.closest&&e.target.closest('[data-new],.dv');if(t)e.dataTransfer.setData('text',t.dataset.new?'n:'+t.dataset.new:'i:'+t.dataset.id)});
+document.addEventListener('dragstart',e=>{if(TD){e.preventDefault();return}const t=e.target.closest&&e.target.closest('[data-new],.dv');if(t)e.dataTransfer.setData('text',t.dataset.new?'n:'+t.dataset.new:'i:'+t.dataset.id)});
 document.addEventListener('dragover',e=>{if(e.target.closest&&e.target.closest('.row'))e.preventDefault()});
-document.addEventListener('drop',e=>{const r=e.target.closest&&e.target.closest('.row');if(!r)return;e.preventDefault();const v=e.dataTransfer.getData('text'),row=+r.dataset.r,x=e.clientX-r.getBoundingClientRect().left;
+// Soltar un aparato (nuevo «n:TIPO:M» o existente «i:ID») en la fila r a x px de su borde izquierdo
+function soltar(v,r,cx){const row=+r.dataset.r,x=cx-r.getBoundingClientRect().left;
 if(v[0]=='n'){const[t,m]=v.slice(2).split(':');put(t,+m,row,FR.columnaSoltar(S,+m,x,U))}
-else{const d=S.dv.find(d=>d.id==v.slice(2));if(!d)return;const c=FR.columnaSoltar(S,d.m,x,U);if(free(row,c,d.m,d.id)){d.row=row;d.col=c;rd()}else alert('NO HAY ESPACIO EN ESA POSICIÓN')}});
+else{const d=S.dv.find(d=>d.id==v.slice(2));if(!d)return;const c=FR.columnaSoltar(S,d.m,x,U);if(free(row,c,d.m,d.id)){d.row=row;d.col=c;rd()}else alert('NO HAY ESPACIO EN ESA POSICIÓN')}}
+// Ratón: arrastre nativo. Se redibuja después de soltar para no destruir el aparato arrastrado a mitad del arrastre.
+document.addEventListener('drop',e=>{const r=e.target.closest&&e.target.closest('.row');if(!r)return;e.preventDefault();const v=e.dataTransfer.getData('text'),cx=e.clientX;setTimeout(()=>soltar(v,r,cx))});
+// Dedo (tablet/móvil): el arrastre nativo de Android solo funciona una vez porque el aparato se redibuja al soltar.
+// Arrastre propio: mantener pulsado un momento el aparato y moverlo; si el dedo se mueve antes, es desplazar la pantalla.
+let TD=null;
+function finTD(){if(!TD)return;clearTimeout(TD.tm);if(TD.g)TD.g.remove();if(TD.t)TD.t.style.opacity='';document.querySelectorAll('.row.td').forEach(r=>r.classList.remove('td'));TD=null}
+function filaEn(x,y){const el=document.elementFromPoint(x,y);return el&&el.closest?el.closest('.row'):null}
+document.addEventListener('touchstart',e=>{finTD();if(e.touches.length!=1)return;const t=e.target.closest&&e.target.closest('.dv,div[data-new]');if(!t)return;const p=e.touches[0];
+TD={t,v:t.dataset.new?'n:'+t.dataset.new:'i:'+t.dataset.id,x:p.clientX,y:p.clientY,on:false,g:null};
+TD.tm=setTimeout(()=>{if(!TD||TD.on)return;TD.on=true;const b=t.getBoundingClientRect(),g=t.cloneNode(true);g.classList.remove('on');g.removeAttribute('data-id');g.removeAttribute('data-new');
+Object.assign(g.style,{position:'fixed',left:b.left+'px',top:b.top+'px',width:b.width+'px',height:b.height+'px',margin:0,opacity:.75,pointerEvents:'none',zIndex:99,boxShadow:'0 6px 16px rgba(0,0,0,.35)'});
+TD.dx=TD.x-b.left;TD.dy=TD.y-b.top;TD.g=g;document.body.appendChild(g);t.style.opacity='.35';if(navigator.vibrate)try{navigator.vibrate(20)}catch(_){}},280)},{passive:true});
+document.addEventListener('touchmove',e=>{if(!TD)return;const p=e.touches[0];
+if(!TD.on){if(Math.abs(p.clientX-TD.x)+Math.abs(p.clientY-TD.y)>10)finTD();return}
+e.preventDefault();TD.g.style.left=(p.clientX-TD.dx)+'px';TD.g.style.top=(p.clientY-TD.dy)+'px';
+// Si el dedo se acerca al panel de abajo o a la cabecera fija, la pantalla se desplaza para llegar a todas las filas
+const bo=document.querySelector('.bot'),st=document.querySelector('.stk'),ab=bo&&getComputedStyle(bo).position=='sticky'?bo.getBoundingClientRect().top:innerHeight,ar=st&&getComputedStyle(st).position=='sticky'?st.getBoundingClientRect().bottom:0;
+if(p.clientY>ab-30)scrollBy(0,14);else if(p.clientY<ar+30)scrollBy(0,-14);
+const r=filaEn(p.clientX,p.clientY);document.querySelectorAll('.row.td').forEach(x=>{if(x!=r)x.classList.remove('td')});if(r)r.classList.add('td')},{passive:false});
+document.addEventListener('touchend',e=>{if(!TD)return;if(!TD.on){finTD();return}e.preventDefault();const p=e.changedTouches[0],v=TD.v,dx=TD.dx,w=TD.t.getBoundingClientRect().width;TD.g.style.display='none';const r=filaEn(p.clientX,p.clientY);
+finTD();if(r)soltar(v,r,v[0]=='i'?p.clientX-dx+w/2:p.clientX)},{passive:false});
+document.addEventListener('touchcancel',finTD);
+document.addEventListener('contextmenu',e=>{if(TD&&TD.on)e.preventDefault()});
 document.addEventListener('click',e=>{const d=e.target.closest&&e.target.closest('.dv');if(d){sel=d.dataset.id;rd()}});
 const IDB=(m,v)=>new Promise((res,rej)=>{const r=indexedDB.open('cl_db',1);r.onupgradeneeded=()=>r.result.createObjectStore('k');r.onsuccess=()=>{const s=r.result.transaction('k',m=='get'?'readonly':'readwrite').objectStore('k'),q=m=='get'?s.get('dir'):s.put(v,'dir');q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)};r.onerror=()=>rej(r.error)});
 async function elc(){if(!window.showDirectoryPicker)return alert('ESTE NAVEGADOR NO PERMITE ELEGIR CARPETA. USE CHROME O EDGE.');try{const d=await showDirectoryPicker({mode:'readwrite'});await IDB('put',d);C.dn=d.name;store();rd()}catch(e){}}
