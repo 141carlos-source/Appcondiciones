@@ -96,3 +96,25 @@ test('mover y cambiar el tamaño de la envolvente', () => {
   assert.equal(F.caben(q, 1, 2), false);
   assert.equal(F.caben(q, 3, 1), false);
 });
+
+test('dibujo esquema del aparato: palancas por polo, diferencial con prueba naranja, textos escapados', () => {
+  const palancas = (svg) => (svg.match(/height="13" rx="1.5" fill="#1f2b5c"/g) || []).length;
+  const p1 = F0.svgAparato({ t: 'PIA', m: 1, in: 16, cu: 'C' });
+  assert.match(p1, /^<svg viewBox="0 0 32 96"/);
+  assert.equal(palancas(p1), 1);
+  assert.ok(p1.includes('>CHINT<') && p1.includes('>16A<') && p1.includes('>C<'));
+  const p4 = F0.svgAparato({ t: 'PIA', m: 4, in: 125, cu: 'D' });
+  assert.match(p4, /viewBox="0 0 128 96"/);
+  assert.equal(palancas(p4), 4);
+  assert.ok(p4.includes('height="3" rx="1" fill="#33437f"'), 'palancas unidas');
+  const id = F0.svgAparato({ t: 'ID', m: 2, in: 40, sn: 30, cl: 'A' });
+  assert.ok(id.includes('fill="#f07a1e"'), 'botón de prueba naranja');
+  assert.equal(palancas(id), 0);
+  assert.ok(id.includes('>30mA<') && id.includes('>40A<') && id.includes('>CLASE A<'));
+  assert.ok(F0.svgAparato({ t: 'SOB', m: 3, in: 40 }).includes('SOBRETENS.'));
+  assert.equal(palancas(F0.svgAparato({ t: 'SOB', m: 3, in: 40 })), 3);
+  assert.ok(F0.svgAparato({ t: 'IGA', m: 2, in: 63, mk: 'CHINT NXB-63' }).includes('>IGA<'));
+  assert.ok(F0.svgAparato({ t: 'PIA', m: 1, in: 10, mk: 'Hager <x>' }).includes('>HAGER<'), 'la marca del aparato, la primera palabra');
+  assert.ok(F0.svgAparato({ t: 'U1', m: 2 }, { U1: 'MI <APARATO>' }).includes('MI &lt;APAR'), 'textos escapados (y recortados al ancho)');
+  for (const t of ['REL', 'CON', 'BOR', 'OTR']) assert.match(F0.svgAparato({ t, m: 2, in: 25 }), /<\/svg>$/);
+});

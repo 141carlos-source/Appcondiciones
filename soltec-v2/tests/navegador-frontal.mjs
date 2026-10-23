@@ -32,6 +32,10 @@ try {
   await page.selectOption('[data-pal="PIA:0"]', '20');
   const dv = await page.evaluate(() => S.dv.map((d) => [d.t, d.col, d.in, d.nom, d.se]));
   assert.deepEqual(dv, [['ID', 0, 25, 'DIFERENCIAL 1', undefined], ['PIA', 2, 20, '', 4]]);
+  assert.equal(await page.locator('#fr .dv svg[data-estilo="esquema"]').count(), 2, 'por defecto, dibujo esquema (como las cajas)');
+  await page.evaluate(() => { C.vista = 'detalle'; rd(); });
+  assert.equal(await page.locator('#fr .dv svg[data-estilo="esquema"]').count(), 0, 'opción «dibujo detallado»');
+  await page.evaluate(() => { C.vista = 'dibujo'; rd(); });
   ok('Desde la paleta: diferencial «DIFERENCIAL 1» y magnetotérmico de 20 A con 4 mm², uno detrás de otro');
 
   await page.evaluate(() => { sel = S.dv[1].id; mv(1, 0); });

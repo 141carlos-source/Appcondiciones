@@ -109,5 +109,57 @@
   /** ¿Caben todos los aparatos en una envolvente de w módulos × r filas? */
   const caben = (q, w, r) => !q.dv.some((d) => d.col + d.m > w || d.row >= r);
 
-  return { SOBM, SOBT, DIF, PIA1, PIA2, PAL, opcion, aplicarOpcion, libre, primerHueco, siguienteHueco, columnaSoltar, nuevoAparato, huecoCabecera, datosCabecera, mover, caben };
+  // ---------------------------------------------------------------- dibujo del aparato (estilo esquema)
+  /**
+   * Frontal de un aparato en estilo esquema, como los dibujos de las cajas de cuadros: cuerpo blanco con contorno,
+   * marca y calibre arriba y las palancas oscuras abajo, una por polo. El diferencial lleva el botón de prueba
+   * naranja y una sola palanca alta. Devuelve un <svg> de 32 px por módulo × 96 px.
+   * @param d        aparato {t, m, in, cu, sn, mk, nom}
+   * @param nombres  nombres de los tipos (para «Mis aparatos»)
+   */
+  function svgAparato(d, nombres = {}) {
+    const P = 32, H = 96, m = Math.max(1, +d.m || 1), W = m * P, t = d.t;
+    const AZ = '#1f2b5c', AZ2 = '#33437f', NAR = '#f07a1e', LIN = '#26304f';
+    const e = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const tx = (x, y, z, s, o = {}) => `<text x="${x}" y="${y}" font-size="${z}" font-weight="${o.w || 700}" fill="${o.c || AZ}" font-family="Arial, Helvetica, sans-serif"${o.mid ? ' text-anchor="middle"' : ''}>${e(s)}</text>`;
+    const rc = (x, y, w, h, f, o = {}) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${o.rx || 0}" fill="${f}"${o.s ? ` stroke="${o.s}" stroke-width="${o.sw || 1}"` : ''}/>`;
+    // Palanca de un polo: base ancha con el mando en relieve (como «piano»)
+    const palanca = (x) => rc(x + 3, 66, P - 6, 13, AZ, { rx: 1.5 }) + rc(x + 8, 59, P - 16, 9, AZ, { rx: 1.5 }) + rc(x + 9, 60, P - 18, 2, AZ2);
+    // Marca: la del aparato si se ha escrito (primera palabra), si no CHINT (la que monta SOLTEC)
+    const marca = String(d.mk || 'CHINT').trim().split(/\s+/)[0].toUpperCase().slice(0, 7);
+    // Modelo (para el pedido): el escrito en el aparato o, en CHINT, la serie según la intensidad
+    const modelo = String(d.mk || '').trim().split(/\s+/).slice(1).join(' ') || (marca === 'CHINT' ? ((t === 'ID' ? 'NXL-' : 'NXB-') + (+d.in > 63 ? '125' : '63')) : '');
+    let s = `<svg viewBox="0 0 ${W} ${H}" style="flex:none;height:${H}px;width:100%;pointer-events:none;text-transform:none" data-estilo="esquema">`;
+    s += rc(0.75, 0.75, W - 1.5, H - 1.5, '#fff', { s: LIN, sw: 1.5, rx: 2 });
+    for (let k = 1; k < m; k++) s += `<line x1="${k * P}" y1="6" x2="${k * P}" y2="${H - 6}" stroke="#c9cdd6" stroke-width="1"/>`;
+    const conPalancas = t === 'PIA' || t === 'IGA' || t === 'SOB';
+    if (conPalancas) {
+      for (let k = 0; k < m; k++) s += palanca(k * P);
+      if (m > 1) s += rc(6, 73, W - 12, 3, AZ2, { rx: 1 }); // palancas unidas (corte de todos los polos)
+      s += tx(4, 13, 7.5, marca) + tx(4, 24, 8.5, (d.in ? d.in + 'A' : ''), { w: 400, c: '#222' });
+      if (t === 'PIA' && d.cu) s += tx(W - 4, 24, 7, d.cu, { w: 400, c: '#222' }).replace('<text ', '<text text-anchor="end" ');
+      if (t === 'PIA' && modelo) s += tx(4, 33, 6, modelo, { w: 400, c: '#555' });
+      if (t === 'IGA') s += tx(4, 36, 7.5, 'IGA') + (modelo ? tx(4, 45, 6, modelo, { w: 400, c: '#555' }) : '');
+      if (t === 'SOB') s += rc(4, 31, 9, 7, '#2e8b3a', { rx: 1 }) + tx(15, 37, 6, 'SOBRETENS.', { w: 700 });
+    } else if (t === 'ID') {
+      s += rc(4, 6, 9, 8, NAR, { s: '#b55a0e', sw: 0.8, rx: 1 }) + tx(15, 13, 7, marca) + tx(4, 24, 8.5, (d.in || 40) + 'A', { w: 400, c: '#222' })
+        + tx(4, 33, 7, (d.sn || 30) + 'mA', { w: 400, c: '#222' }) + (d.cl ? tx(4, 41, 6.5, 'CLASE ' + d.cl, { w: 400, c: '#555' }) : '') + (m > 1 && modelo ? tx(P + 3, 24, 6, modelo, { w: 400, c: '#555' }) : '');
+      s += rc(9, 48, 14, 32, AZ, { rx: 3 }) + rc(11, 50, 10, 3, AZ2, { rx: 1 }); // una sola palanca alta
+      if (m > 1) s += tx(P + P / 2, 70, 7, 'N', { w: 700, c: '#8a90a0', mid: true });
+    } else if (t === 'CON') {
+      s += tx(4, 13, 7.5, marca) + tx(4, 24, 8.5, (d.in || '') + 'A', { w: 400, c: '#222' }) + rc(6, 40, W - 12, 12, '#eef1f6', { s: LIN, sw: 0.8, rx: 1 }) + tx(W / 2, 49, 6, 'A1  A2', { w: 700, mid: true }) + rc(W / 2 - 5, 62, 10, 14, AZ, { rx: 2 });
+    } else if (t === 'REL') {
+      s += tx(4, 13, 7, 'RELOJ') + `<circle cx="${W / 2}" cy="56" r="13" fill="#fff" stroke="${LIN}" stroke-width="1.5"/><path d="M${W / 2} 56v-9M${W / 2} 56l6 4" stroke="${AZ}" stroke-width="1.6" fill="none"/>`;
+    } else if (t === 'BOR') {
+      s += tx(4, 13, 7, 'BORNERO');
+      const n = Math.max(2, m * 2);
+      for (let k = 0; k < n; k++) { const cx = 4 + (k + 0.5) * ((W - 8) / n); s += `<circle cx="${cx}" cy="46" r="3.2" fill="#fff" stroke="${LIN}"/><circle cx="${cx}" cy="68" r="3.2" fill="#fff" stroke="${LIN}"/>`; }
+      s += rc(4, 55, W - 8, 4, (d.fs == '3' ? AZ : '#3a7bd5'), { rx: 1 });
+    } else {
+      s += tx(W / 2, 50, 7.5, (t === 'OTR' ? 'OTRO' : (nombres[t] || 'APARATO')).slice(0, Math.max(5, m * 5)), { mid: true });
+    }
+    return s + '</svg>';
+  }
+
+  return { SOBM, SOBT, DIF, PIA1, PIA2, PAL, opcion, aplicarOpcion, libre, primerHueco, siguienteHueco, columnaSoltar, nuevoAparato, huecoCabecera, datosCabecera, mover, caben, svgAparato };
 });
