@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.25.0';
+export const VERSION = 'V2-1.26.0';
 
 import { h, toast, hace, descargar, activarMayusculas, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -21,6 +21,7 @@ import { codigoAlta, enlaceAlta, leerAlta, nombreSugerido, instaladorWindows, es
 import { URL_PUBLICA } from './core/fichaCliente.js';
 import { calcularRecordatorios, tarjetasRecordatorios, bloquePlazos, bloqueNotificaciones, iniciarAvisosRecordatorios, activarNotificaciones, ofrecerNotificaciones } from './modulos/recordatorios.js';
 import { alertaSincronizacion } from './core/estadoSync.js';
+import { bloqueCertificadosAntiguos } from './modulos/certificados.js';
 import { vistaPruebas, pruebaEnCurso, botonVolverPruebas } from './modulos/pruebas.js';
 import { registrarError, describirError, leerErrores, borrarErrores, informeErrores } from './core/errores.js';
 
@@ -655,6 +656,10 @@ async function vistaAjustes() {
         bloqueEspacio())),
 
     h('a', { class: 'card enlace-card', href: '#/pruebas', id: 'ir-pruebas' }, h('b', {}, 'Probar en este dispositivo'), h('span', { class: 'muted' }, 'Prueba guiada de lo nuevo, con informe para pegar en el chat ›')),
+
+    h('details', { class: 'card', id: 'detalles-cert-antiguos' },
+      h('summary', {}, 'Certificados ya hechos'),
+      h('div', { class: 'cuerpo' }, bloqueCertificadosAntiguos(app))),
 
     h('details', { class: 'card', id: 'detalles-recordatorios' },
       h('summary', {}, 'Recordatorios automáticos'),

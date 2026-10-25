@@ -24,13 +24,45 @@ export function certTierraVacio() {
     fecha: '', electrodo: 'Pica', numPicas: '1', longitud: '2', seccion: '', terreno: 'Normal', clima: '',
     metodo: METODOS_TIERRA[0], medida: '', diferencial: '30', humedo: false, pararrayos: false, refViviendas: true,
     medidorId: '', observaciones: '', fotos: [],
+    // Solicitante = el cliente del aviso. El titular de la instalación puede ser otro: entonces se escriben sus datos.
+    titularDistinto: false, titular: titularVacio(),
   };
 }
+export const titularVacio = () => ({ nombre: '', nif: '', telefono: '', direccion: '' });
 export function normalizarCertTierra(c = {}) {
   const b = certTierraVacio();
   const out = { ...b, ...(c && typeof c === 'object' ? c : {}) };
   out.fotos = Array.isArray(out.fotos) ? out.fotos.slice(0, 6) : [];
+  out.titularDistinto = out.titularDistinto === true;
+  out.titular = { ...titularVacio(), ...(out.titular && typeof out.titular === 'object' ? out.titular : {}) };
   return out;
+}
+
+/** Dirección del cliente para el certificado: la de facturación si es otra, si no la del suministro. */
+const direccionCliente = (aviso) => {
+  const f = aviso.facturacion || {}, s = aviso.suministro || {};
+  if (f.mismoCliente === false && f.direccion) return [f.direccion, f.cp, f.poblacion].filter(Boolean).join(', ');
+  return [calleNumero(s), s.cp, s.poblacion].filter(Boolean).join(', ');
+};
+
+/**
+ * Solicitante (siempre el cliente del aviso) y titular de la instalación (el mismo, o el escrito en el certificado).
+ * @returns {{solicitante: {nombre,nif,telefono,email}, titular: {nombre,nif,telefono,direccion}, mismo: boolean}}
+ */
+export function partesCertificado(aviso, cert) {
+  const c = normalizarCertTierra(cert), cl = aviso?.cliente || {};
+  const solicitante = { nombre: cl.nombre || '', nif: cl.nif || '', telefono: cl.telefono || '', email: cl.email || '' };
+  const t = c.titular;
+  const mismo = !c.titularDistinto || !String(t.nombre || '').trim();
+  const titular = mismo ? { nombre: solicitante.nombre, nif: solicitante.nif, telefono: solicitante.telefono, direccion: direccionCliente(aviso || {}) } : { ...t };
+  return { solicitante, titular, mismo };
+}
+
+/** Lo que falta del titular cuando es distinto del solicitante (para avisar antes de generar). */
+export function faltaTitular(cert) {
+  const c = normalizarCertTierra(cert);
+  if (!c.titularDistinto) return [];
+  return [['nombre', 'nombre o razón social'], ['nif', 'DNI / NIF / CIF']].filter(([k]) => !String(c.titular[k] || '').trim()).map(([, l]) => l);
 }
 export const MAX_FOTOS_CERT = 6;
 
@@ -173,19 +205,23 @@ export async function generarCertTierra(PDFLib, { aviso, empresa, cert, medidor,
     ['Dirección', [e.direccion, e.cp, e.localidad, e.provincia].filter(Boolean).join(', ')], ['Teléfono', e.telefono], ['Correo', e.email],
     ['Instalador / técnico', tec.nombre], ['NIF técnico', tec.nif], ['Nº colegiado', tec.colegiado],
   ]);
-  seccion('2. TITULAR DE LA INSTALACIÓN');
-  campos([['Nombre o razón social', cl.nombre], ['DNI / NIF / CIF', cl.nif], ['Teléfono', cl.telefono]]);
-  seccion('3. EMPLAZAMIENTO');
+  const pc = partesCertificado(aviso, c);
+  seccion('2. SOLICITANTE');
+  campos([['Nombre o razón social', pc.solicitante.nombre], ['DNI / NIF / CIF', pc.solicitante.nif], ['Teléfono', pc.solicitante.telefono]]);
+  seccion('3. TITULAR DE LA INSTALACIÓN');
+  if (pc.mismo) campos([['Nombre o razón social', pc.titular.nombre], ['DNI / NIF / CIF', pc.titular.nif], ['Titular', 'El mismo que el solicitante']]);
+  else campos([['Nombre o razón social', pc.titular.nombre], ['DNI / NIF / CIF', pc.titular.nif], ['Teléfono', pc.titular.telefono], ['Dirección', pc.titular.direccion, 3]]);
+  seccion('4. EMPLAZAMIENTO');
   campos([
     ['Dirección', [calleNumero(su), su.piso && `Piso ${su.piso}`, su.puerta && `Puerta ${su.puerta}`].filter(Boolean).join(', ')], ['Código postal', su.cp], ['Población', [su.poblacion, su.provincia].filter(Boolean).join(' · ')],
     ['CUPS', su.cups], ['Referencia catastral', su.refCatastral], ['Coordenadas (ETRS89)', su.lat && su.lon ? `${String(su.lat).replace('.', ',')}  ${String(su.lon).replace('.', ',')}` : ''],
   ]);
-  seccion('4. TOMA DE TIERRA');
+  seccion('5. TOMA DE TIERRA');
   campos([
     ['Tipo de electrodo', c.electrodo], ['Nº de picas / longitud', [c.numPicas && `${c.numPicas} ud`, c.longitud && `${c.longitud} m`].filter(Boolean).join(' · ')], ['Sección conductor de tierra', c.seccion ? `${c.seccion} mm²` : ''],
     ['Terreno', c.terreno], ['Condiciones el día de la medida', c.clima], ['Edificio con pararrayos', c.pararrayos ? 'Sí' : 'No'],
   ]);
-  seccion('5. MEDICIÓN');
+  seccion('6. MEDICIÓN');
   campos([['Fecha de la medición', fechaEs(c.fecha)], ['Método', c.metodo, 2],
     ['Sensibilidad del diferencial (Idn)', c.diferencial ? `${c.diferencial} mA` : ''], ['Local', c.humedo ? 'Húmedo o conductor (límite 24 V)' : 'Seco (límite 50 V)', 2]]);
   // Resultado destacado
@@ -225,14 +261,14 @@ export async function generarCertTierra(PDFLib, { aviso, empresa, cert, medidor,
   }
 
   await espacio(20 + 2 * 24);
-  seccion('6. EQUIPO DE MEDIDA');
+  seccion('7. EQUIPO DE MEDIDA');
   campos([
     ['Equipo', [medidor?.tipo, medidor?.marca, medidor?.modelo].filter(Boolean).join(' ')], ['Nº de serie', medidor?.serie], ['Certificado de calibración', medidor?.certificado],
     ['Fecha de calibración', fechaEs(medidor?.calibracion)], ['Calibración válida hasta', fechaEs(medidor?.validoHasta)],
   ]);
   if (c.observaciones) {
     await espacio(20 + 60);
-    seccion('7. OBSERVACIONES');
+    seccion('8. OBSERVACIONES');
     envolver(c.observaciones, 8.5, W).slice(0, 5).forEach((l) => { t(l, M, y, { size: 8.5 }); y -= 11; });
     y -= 4;
   }

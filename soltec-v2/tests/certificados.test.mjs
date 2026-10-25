@@ -46,3 +46,32 @@ test('PDF del certificado con plano y 6 fotos', async () => {
   assert.equal(nombreCertTierra(aviso), 'CERTIFICADO_TOMA_TIERRA_CALLE_MAYOR_10.pdf');
   writeFileSync(new URL('./cert-tierra-ejemplo.pdf', import.meta.url), bytes);
 });
+
+import { partesCertificado, faltaTitular } from '../core/certificados.js';
+
+test('solicitante = cliente del aviso; titular el mismo o el escrito en el certificado', () => {
+  const aviso = normalizarAviso({ cliente: { nombre: 'ANA GIL', nif: '12345678Z', telefono: '+34 600 111 222' }, suministro: { direccion: 'CALLE MAYOR', numero: '10', cp: '50001', poblacion: 'ZARAGOZA' } });
+  const mismo = partesCertificado(aviso, {});
+  assert.equal(mismo.mismo, true);
+  assert.equal(mismo.solicitante.nombre, 'ANA GIL');
+  assert.deepEqual([mismo.titular.nombre, mismo.titular.nif, mismo.titular.direccion], ['ANA GIL', '12345678Z', 'CALLE MAYOR 10, 50001, ZARAGOZA']);
+  const otro = partesCertificado(aviso, { titularDistinto: true, titular: { nombre: 'COMUNIDAD SOL', nif: 'H50000000', direccion: 'C/ SOL 2' } });
+  assert.equal(otro.mismo, false);
+  assert.equal(otro.solicitante.nombre, 'ANA GIL', 'el solicitante sigue siendo el cliente');
+  assert.deepEqual([otro.titular.nombre, otro.titular.nif, otro.titular.direccion], ['COMUNIDAD SOL', 'H50000000', 'C/ SOL 2']);
+  assert.equal(partesCertificado(aviso, { titularDistinto: true, titular: { nombre: '' } }).mismo, true, 'marcado pero sin nombre: el mismo');
+  assert.deepEqual(faltaTitular({ titularDistinto: true, titular: { nombre: 'X' } }), ['DNI / NIF / CIF']);
+  assert.deepEqual(faltaTitular({}), []);
+  // Certificados antiguos (sin estos campos) siguen abriendo igual
+  const viejo = normalizarCertTierra({ medida: '10' });
+  assert.equal(viejo.titularDistinto, false);
+  assert.deepEqual(viejo.titular, { nombre: '', nif: '', telefono: '', direccion: '' });
+});
+
+test('PDF con titular distinto: sigue cabiendo igual (3 páginas con plano y 6 fotos)', async () => {
+  const aviso = normalizarAviso({ numero: '2026-0031', cliente: { nombre: 'ANA GIL', nif: '12345678Z' }, suministro: { direccion: 'CALLE MAYOR', numero: '10', cp: '50001', poblacion: 'ZARAGOZA' } });
+  const cert = { fecha: '2026-10-25', medida: '12,3', observaciones: 'Prueba.', titularDistinto: true, titular: { nombre: 'COMUNIDAD SOL', nif: 'H50000000', telefono: '+34 976 000 000', direccion: 'C/ SOL 2, 50001, ZARAGOZA' } };
+  const bytes = await generarCertTierra(PDFLib, { aviso, empresa: normalizarEmpresa({}), cert, medidor: null, logo: jpg, firma: jpg, sello: jpg, plano: jpg, fotos: Array.from({ length: 6 }, () => ({ ...jpg })) });
+  assert.equal((await PDFLib.PDFDocument.load(bytes)).getPageCount(), 3);
+  writeFileSync(new URL('./cert-tierra-titular.pdf', import.meta.url), bytes);
+});
