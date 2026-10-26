@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createServer } from 'node:net';
+import { createServer, connect } from 'node:net';
 import assert from 'node:assert/strict';
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -16,7 +16,8 @@ const ok = (t) => console.log('✓ ' + t);
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 let browser;
 try {
-  for (let i = 0; i < 50; i++) { try { await fetch(`http://127.0.0.1:${pWeb}/index.html`); break; } catch { await espera(100); } }
+  const escucha = () => new Promise((r) => { const c = connect(pWeb, '127.0.0.1', () => { c.end(); r(true); }); c.on('error', () => r(false)); });
+  for (let i = 0; i < 50 && !(await escucha()); i++) await espera(100);
   browser = await chromium.launch();
   const page = await (await browser.newContext({ viewport: { width: 712, height: 1138 }, hasTouch: true, isMobile: true })).newPage();
   page.setDefaultTimeout(10000);

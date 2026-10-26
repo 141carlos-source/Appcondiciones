@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createServer } from 'node:net';
+import { createServer, connect } from 'node:net';
 import { writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
@@ -15,7 +15,10 @@ const pWeb = await libre();
 const web = spawn('python3', ['-m', 'http.server', String(pWeb), '--bind', '127.0.0.1'], { cwd: raiz, stdio: 'ignore' });
 let browser;
 try {
-  for (let i = 0; i < 50; i++) { try { await fetch(`http://127.0.0.1:${pWeb}/assets/cuadrolab.html`); break; } catch { await new Promise((r) => setTimeout(r, 100)); } }
+  // Esperar a que el servidor escuche con una conexión TCP simple: fetch() de Node a veces se rompe
+  // por dentro («assert(!this.paused)») si el servidor de Python aún está arrancando.
+  const escucha = () => new Promise((r) => { const c = connect(pWeb, '127.0.0.1', () => { c.end(); r(true); }); c.on('error', () => r(false)); });
+  for (let i = 0; i < 50 && !(await escucha()); i++) await new Promise((r) => setTimeout(r, 100));
   browser = await chromium.launch();
   const page = await (await browser.newContext({ viewport: { width: 1300, height: 1000 } })).newPage();
   const errores = [];
