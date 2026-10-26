@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.27.0';
+export const VERSION = 'V2-1.27.1';
 
 import { h, ico, toast, hace, descargar, activarMayusculas, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -76,6 +76,8 @@ async function alCambiarHash() {
   render();
 }
 async function render() {
+  // Antes de abrir la base de datos no hay nada que pintar (p. ej. el aviso de instalar llega muy pronto)
+  if (!app.storage) return;
   app.guardia = null;
   hashActual = location.hash;
   const ruta = RUTAS[rutaActual()] ? rutaActual() : 'inicio';
