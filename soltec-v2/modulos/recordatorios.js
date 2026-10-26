@@ -153,7 +153,7 @@ export function bloqueNotificaciones(app) {
         : perm !== 'granted' ? 'Notificaciones sin activar en este dispositivo.'
           : on ? `Activadas en este dispositivo: un aviso al día por recordatorio, de ${HORARIO_AVISOS.desde}:00 a ${HORARIO_AVISOS.hasta}:00.` : 'Desactivadas en este dispositivo.';
     caja.replaceChildren(
-      h('h3', {}, 'Notificaciones'),
+      h('h2', {}, 'Notificaciones'),
       h('p', { id: 'notif-estado', class: perm === 'denied' ? 'aviso err' : 'muted' }, estado),
       soporta && perm === 'granted' && on ? h('p', { class: 'muted', id: 'notif-fondo' }, fondo
         ? 'Con la app cerrada también avisa, cuando el sistema lo permite (Chrome con la app instalada; puede tardar unas horas).'

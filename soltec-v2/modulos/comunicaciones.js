@@ -1,7 +1,7 @@
 // SOLTEC V2 · Ficha PDF del cliente, firma con el dedo, resumen de WhatsApp y correos.
 // Preparar una comunicación no es enviarla: el historial lo distingue.
 
-import { h, toast, abrirBlob, compartir, puedeCompartirArchivos, descargar, fecha, lienzoFirma, irORepintar } from '../ui.js';
+import { h, ico, toast, abrirBlob, compartir, puedeCompartirArchivos, descargar, fecha, lienzoFirma, irORepintar } from '../ui.js';
 import { generarFicha, nombreFicha, resumenWhatsApp, enlaceWhatsApp, telefonoWhatsApp, correo, enlaceCorreo, TIPOS_CORREO } from '../core/documentos.js';
 import { faltaParaFormulario } from '../core/empresa.js';
 import { datosPendientes, normalizarAviso, hoyLocal } from '../core/model.js';
@@ -287,7 +287,7 @@ export function listaArchivos(app, aviso) {
   if (!aviso.archivos?.length) return null;
   return h('div', {}, h('label', {}, 'Documentos guardados en el aviso'),
     h('ul', { class: 'lista-chk' }, ...aviso.archivos.map((a) => h('li', {},
-      h('span', { class: 'ico' }, '📄'),
+      h('span', { class: 'ico' }, ico('documento')),
       h('span', { style: 'flex:1;min-width:0' }, h('div', { class: 'cortar' }, a.name), h('div', { class: 'muted' }, fecha(a.addedAt))),
       h('button', { class: 'btn peq', type: 'button', onclick: async () => { const b = await app.storage.getFileBlob(a.hash); b ? abrirBlob(b) : toast('Aún no está en este dispositivo: sincroniza.', true); } }, 'Ver'),
       h('button', { class: 'btn peq', type: 'button', onclick: async () => { const b = await app.storage.getFileBlob(a.hash); b ? compartir(b, a.name) : toast('Aún no está en este dispositivo: sincroniza.', true); } }, 'Compartir')))));

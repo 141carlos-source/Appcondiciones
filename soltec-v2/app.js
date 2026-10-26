@@ -6,9 +6,9 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.26.0';
+export const VERSION = 'V2-1.27.0';
 
-import { h, toast, hace, descargar, activarMayusculas, confirmar, preguntar } from './ui.js';
+import { h, ico, toast, hace, descargar, activarMayusculas, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
 import { vistaAgenda, vistaCita, iniciarAlarmas } from './modulos/agenda.js';
 import { vistaEmpresa } from './modulos/empresa.js';
@@ -369,7 +369,7 @@ async function vistaInicio() {
     recsEl.dataset.listo = '1';
     recsEl.replaceChildren(...(recs.length ? [
       h('h2', {}, `Recordatorios (${recs.length})`),
-      ofrecerNotificaciones() ? h('div', { class: 'fila' }, h('button', { class: 'btn peq', type: 'button', id: 'recordatorios-notificar', onclick: async () => { if (await activarNotificaciones(app)) render(); } }, '🔔 Avisarme también con notificación')) : null,
+      ofrecerNotificaciones() ? h('div', { class: 'fila' }, h('button', { class: 'btn peq', type: 'button', id: 'recordatorios-notificar', onclick: async () => { if (await activarNotificaciones(app)) render(); } }, ico('campana'), 'Avisarme también con notificación')) : null,
       h('div', { class: 'lista' }, ...tarjetasRecordatorios(app, recs, { alCambiar: () => render() }))] : []));
   };
   setTimeout(() => pintarRecs().catch(() => {}), 0);

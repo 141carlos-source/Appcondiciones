@@ -1,7 +1,7 @@
 // SOLTEC V2 · Capa 6 · Agenda: citas y seguimientos de avisos (un único tipo de registro, «cita»).
 // Un seguimiento es una cita con ref = id del aviso; completarla o reabrirla queda en el historial del aviso.
 
-import { h, toast, ir, descargar, confirmar } from '../ui.js';
+import { h, toast, ir, descargar, confirmar, ico } from '../ui.js';
 import { ANTELACIONES, debeSonar, momentoAlarma, enlaceGoogle, icsCita, nombreIcs } from '../core/calendario.js';
 import { hoyLocal, direccionCompleta } from '../core/model.js';
 import { buscar } from '../core/search.js';
@@ -38,7 +38,7 @@ function lineaCita(app, c, aviso, alCambiar) {
       h('button', { class: 'check', type: 'button', 'aria-label': c.data.hecho ? 'Reabrir' : 'Marcar como hecha', title: c.data.hecho ? 'Reabrir' : 'Marcar como hecha',
         onclick: async () => { await cambiarHecho(app, c, !c.data.hecho); toast(c.data.hecho ? 'Reabierta' : 'Hecha'); alCambiar(); } }, c.data.hecho ? '✓' : ''),
       h('a', { class: 'cita-texto', href: `#/cita/${c.id}` },
-        h('div', {}, c.data.hora ? [h('span', { class: 'mono' }, c.data.hora), ' '] : null, h('b', {}, c.data.titulo || 'Sin título'), c.data.alarma ? ' 🔔' : ''),
+        h('div', {}, c.data.hora ? [h('span', { class: 'mono' }, c.data.hora), ' '] : null, h('b', {}, c.data.titulo || 'Sin título'), c.data.alarma ? [' ', ico('campana', 'Con alarma')] : ''),
         c.data.responsable ? h('div', { class: 'muted' }, c.data.responsable) : null,
         aviso ? h('div', { class: 'muted' }, `Aviso ${aviso.data.numero} · ${aviso.data.cliente?.nombre || ''}`) : null,
         vencida ? h('div', { class: 'faltan' }, 'Vencida') : null)));

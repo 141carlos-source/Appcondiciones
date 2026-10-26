@@ -15,6 +15,17 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
+const ICO = {
+  campana: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  documento: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 15.5h5"/>',
+};
+/** Icono SVG propio (sin emojis). Con «texto» se anuncia a los lectores de pantalla; sin él, es decorativo. */
+export function ico(nombre, texto = '') {
+  const svg = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[nombre] || ''}</svg>`;
+  return texto ? h('span', { class: 'ico-svg', role: 'img', 'aria-label': texto, title: texto, html: svg })
+    : h('span', { class: 'ico-svg', 'aria-hidden': 'true', html: svg });
+}
+
 export function toast(msg, err = false) {
   document.querySelector('.toast')?.remove();
   const t = h('div', { class: 'toast' + (err ? ' err' : ''), role: 'status' }, msg);
