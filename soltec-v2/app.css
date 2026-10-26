@@ -399,25 +399,98 @@ body.con-capa { overflow: hidden; }
 /* ---------------------------------------------------------------- SOLTEC Taste: iconos e impresión */
 .ico-svg { display: inline-flex; vertical-align: -3px; width: 16px; height: 16px; color: var(--acero); }
 .ico-svg svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.lista-cab { display: none; }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 select { background-color: var(--papel); color: var(--tinta); }
 
-/* ---------------------------------------------------------------- SOLTEC Taste: PC de oficina (más información a la vista) */
+/* ---------------------------------------------------------------- SOLTEC Taste: PC de oficina
+   Menú lateral fijo, listados de avisos y expedientes en formato tabla y controles compactos. */
 @media (min-width: 1100px) {
-  main, #banda-sync { max-width: 1120px; }
+  :root { --nav-h: 0px; --lado: 224px; --cab: 56px; --cols: 112px minmax(0, 1.1fr) minmax(0, 1.2fr) 310px 120px; }
   body { font-size: 14.5px; }
-  .lista { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
-  .tarjeta { padding: 10px 12px; }
-  .tarjeta b { font-size: 15px; }
-  .insignias { margin-top: 6px; }
-  details.card > summary { min-height: 48px; padding: 12px 16px; }
+
+  /* Cabecera fina a todo el ancho */
+  .top { height: var(--cab); padding: 0 20px; }
+  .marca::before { height: 26px; }
+  .marca b { font-size: 19px; }
+
+  /* La barra inferior pasa a menú lateral */
+  nav.inferior {
+    top: var(--cab); bottom: 0; left: 0; right: auto; width: var(--lado); height: auto;
+    flex-direction: column; align-items: stretch; gap: 2px; padding: 14px 10px;
+    border-top: 0; border-right: 1px solid var(--linea);
+  }
+  nav.inferior a, nav.inferior button {
+    flex: none; flex-direction: row; justify-content: flex-start; gap: 12px;
+    height: 42px; padding: 0 12px; border-radius: var(--r-ctrl);
+    font-size: 14.5px; font-weight: 600; letter-spacing: 0; color: var(--acero);
+  }
+  nav.inferior a > span:first-child { width: auto; height: auto; background: none !important; }
+  nav.inferior svg { width: 19px; height: 19px; }
+  nav.inferior a:hover { background: var(--suave); color: var(--tinta); }
+  nav.inferior a[aria-current=page] { background: var(--rojo-tinte); color: var(--rojo-oscuro); box-shadow: inset 3px 0 0 var(--rojo); }
+  nav.inferior .salir { margin-top: auto; color: var(--acero); }
+  nav.inferior .salir::before { left: 12px; right: 12px; top: -8px; bottom: auto; width: auto; height: 1px; }
+
+  /* Contenido a la derecha del menú */
+  main, #banda-sync { max-width: 1200px; margin-left: calc(var(--lado) + max(0px, (100vw - var(--lado) - 1200px) / 2)); margin-right: auto; }
+  main { padding: 22px 28px 40px; }
+  #banda-sync { padding: 10px 28px 0; }
+  .banda, .toast { left: calc(var(--lado) + 16px); }
+  .toast { transform: none; } 
+  @keyframes aparecer { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .volver-pruebas { bottom: 16px; }
+
+  h1 { font-size: 22px; }
+  .titulo-fila { margin-bottom: 8px; }
   .card { padding: 14px 16px; margin-bottom: 8px; }
-  .accesos { grid-template-columns: repeat(3, minmax(0, 220px)); }
-  .cifras { grid-template-columns: repeat(3, minmax(0, 220px)); width: max-content; }
+  details.card > summary { min-height: 48px; padding: 12px 16px; }
+
+  /* Listados de avisos y expedientes: tabla */
+  .lista:has(> a.tarjeta) {
+    display: block; background: var(--papel); border: 1px solid var(--linea); border-radius: var(--r-panel); overflow: hidden;
+  }
+  .lista-cab {
+    display: grid; grid-template-columns: var(--cols); column-gap: 16px; padding: 9px 16px; background: var(--suave); border-bottom: 1px solid var(--linea);
+    font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--acero);
+  }
+  .lista-cab span:last-child { text-align: right; }
+  .lista > a.tarjeta {
+    display: grid; grid-template-columns: var(--cols);
+    align-items: center; column-gap: 16px; padding: 10px 16px; border: 0; border-bottom: 1px solid var(--linea); border-radius: 0; min-height: 52px;
+  }
+  .lista > a.tarjeta:last-child { border-bottom: 0; }
+  .lista > a.tarjeta:hover { background: #fafbfc; border-color: var(--linea); }
+  .lista > a.tarjeta:focus-visible { outline-offset: -2px; }
+  .lista > a.tarjeta > .tarjeta-cab { display: contents; }
+  .lista > a.tarjeta .tarjeta-cab > .mono { grid-column: 1; grid-row: 1; font-size: 13px; color: var(--acero); }
+  .lista > a.tarjeta .tarjeta-cab > .etiqueta { grid-column: 5; grid-row: 1; justify-self: end; }
+  .lista > a.tarjeta > b { grid-column: 2; grid-row: 1; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .lista > a.tarjeta > .muted { grid-column: 3; grid-row: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-size: 13.5px; }
+  .lista > a.tarjeta > .insignias { grid-column: 4; grid-row: 1; margin: 0; flex-wrap: nowrap; overflow: hidden; min-width: 0; }
+
+  /* Expedientes: misma tabla, con la referencia de condiciones bajo el nº */
+  .lista > a.tarjeta.exp { border-left: 0; box-shadow: inset 3px 0 0 var(--rojo); }
+  .lista > a.tarjeta.exp > .exp-cab { display: contents; }
+  .lista > a.tarjeta.exp .exp-cab > div { grid-column: 1; grid-row: 1; }
+  .lista > a.tarjeta.exp .exp-cab .etq { font-size: 10px; letter-spacing: .04em; }
+  .lista > a.tarjeta.exp .exp-cab .mono { font-size: 12.5px; margin: 0 0 2px; }
+  .lista > a.tarjeta.exp .logo-edist { grid-column: 5; grid-row: 1; justify-self: end; width: 110px; height: auto; }
+
+  /* El resto de listas (Qué toca hoy, agenda, partes): dos columnas */
+  .lista:not(:has(> a.tarjeta)) { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+  .tarjeta { padding: 12px 14px; }
+
+  /* Inicio: cifras y accesos en una fila */
+  .hoy h1 { font-size: 24px; }
+  .cifras { grid-template-columns: repeat(3, minmax(0, 200px)); width: max-content; }
+  .accesos { grid-template-columns: repeat(3, minmax(0, 200px)); }
+
+  /* Formularios más compactos */
   input[type=text], input[type=url], input[type=password], input[type=email], input[type=tel], input[type=date],
   input[type=time], input[type=search], input[type=number], select { min-height: 40px; padding: 8px 11px; font-size: 15px; }
-  input.buscador { min-height: 42px; margin: 6px 0 8px; padding-left: 42px; }
-  .barra-guardar { max-width: 420px; margin-left: auto; }
+  input.buscador { min-height: 42px; margin: 6px 0 8px; padding-left: 42px; max-width: 640px; }
+  .barra-guardar { bottom: 16px; max-width: 360px; margin-left: auto; }
 }
 
 @media print {

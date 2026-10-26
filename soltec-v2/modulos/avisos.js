@@ -68,7 +68,10 @@ async function listado(app, { expedientes }) {
   const pintar = (q) => {
     const regs = q.trim() ? buscar(base, q).map((x) => x.registro) : base;
     const orden = [...regs].sort((a, b) => (b.data.numero || '').localeCompare(a.data.numero || '') || b.updatedAt.localeCompare(a.updatedAt));
-    lista.replaceChildren(...(orden.length ? orden.map((r) => (expedientes && !papelera ? tarjetaExpediente(r) : tarjetaAviso(r)))
+    // Cabecera de columnas: solo se ve en el PC, donde el listado se muestra como tabla
+    const cab = h('div', { class: 'lista-cab', 'aria-hidden': 'true' },
+      ...(expedientes && !papelera ? ['Aviso / ref.', 'Cliente', 'Dirección', 'Comprobaciones', ''] : ['Nº aviso', 'Cliente', 'Dirección', 'Situación', 'Estado']).map((t) => h('span', {}, t)));
+    lista.replaceChildren(...(orden.length ? [cab, ...orden.map((r) => (expedientes && !papelera ? tarjetaExpediente(r) : tarjetaAviso(r)))]
       : [h('div', { class: 'card muted' }, q.trim() ? 'Sin resultados.' : papelera ? 'La papelera está vacía.' : expedientes ? 'Todavía no hay expedientes. Un aviso pasa aquí al tener referencia o PDF de condiciones.' : 'Todavía no hay avisos.')]));
   };
   const busca = h('input', { type: 'search', class: 'buscador', placeholder: 'Buscar: cliente, teléfono, dirección, CUPS, referencia…', oninput: (e) => pintar(e.target.value) });
