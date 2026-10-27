@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.28.0';
+export const VERSION = 'V2-1.29.0';
 
 import { h, ico, toast, hace, descargar, activarMayusculas, vigilarFocoTeclado, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -21,6 +21,8 @@ import { codigoAlta, enlaceAlta, leerAlta, nombreSugerido, instaladorWindows, es
 import { URL_PUBLICA } from './core/fichaCliente.js';
 import { calcularRecordatorios, tarjetasRecordatorios, bloquePlazos, bloqueNotificaciones, iniciarAvisosRecordatorios, activarNotificaciones, ofrecerNotificaciones } from './modulos/recordatorios.js';
 import { alertaSincronizacion } from './core/estadoSync.js';
+import { opcionesDemo, DB_DEMO } from './core/demo.js';
+import { aplicarTema, sembrarDemo, barraDemo } from './modulos/demo.js';
 import { bloqueCertificadosAntiguos } from './modulos/certificados.js';
 import { vistaPruebas, pruebaEnCurso, botonVolverPruebas } from './modulos/pruebas.js';
 import { registrarError, describirError, leerErrores, borrarErrores, informeErrores } from './core/errores.js';
@@ -110,6 +112,7 @@ async function refrescarEstado() {
 
 function textoEstado() {
   const e = app.estado;
+  if (app.demo) return ['', 'Demo · sin sincronizar'];
   if (e.sincronizando) return ['pend', 'Sincronizando…'];
   if (!e.configurado) return ['', 'PC sin configurar'];
   if (e.error) return ['err', 'Sin conexión con el PC'];
@@ -282,7 +285,7 @@ async function vistaInicio() {
   const partesAbiertos = partes.filter((r) => !r.data.cerrado).length;
   // ¿Riesgo de perder trabajo? Cambios sin subir al PC desde hace mucho, o dispositivo sin conectar
   const pend = await app.storage.pendingCounts();
-  const alerta = alertaSincronizacion({
+  const alerta = app.demo ? null : alertaSincronizacion({
     configurado: app.estado.configurado, registros: avisos.length + citas.length + partes.length,
     pendientes: pend.records, archivos: pend.files, masAntiguo: await app.storage.pendienteMasAntiguo(), ultima: app.estado.ultima,
   });
@@ -372,7 +375,7 @@ async function vistaInicio() {
     recsEl.replaceChildren(...(recs.length ? [
       h('h2', {}, `Recordatorios (${recs.length})`),
       ofrecerNotificaciones() ? h('div', { class: 'fila' }, h('button', { class: 'btn peq', type: 'button', id: 'recordatorios-notificar', onclick: async () => { if (await activarNotificaciones(app)) render(); } }, ico('campana'), 'Avisarme también con notificación')) : null,
-      h('div', { class: 'lista' }, ...tarjetasRecordatorios(app, recs, { alCambiar: () => render() }))] : []));
+      h('div', { class: 'lista' }, ...tarjetasRecordatorios(app, recs, { alCambiar: () => render() }))].filter(Boolean) : []));
   };
   setTimeout(() => pintarRecs().catch(() => {}), 0);
   return h('div', {},
@@ -808,12 +811,18 @@ function carcasa() {
 }
 
 export async function iniciar() {
+  // Modo demostración (?demo=1): datos de ejemplo en otra base de datos, sin sincronizar. Tema de aspecto (?tema=1…4).
+  const od = opcionesDemo(location.search);
+  app.demo = od.demo;
+  if (app.demo) document.documentElement.dataset.demo = '1';
+  aplicarTema(od.tema);
   carcasa();
   pintarBotonInstalar();
   activarMayusculas();
   vigilarFocoTeclado((d) => app.anotarError?.({ message: d.mensaje, stack: d.pila }, 'teclado'));
   try {
-    app.storage = await Storage.open();
+    app.storage = await Storage.open(app.demo ? { name: DB_DEMO } : {});
+    if (app.demo) await sembrarDemo(app.storage);
   } catch (e) {
     document.querySelector('main').replaceChildren(h('div', { class: 'aviso err' }, `No se puede abrir la base de datos: ${e.message}`));
     return;
@@ -847,6 +856,7 @@ export async function iniciar() {
 
   await refrescarEstado();
   await render();
+  if (app.demo) { document.body.append(barraDemo(od.tema)); return; } // sin alarmas, notificaciones ni sincronización
   app.revisarAlarmas = iniciarAlarmas(app);
   registrarSW().catch((e) => console.warn('Service worker no registrado:', e));
   app.revisarRecordatorios = iniciarAvisosRecordatorios(app);

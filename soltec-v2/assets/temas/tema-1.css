@@ -1,0 +1,43 @@
+/* SOLTEC V2 · Tema 1 «Cuadro»: como un cuadro eléctrico. Azul marino de los aparatos, paneles blancos,
+   letra estrecha para los títulos y la cabecera con un carril DIN. Rojo solo para la acción principal. */
+html[data-tema="1"] {
+  --marino: #1f2b5c; --marino-2: #2c3a73; --marino-tinte: #e7eaf4;
+  --tinta: #172033; --grafito: #172033; --acero: #525b70; --niebla: #8b93a6;
+  --linea: #cdd3df; --suave: #f1f3f8; --fondo: #e8ebf1; --papel: #ffffff;
+  --r-panel: 3px; --r-item: 3px; --r-ctrl: 3px; --r-pill: 3px;
+  --sombra-flota: 0 6px 20px rgba(23, 32, 51, .18);
+}
+html[data-tema="1"] h1, html[data-tema="1"] h2, html[data-tema="1"] .marca b, html[data-tema="1"] .cifra b,
+html[data-tema="1"] details.card > summary, html[data-tema="1"] .tarjeta b { font-stretch: 78%; }
+html[data-tema="1"] h1 { font-size: 26px; font-weight: 800; letter-spacing: 0; }
+html[data-tema="1"] h2 { font-size: 18px; font-weight: 800; letter-spacing: 0; }
+html[data-tema="1"] h2::before { width: 8px; height: 8px; border-radius: 1px; background: var(--marino); }
+
+/* Cabecera: el panel azul con su carril DIN (lo llamativo del tema) */
+html[data-tema="1"] .top { background: var(--marino); border-bottom: 0; color: #fff; padding-bottom: 16px; }
+html[data-tema="1"] .top::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 7px;
+  background: repeating-linear-gradient(90deg, #9aa3bd 0 14px, #6f7997 14px 18px);
+  border-top: 1px solid #0f173a;
+}
+html[data-tema="1"] .marca b { color: #fff; font-size: 24px; }
+html[data-tema="1"] .marca small, html[data-tema="1"] .version-app { color: #b9c1db; }
+html[data-tema="1"] .estado { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .25); color: #fff; }
+
+/* Paneles y tarjetas: blancos, borde firme, sin sombra */
+html[data-tema="1"] .card, html[data-tema="1"] .tarjeta, html[data-tema="1"] .cifras, html[data-tema="1"] details.sub { border-width: 1.5px; }
+html[data-tema="1"] .cifra b { font-size: 32px; font-weight: 800; color: var(--marino); }
+html[data-tema="1"] .hoy-dia { color: var(--marino-2); font-weight: 700; }
+html[data-tema="1"] .hoy h1 { font-size: 30px; }
+
+html[data-tema="1"] .btn.prim, html[data-tema="1"] .chip.activo { background: var(--marino); border-color: var(--marino); }
+html[data-tema="1"] .btn.prim:hover { background: var(--marino-2); }
+html[data-tema="1"] .titulo-fila > a.btn.prim[href*="nuev"] { background: var(--rojo); border-color: var(--rojo); }
+html[data-tema="1"] input:focus-visible, html[data-tema="1"] select:focus-visible, html[data-tema="1"] textarea:focus-visible { border-color: var(--marino); box-shadow: 0 0 0 3px rgba(31, 43, 92, .22); }
+
+/* Barra inferior azul, como el frontal del cuadro */
+html[data-tema="1"] nav.inferior { background: var(--marino); border-top: 0; }
+html[data-tema="1"] nav.inferior a, html[data-tema="1"] nav.inferior button, html[data-tema="1"] nav.inferior .salir { color: #b9c1db; }
+html[data-tema="1"] nav.inferior a[aria-current=page] { color: #fff; }
+html[data-tema="1"] nav.inferior a[aria-current=page] > span:first-child { background: rgba(255, 255, 255, .14); box-shadow: inset 0 -3px 0 var(--rojo); }
+html[data-tema="1"] nav.inferior .salir::before { background: rgba(255, 255, 255, .2); }

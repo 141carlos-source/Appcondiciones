@@ -431,3 +431,18 @@ select { background-color: var(--papel); color: var(--tinta); }
 .acciones-contacto { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 .acciones-contacto[hidden] { display: none; }
 .acciones-contacto .btn { min-height: 40px; }
+
+/* Barra de la demostración de temas (solo con ?demo=1): una tira fina sobre la barra inferior */
+.barra-demo { position: fixed; left: 0; right: 0; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); z-index: 19; display: flex; align-items: center; gap: 8px;
+  background: #1e2226; color: #fff; padding: 5px 10px; font-size: 12.5px; }
+.barra-demo-txt { margin-right: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.barra-demo-txt span { display: none; }
+.barra-demo-temas { display: flex; gap: 3px; flex: none; }
+.barra-demo a { color: #fff; text-decoration: none; min-width: 30px; height: 30px; display: inline-grid; place-items: center; padding: 0 7px; border-radius: 5px; border: 1px solid #4a5058; font-weight: 700; font-size: 12.5px; }
+.barra-demo a.activo { background: #c4161c; border-color: #c4161c; }
+.barra-demo-salir { flex: none; }
+html[data-demo] main { padding-bottom: calc(var(--nav-h) + 74px + env(safe-area-inset-bottom)); }
+html[data-demo] #bloque-instalar, html[data-demo] #instalar-cab { display: none !important; }
+html[data-demo] .barra-guardar { bottom: calc(var(--nav-h) + 52px + env(safe-area-inset-bottom)); }
+html[data-demo] .toast, html[data-demo] .banda { bottom: calc(var(--nav-h) + 56px + env(safe-area-inset-bottom)); }
+@media (min-width: 900px) { .barra-demo-txt span { display: inline; color: #b8bec5; margin-left: 6px; } }

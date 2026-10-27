@@ -1,0 +1,48 @@
+/* SOLTEC V2 · Tema 4 «Despacho»: tranquilo y de oficina. Gris azulado, superficies blancas con una sombra mínima
+   y azul pizarra para las acciones normales; en PC y tablet en horizontal, el menú pasa a la izquierda. */
+html[data-tema="4"] {
+  --pizarra: #2c4a6b; --pizarra-2: #375a80; --pizarra-tinte: #e6edf5;
+  --tinta: #1d2733; --grafito: #1d2733; --acero: #5b6878; --niebla: #8b97a5;
+  --linea: #dde3ea; --suave: #f4f6f9; --fondo: #eef1f5; --papel: #ffffff;
+  --r-panel: 10px; --r-item: 8px; --r-ctrl: 7px; --r-pill: 999px;
+  --sombra-flota: 0 8px 28px rgba(29, 39, 51, .16), 0 1px 3px rgba(29, 39, 51, .08);
+}
+html[data-tema="4"] h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+html[data-tema="4"] h2 { font-size: 15px; font-weight: 650; color: var(--acero); }
+html[data-tema="4"] h2::before { display: none; }
+html[data-tema="4"] h2::after { content: ''; flex: 1; height: 1px; background: var(--linea); }
+html[data-tema="4"] .card, html[data-tema="4"] .tarjeta, html[data-tema="4"] .cifras { border-color: transparent; box-shadow: 0 1px 2px rgba(29, 39, 51, .06), 0 0 0 1px rgba(29, 39, 51, .05); }
+html[data-tema="4"] .cifra b { font-size: 26px; font-weight: 650; color: var(--pizarra); }
+html[data-tema="4"] .hoy-dia { color: var(--pizarra-2); }
+html[data-tema="4"] .btn.prim, html[data-tema="4"] .chip.activo { background: var(--pizarra); border-color: var(--pizarra); }
+html[data-tema="4"] .btn.prim:hover { background: var(--pizarra-2); }
+html[data-tema="4"] .titulo-fila > a.btn.prim[href*="nuev"] { background: var(--rojo); border-color: var(--rojo); }
+html[data-tema="4"] input:focus-visible, html[data-tema="4"] select:focus-visible, html[data-tema="4"] textarea:focus-visible { border-color: var(--pizarra); box-shadow: 0 0 0 3px rgba(44, 74, 107, .2); }
+html[data-tema="4"] .top { background: rgba(255, 255, 255, .96); box-shadow: 0 1px 0 var(--linea); border-bottom: 0; }
+html[data-tema="4"] nav.inferior a[aria-current=page] { color: var(--pizarra); }
+html[data-tema="4"] nav.inferior a[aria-current=page] > span:first-child { background: var(--pizarra-tinte); }
+
+/* PC y tablet en horizontal: menú lateral (lo llamativo del tema) */
+@media (min-width: 900px) {
+  html[data-tema="4"] { --lado: 216px; }
+  html[data-tema="4"] body { padding-left: var(--lado); }
+  html[data-tema="4"] nav.inferior {
+    top: 0; bottom: 0; right: auto; width: var(--lado); height: auto; flex-direction: column; align-items: stretch; gap: 2px;
+    padding: calc(76px + env(safe-area-inset-top)) 12px 16px; border-top: 0; box-shadow: 1px 0 0 var(--linea); background: #f8fafc; z-index: 11;
+  }
+  html[data-tema="4"] nav.inferior a, html[data-tema="4"] nav.inferior button {
+    flex: none; flex-direction: row; justify-content: flex-start; gap: 10px; height: 44px; padding: 0 10px;
+    font-size: 14.5px; font-weight: 600; border-radius: 8px; color: var(--acero);
+  }
+  html[data-tema="4"] nav.inferior a > span:first-child { width: auto; height: auto; background: none !important; }
+  html[data-tema="4"] nav.inferior a[aria-current=page] { background: var(--pizarra-tinte); color: var(--pizarra); }
+  html[data-tema="4"] nav.inferior a:hover { background: var(--suave); }
+  html[data-tema="4"] nav.inferior .salir { margin-top: auto; }
+  html[data-tema="4"] nav.inferior .salir::before { display: none; }
+  html[data-tema="4"] .top { position: fixed; left: 0; right: 0; top: 0; z-index: 12; }
+  html[data-tema="4"] main { padding-top: calc(84px + env(safe-area-inset-top)); padding-bottom: 48px; }
+  html[data-tema="4"] .barra-guardar { bottom: 16px; }
+  html[data-tema="4"] .toast, html[data-tema="4"] .banda { bottom: 16px; }
+  html[data-tema="4"] .barra-demo { bottom: 12px; }
+  html[data-tema="4"] .volver-pruebas { bottom: 16px; }
+}

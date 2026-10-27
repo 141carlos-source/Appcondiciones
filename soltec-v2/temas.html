@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOLTEC · Comparar aspectos</title>
+<style>
+  @font-face { font-family: 'Archivo'; src: url('./vendor/fonts/archivo.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+  :root { --tinta: #1e2226; --acero: #5a6169; --linea: #dfe3e8; --fondo: #e4e7eb; --rojo: #c4161c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Archivo', system-ui, sans-serif; color: var(--tinta); background: var(--fondo); }
+  header { padding: 16px 20px 8px; max-width: 1600px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0 0 12px; color: var(--acero); font-size: 14.5px; max-width: 70ch; }
+  .pantallas { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pantallas button { font: inherit; font-weight: 650; font-size: 14px; min-height: 40px; padding: 0 14px; border-radius: 6px; border: 1.5px solid #c6ccd3; background: #fff; cursor: pointer; }
+  .pantallas button[aria-pressed="true"] { background: var(--tinta); border-color: var(--tinta); color: #fff; }
+  .rejilla { display: flex; gap: 18px; overflow-x: auto; padding: 14px 20px 28px; max-width: 1600px; margin: 0 auto; scroll-snap-type: x mandatory; }
+  .tema { flex: none; width: 390px; scroll-snap-align: start; }
+  .tema h2 { font-size: 17px; margin: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .tema h2 a { font-size: 13.5px; font-weight: 650; color: var(--rojo); }
+  .tema p { margin: 2px 0 8px; font-size: 13px; color: var(--acero); min-height: 2.6em; }
+  .marco { width: 390px; height: 780px; border-radius: 22px; border: 8px solid #1e2226; overflow: hidden; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+  iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .nota { max-width: 1600px; margin: 0 auto; padding: 0 20px 24px; color: var(--acero); font-size: 13px; }
+  @media (max-width: 460px) { .tema, .marco { width: calc(100vw - 40px); } .marco { height: 72vh; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Comparar aspectos de SOLTEC</h1>
+  <p>La misma app con datos de ejemplo, en cinco aspectos. Todo funciona dentro de cada móvil; nada se guarda en tus datos ni se sincroniza con el PC. Elige una pantalla para verla en todos a la vez.</p>
+  <div class="pantallas" role="group" aria-label="Pantalla">
+    <button type="button" data-ruta="#/inicio" aria-pressed="true">Inicio</button>
+    <button type="button" data-ruta="#/avisos">Avisos</button>
+    <button type="button" data-ruta="#/aviso/demo_av1">Un aviso</button>
+    <button type="button" data-ruta="#/parte/demo_pa1">Un parte</button>
+    <button type="button" data-ruta="#/agenda">Agenda</button>
+    <button type="button" data-ruta="#/ajustes">Ajustes</button>
+  </div>
+</header>
+<main class="rejilla" id="rejilla"></main>
+<p class="nota">En PC o tablet en horizontal, abre el tema 4 a pantalla completa para ver el menú lateral. Para quedarte con uno, dime su número.</p>
+<script>
+  const TEMAS = [
+    [1, 'Cuadro', 'Como un cuadro eléctrico: azul marino, paneles blancos, letra estrecha y carril DIN en la cabecera.'],
+    [2, 'Plano', 'Como un plano técnico: tinta de plano sobre papel cuadriculado, líneas finas y cotas.'],
+    [3, 'Obra', 'Para la obra a pleno sol: máximo contraste, letra y botones grandes, amarillo para lo pendiente.'],
+    [4, 'Despacho', 'Tranquilo y de oficina: gris azulado, sombras mínimas y menú lateral en PC.'],
+    [0, 'Actual', 'El aspecto de ahora (1.27), para comparar.'],
+  ];
+  const url = (n, ruta) => `./index.html?demo=1&tema=${n}${ruta}`;
+  const rejilla = document.getElementById('rejilla');
+  let ruta = '#/inicio';
+  for (const [n, nombre, idea] of TEMAS) {
+    const s = document.createElement('section');
+    s.className = 'tema';
+    s.innerHTML = `<h2>${n ? n + ' · ' : ''}${nombre} <a target="_blank" rel="noopener">Abrir entero</a></h2><p>${idea}</p><div class="marco"><iframe title="Tema ${nombre}" loading="lazy"></iframe></div>`;
+    s.querySelector('iframe').src = url(n, ruta);
+    s.querySelector('a').href = url(n, ruta);
+    s.dataset.n = n;
+    rejilla.append(s);
+  }
+  document.querySelector('.pantallas').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    ruta = b.dataset.ruta;
+    document.querySelectorAll('.pantallas button').forEach((x) => x.setAttribute('aria-pressed', x === b));
+    document.querySelectorAll('.tema').forEach((s) => {
+      const f = s.querySelector('iframe');
+      try { f.contentWindow.soltec && (f.contentWindow.soltec.guardia = null); f.contentWindow.location.hash = ruta; } catch { f.src = url(s.dataset.n, ruta); }
+      s.querySelector('a').href = url(s.dataset.n, ruta);
+    });
+  });
+</script>
+</body>
+</html>

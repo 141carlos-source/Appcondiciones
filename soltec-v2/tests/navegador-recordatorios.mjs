@@ -45,6 +45,7 @@ try {
   assert.deepEqual(textos, ['Condiciones solicitadas hace 20 días sin respuesta', 'Autorización enviada hace 10 días sin firmar']);
   assert.match(await page.textContent('.hoy-resumen'), /2 recordatorios sin respuesta/);
   assert.match(await page.textContent('#recordatorios'), /Talleres Ebro/i);
+  assert.ok(!/\bnull\b/.test(await page.textContent('#recordatorios')), 'sin la palabra «null» suelta');
   if (process.env.CAPTURAS) { await page.locator('#recordatorios').scrollIntoViewIfNeeded(); await page.screenshot({ path: join(process.env.CAPTURAS, 'recordatorios.png') }); }
   ok('Inicio: «Condiciones solicitadas hace 20 días sin respuesta» y «Autorización enviada hace 10 días sin firmar»');
 

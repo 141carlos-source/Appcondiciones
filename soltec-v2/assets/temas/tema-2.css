@@ -1,0 +1,44 @@
+/* SOLTEC V2 · Tema 2 «Plano»: como un plano técnico. Tinta azul de plano sobre papel cuadriculado muy suave,
+   líneas finas, títulos algo anchos y cotas como marca de sección. */
+html[data-tema="2"] {
+  --tinta: #15304a; --grafito: #15304a; --acero: #4f6478; --niebla: #8698a8;
+  --linea: #c6d1db; --suave: #eef3f6; --fondo: #f5f7f6; --papel: #ffffff;
+  --r-panel: 2px; --r-item: 2px; --r-ctrl: 2px; --r-pill: 2px;
+  --sombra-flota: 0 4px 16px rgba(21, 48, 74, .16);
+}
+/* Papel cuadriculado (lo llamativo del tema), solo en el fondo */
+html[data-tema="2"] body {
+  background-color: var(--fondo);
+  background-image: linear-gradient(rgba(21, 48, 74, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(21, 48, 74, .055) 1px, transparent 1px);
+  background-size: 24px 24px; background-position: -1px -1px;
+}
+html[data-tema="2"] h1, html[data-tema="2"] .marca b, html[data-tema="2"] .cifra b { font-stretch: 112%; font-weight: 650; letter-spacing: -0.01em; }
+html[data-tema="2"] h1 { font-size: 23px; }
+html[data-tema="2"] h2 { font-weight: 650; font-size: 15.5px; }
+/* Cota en lugar de la barra roja: |—| */
+html[data-tema="2"] h2::before { width: 16px; height: 9px; border-radius: 0; background: linear-gradient(var(--tinta), var(--tinta)) center / 100% 1.5px no-repeat; border-left: 1.5px solid var(--tinta); border-right: 1.5px solid var(--tinta); }
+
+html[data-tema="2"] .top { background: rgba(255, 255, 255, .97); border-bottom: 1.5px solid var(--tinta); }
+html[data-tema="2"] .marca::before { background: var(--tinta); width: 3px; }
+html[data-tema="2"] .marca b { color: var(--tinta); }
+
+html[data-tema="2"] .card, html[data-tema="2"] .tarjeta, html[data-tema="2"] .cifras { border-color: #b8c5d1; }
+html[data-tema="2"] .cifra b { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+html[data-tema="2"] .hoy-dia { color: var(--acero); }
+html[data-tema="2"] .tarjeta-cab .mono, html[data-tema="2"] .tarjeta .mono { color: var(--tinta); font-weight: 600; }
+html[data-tema="2"] .btn.prim, html[data-tema="2"] .chip.activo { background: var(--tinta); border-color: var(--tinta); }
+html[data-tema="2"] .btn.prim:hover { background: #22456a; }
+html[data-tema="2"] .btn, html[data-tema="2"] .chip, html[data-tema="2"] input.buscador { border-width: 1px; border-color: #9fb0c0; }
+html[data-tema="2"] input[type=text], html[data-tema="2"] input[type=email], html[data-tema="2"] input[type=tel], html[data-tema="2"] input[type=date],
+html[data-tema="2"] input[type=number], html[data-tema="2"] select, html[data-tema="2"] textarea { border-width: 1px; border-color: #a9b8c6; }
+html[data-tema="2"] input:focus-visible, html[data-tema="2"] select:focus-visible, html[data-tema="2"] textarea:focus-visible { border-color: var(--tinta); box-shadow: 0 0 0 2px rgba(21, 48, 74, .25); }
+
+html[data-tema="2"] nav.inferior { background: #fff; border-top: 1.5px solid var(--tinta); }
+html[data-tema="2"] nav.inferior a[aria-current=page] { color: var(--tinta); }
+html[data-tema="2"] nav.inferior a[aria-current=page] > span:first-child { background: none; box-shadow: inset 0 -2px 0 var(--rojo); border-radius: 0; }
+/* El día de hoy como el cajetín de un plano (lo llamativo del tema, junto al papel cuadriculado) */
+html[data-tema="2"] .hoy { background: #fff; border: 1.5px solid var(--tinta); padding: 0; display: grid; grid-template-columns: auto 1fr; }
+html[data-tema="2"] .hoy-dia { grid-row: 1 / span 2; writing-mode: vertical-rl; transform: rotate(180deg); padding: 10px 6px; border-left: 1.5px solid var(--tinta); color: var(--tinta); font-size: 12px; font-weight: 700; text-align: center; }
+html[data-tema="2"] .hoy h1 { margin: 0; padding: 10px 14px 8px; font-size: 26px; border-bottom: 1px solid var(--linea); }
+html[data-tema="2"] .hoy-resumen { padding: 8px 14px 10px; font-size: 14.5px; }
+html[data-tema="2"] .alerta-sync { margin-top: 0; }
