@@ -37,7 +37,7 @@ try {
   await page.goto(base + 'index.html#/aviso/' + id);
   await page.click('summary:has-text("Solicitudes y comunicaciones")');
   await page.click('#btn-enlace-cliente');
-  await page.waitForSelector('#enlace-cliente');
+  await page.waitForSelector('#enlace-cliente', { state: 'attached' });
   const enlace = await page.inputValue('#enlace-cliente');
   assert.match(enlace, /^https:\/\/141carlos-source\.github\.io\/Appcondiciones\/soltec-v2\/cliente\.html#/);
   ok('La app prepara el enlace del formulario con los datos dentro');
@@ -70,7 +70,9 @@ try {
   await cli.mouse.up();
   await cli.check('#c-acepto');
   await cli.click('#btn-preparar');
-  await cli.waitForSelector('#btn-descargar');
+  await cli.waitForSelector('#btn-reenviar');
+  assert.equal(await cli.textContent('#btn-reenviar'), 'REENVIAR AQUÍ');
+  await cli.click('#capa-reenviar summary');
   const wa = new URL(await cli.getAttribute('#btn-wa', 'href'));
   assert.equal(wa.pathname, '/34607335058');
   const texto = wa.searchParams.get('text');

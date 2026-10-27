@@ -215,3 +215,52 @@ export function aplicarCambios(aviso, cambios) {
   }
   return a;
 }
+
+// ---------------------------------------------------------------- correo con botón
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/**
+ * Correo para el cliente con un botón «ABRIR FORMULARIO AQUÍ» (el enlace largo queda dentro del botón).
+ * @param {{url:string, empresa:object, nombre?:string, numero?:string}} o
+ * @returns {{asunto:string, html:string, texto:string}}
+ */
+export function correoFormulario({ url, empresa, nombre = '', numero = '' }) {
+  const e = empresa?.empresa || {};
+  const emp = e.nombreComercial || e.nombre || 'su instalador';
+  const saludo = `Hola${nombre ? ' ' + nombre : ''}:`;
+  const p1 = `Le escribimos de ${emp}. Para tramitar su suministro eléctrico${numero ? ` (aviso ${numero})` : ''} necesitamos que revise y complete sus datos y firme. Se hace en un par de minutos desde el móvil.`;
+  const p2 = 'Al terminar, pulse «Reenviar aquí» para devolvernos la ficha firmada.';
+  const pie = [e.nombre || emp, e.nif && `NIF ${e.nif}`, [e.direccion, [e.cp, e.localidad].filter(Boolean).join(' '), e.provincia].filter(Boolean).join(', '), [e.telefono, e.email].filter(Boolean).join(' · '), e.web].filter(Boolean);
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1e2226;max-width:560px">
+<p style="margin:0 0 12px">${esc(saludo)}</p>
+<p style="margin:0 0 18px">${esc(p1)}</p>
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 18px"><tr><td style="border-radius:10px;background:#c4161c">
+<a href="${esc(url)}" target="_blank" style="display:inline-block;padding:14px 26px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:10px;background:#c4161c">ABRIR FORMULARIO AQUÍ</a>
+</td></tr></table>
+<p style="margin:0 0 18px">${esc(p2)}</p>
+<p style="margin:0 0 4px">Gracias,</p>
+<p style="margin:0 0 18px"><b>${esc(emp)}</b></p>
+<div style="border-top:1px solid #dfe3e8;padding-top:10px;font-size:12px;color:#5a6169">${pie.map(esc).join('<br>')}</div>
+</div>`;
+  const texto = [saludo, '', p1, '', 'Abrir el formulario:', url, '', p2, '', 'Gracias,', emp, '', ...pie].join('\n');
+  return { asunto: `Sus datos para el suministro${numero ? ' · Aviso ' + numero : ''}`, html, texto };
+}
+
+const b64Utf8 = (s) => {
+  const b = new TextEncoder().encode(s);
+  let bin = '';
+  for (let i = 0; i < b.length; i++) bin += String.fromCharCode(b[i]);
+  return btoa(bin).replace(/.{1,76}/g, '$&\r\n');
+};
+/** Borrador de correo (.eml) que Outlook y el Correo de Windows abren listo para enviar (X-Unsent). */
+export function emlBorrador({ para = '', asunto, html, texto }) {
+  const lim = 'soltec-' + Math.random().toString(36).slice(2);
+  const asuntoMime = `=?UTF-8?B?${b64Utf8(asunto).replace(/\r\n/g, '')}?=`;
+  return [
+    'MIME-Version: 1.0', 'X-Unsent: 1', `To: ${para}`, `Subject: ${asuntoMime}`,
+    `Content-Type: multipart/alternative; boundary="${lim}"`, '',
+    `--${lim}`, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', b64Utf8(texto),
+    `--${lim}`, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', b64Utf8(`<!doctype html><html><body>${html}</body></html>`),
+    `--${lim}--`, '',
+  ].join('\r\n');
+}

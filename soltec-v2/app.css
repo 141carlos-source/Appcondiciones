@@ -149,6 +149,14 @@ input.mono { font-family: var(--mono); font-size: 15px; }
 .chips.potencias { flex-wrap: wrap; overflow: visible; padding: 8px 0 0; }
 .chips.potencias[hidden] { display: none; }
 .chips.potencias .chip { padding: 7px 11px; font-variant-numeric: tabular-nums; }
+/* Ventana «Reenviar aquí» del formulario web */
+.capa-reenviar { position: fixed; inset: 0; z-index: 1000; background: rgba(20,24,28,.62); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.caja-reenviar { width: min(420px, 100%); text-align: center; margin: 0; max-height: calc(100vh - 32px); overflow: auto; }
+.caja-reenviar h2 { margin: 10px 0 8px; font-size: 22px; color: #1a7f37; border: 0; padding: 0; text-transform: none; }
+.caja-reenviar h2::before { display: none; }
+.logo-reenviar { max-height: 48px; max-width: 160px; object-fit: contain; }
+.btn-reenviar { width: 100%; min-height: 60px; font-size: 20px; font-weight: 800; letter-spacing: .02em; margin: 8px 0 4px; }
+.caja-reenviar .acciones { justify-content: center; }
 /* Formulario web del cliente: empresa, datos eléctricos y protección de datos */
 .empresa-cab { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 .empresa-cab img { max-height: 56px; max-width: 180px; object-fit: contain; }

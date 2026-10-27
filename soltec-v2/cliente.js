@@ -125,19 +125,38 @@ export function iniciarFormulario() {
       const file = new File([blob], nombre, { type: 'application/pdf' });
       const tel = telefonoWhatsApp(p.e?.t);
       const puedeCompartir = !!navigator.canShare?.({ files: [file] });
-      resultado.replaceChildren(h('div', { class: 'card' },
-        h('div', { class: 'aviso ok' }, h('b', {}, 'Ficha preparada. '), 'Ahora envíela a ', p.e?.n || 'la empresa', ':'),
-        h('div', { class: 'acciones' },
-          puedeCompartir ? h('button', { class: 'btn prim', type: 'button', id: 'btn-compartir', onclick: async () => {
-            try { await navigator.share({ files: [file], text: texto, title: nombre }); } catch (err) { if (err.name !== 'AbortError') descargar(blob, nombre); }
-          } }, 'Enviar el PDF (WhatsApp, correo…)') : null,
-          h('a', { class: 'btn' + (puedeCompartir ? '' : ' prim'), id: 'btn-wa', href: `https://wa.me/${tel || ''}?text=${encodeURIComponent(texto)}`, target: '_blank', rel: 'noopener' }, tel ? 'Enviar los datos por WhatsApp' : 'Abrir WhatsApp con los datos'),
-          p.e?.m ? h('a', { class: 'btn', id: 'btn-correo', href: `mailto:${p.e.m}?subject=${encodeURIComponent(`Ficha de datos · Aviso ${p.n || ''}`)}&body=${encodeURIComponent(texto)}` }, 'Enviar por correo') : null,
-          h('button', { class: 'btn', type: 'button', id: 'btn-descargar', onclick: () => descargar(blob, nombre) }, 'Descargar el PDF')),
-        h('p', { class: 'muted' }, puedeCompartir
-          ? '«Enviar el PDF» abre la lista de aplicaciones: elija WhatsApp o su correo y el contacto de la empresa.'
-          : 'Si envía los datos por WhatsApp o correo, adjunte también el PDF descargado si puede.')));
-      resultado.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const correoHref = p.e?.m ? `mailto:${p.e.m}?subject=${encodeURIComponent(`Ficha de datos · Aviso ${p.n || ''}`)}&body=${encodeURIComponent(texto)}` : '';
+      const waHref = `https://wa.me/${tel || ''}?text=${encodeURIComponent(texto)}`;
+      // Reenviar: en el móvil, el PDF firmado a la app que elija (correo, WhatsApp…); si no se puede, por correo o WhatsApp
+      const reenviar = async () => {
+        if (puedeCompartir) {
+          try { await navigator.share({ files: [file], text: texto, title: nombre }); return; } catch (err) { if (err.name === 'AbortError') return; }
+        }
+        descargar(blob, nombre);
+        if (correoHref) location.href = correoHref; else window.open(waHref, '_blank', 'noopener');
+      };
+      const cerrar = () => { capa.remove(); document.body.classList.remove('con-capa'); };
+      const capa = h('div', { class: 'capa-reenviar', id: 'capa-reenviar', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'reenviar-titulo' },
+        h('div', { class: 'card caja-reenviar' },
+          p.e?.l ? h('img', { src: p.e.l, alt: '', class: 'logo-reenviar' }) : null,
+          h('h2', { id: 'reenviar-titulo' }, '✓ Ficha firmada'),
+          h('p', {}, 'Último paso: devuélvasela a ', h('b', {}, p.e?.n || 'la empresa'), '.'),
+          h('button', { class: 'btn prim btn-reenviar', type: 'button', id: 'btn-reenviar', onclick: reenviar }, 'REENVIAR AQUÍ'),
+          h('p', { class: 'muted' }, puedeCompartir
+            ? 'Se abre la lista de aplicaciones: elija su correo o WhatsApp y envíelo a la empresa.'
+            : correoHref ? 'Se descarga el PDF y se abre su correo: adjunte el PDF descargado y envíelo.' : 'Se descarga el PDF y se abre WhatsApp con sus datos.'),
+          h('details', {}, h('summary', { class: 'muted' }, 'Otras formas de enviarla'),
+            h('div', { class: 'acciones' },
+              h('a', { class: 'btn', id: 'btn-wa', href: waHref, target: '_blank', rel: 'noopener' }, tel ? 'Por WhatsApp' : 'Abrir WhatsApp con los datos'),
+              correoHref ? h('a', { class: 'btn', id: 'btn-correo', href: correoHref }, 'Por correo') : null,
+              h('button', { class: 'btn', type: 'button', id: 'btn-descargar', onclick: () => descargar(blob, nombre) }, 'Descargar el PDF'))),
+          h('button', { class: 'btn peq', type: 'button', id: 'btn-volver-ficha', onclick: cerrar }, 'Volver a la ficha')));
+      document.getElementById('capa-reenviar')?.remove();
+      document.body.classList.add('con-capa');
+      document.body.append(capa);
+      capa.querySelector('#btn-reenviar').focus();
+      resultado.replaceChildren(h('div', { class: 'aviso ok' }, h('b', {}, 'Ficha preparada. '),
+        h('button', { class: 'btn peq', type: 'button', onclick: () => { document.body.classList.add('con-capa'); document.body.append(capa); } }, 'Reenviar aquí')));
     } catch (err) {
       resultado.replaceChildren(h('div', { class: 'aviso err' }, err.message || 'No se pudo preparar la ficha.'));
     } finally { e.target.disabled = false; }

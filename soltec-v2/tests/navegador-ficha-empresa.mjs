@@ -17,7 +17,9 @@ let browser;
 try {
   for (let i = 0; i < 50; i++) { try { await fetch(`http://127.0.0.1:${pWeb}/index.html`); break; } catch { await new Promise((r) => setTimeout(r, 100)); } }
   browser = await chromium.launch();
-  const page = await (await browser.newContext({ viewport: { width: 1000, height: 1200 } })).newPage();
+  const ctxApp = await browser.newContext({ viewport: { width: 1000, height: 1200 }, acceptDownloads: true });
+  await ctxApp.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const page = await ctxApp.newPage();
   const errores = [];
   page.on('pageerror', (e) => errores.push(e.message));
   const base = `http://localhost:${pWeb}/`;
@@ -60,9 +62,22 @@ try {
   await page.goto(base + 'index.html#/aviso/' + id);
   await page.click('summary:has-text("Solicitudes y comunicaciones")');
   await page.click('#btn-enlace-cliente');
-  await page.waitForSelector('#enlace-cliente');
+  await page.waitForSelector('#enlace-cliente', { state: 'attached' });
   const enlace = await page.inputValue('#enlace-cliente');
   assert.ok(enlace.length < 20000, `enlace de ${enlace.length} caracteres`);
+  assert.ok(!(await page.isVisible('#enlace-cliente')), 'el enlace largo no se ve');
+  await page.click('#enlace-correo');
+  await page.waitForSelector('#pasos-correo .aviso');
+  const html = await page.evaluate(async () => { const [it] = await navigator.clipboard.read(); return (await it.getType('text/html')).text(); });
+  assert.match(html, /ABRIR FORMULARIO AQU/);
+  assert.ok(html.includes('href="' + enlace.replace(/&/g, '&amp;') + '"'), 'el botón lleva el enlace');
+  assert.match(html, /NIF B99506651/);
+  assert.match(await page.textContent('#pasos-correo'), /pega/);
+  const [eml] = await Promise.all([page.waitForEvent('download'), page.click('#enlace-eml')]);
+  const textoEml = (await import('node:fs')).readFileSync(await eml.path(), 'utf8');
+  assert.match(textoEml, /X-Unsent: 1/);
+  assert.match(textoEml, /To: ana@correo\.es/);
+  ok('Correo al cliente con botón «ABRIR FORMULARIO AQUÍ» (copiado para pegar y en borrador para Outlook); el enlace no se ve');
 
   const cli = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage();
   cli.on('pageerror', (e) => errores.push('cliente: ' + e.message));
@@ -94,7 +109,11 @@ try {
   await cli.mouse.up();
   await cli.check('#c-acepto');
   await cli.click('#btn-preparar');
-  await cli.waitForSelector('#btn-descargar');
+  await cli.waitForSelector('#capa-reenviar #btn-reenviar');
+  assert.equal(await cli.textContent('#btn-reenviar'), 'REENVIAR AQUÍ');
+  assert.match(await cli.textContent('#capa-reenviar'), /Ficha firmada[\s\S]*M\. A\. SOLTEC/);
+  if (CAP) await cli.screenshot({ path: CAP + '/cliente-reenviar.png' });
+  ok('Al terminar sale la ventana «REENVIAR AQUÍ»');
   const texto = new URL(await cli.getAttribute('#btn-wa', 'href')).searchParams.get('text');
   assert.match(texto, /Potencia a contratar: 4,6/);
 
