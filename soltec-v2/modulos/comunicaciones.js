@@ -39,6 +39,33 @@ export async function imagenParaPdf(app, ficha) {
   } finally { URL.revokeObjectURL(url); }
 }
 
+/** Logo pequeño (data:URL) para el enlace del formulario: el cliente ve quién le pide los datos.
+ *  Se reduce hasta que ocupa poco (los enlaces muy largos los cortan algunas apps); si no cabe, no va. */
+export async function logoParaEnlace(app, ficha, limite = 12000) {
+  if (!ficha) return null;
+  try {
+    const f = await app.storage.getFile(ficha.hash);
+    if (!f) return null;
+    const url = URL.createObjectURL(new Blob([f.bytes], { type: f.mime }));
+    try {
+      const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = url; });
+      const w0 = img.naturalWidth || 600, h0 = img.naturalHeight || 200;
+      for (const [mw, mh] of [[240, 80], [180, 60], [130, 44]]) {
+        const k = Math.min(1, mw / w0, mh / h0);
+        const cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(w0 * k)); cv.height = Math.max(1, Math.round(h0 * k));
+        const cx = cv.getContext('2d');
+        cx.drawImage(img, 0, 0, cv.width, cv.height);
+        const png = cv.toDataURL('image/png');
+        if (png.length <= limite) return png;
+        cx.globalCompositeOperation = 'destination-over'; cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+        for (const q of [0.8, 0.6]) { const jpg = cv.toDataURL('image/jpeg', q); if (jpg.length <= limite) return jpg; }
+      }
+      return null;
+    } finally { URL.revokeObjectURL(url); }
+  } catch { return null; }
+}
+
 async function logoEdist() {
   try { const r = await fetch('./assets/logo_e-distribucion.jpg'); return { bytes: new Uint8Array(await r.arrayBuffer()), mime: 'image/jpeg' }; } catch { return null; }
 }
@@ -147,7 +174,7 @@ export async function bloqueComunicaciones(app, avisoId) {
     if (sinGuardar()) return;
     const aviso = { ...(await leer()), id: avisoId };
     const base = /github\.io$/.test(location.hostname) ? location.href.split('#')[0].replace(/[^/]*$/, '') : URL_PUBLICA;
-    const url = enlaceFormulario(paqueteFicha(aviso, empresa), base);
+    const url = enlaceFormulario(paqueteFicha(aviso, empresa, { logo: await logoParaEnlace(app, empresa.logo) }), base);
     const cl = aviso.cliente || {};
     const saludo = `Hola${cl.contacto || cl.nombre ? ' ' + (cl.contacto || cl.nombre).split(' ')[0] : ''}, le escribimos de ${nombreEmpresaCorta(empresa)}.`;
     const mensaje = `${saludo}\n\nPara tramitar su suministro${aviso.numero ? ' (aviso ' + aviso.numero + ')' : ''} necesitamos que revise y complete sus datos y firme aquí, desde el móvil:\n${url}\n\nAl terminar, pulse «Preparar ficha firmada» y envíenosla. Gracias.`;

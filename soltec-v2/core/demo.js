@@ -23,7 +23,8 @@ export function opcionesDemo(search = '') {
 }
 
 const dia = (hoy, n) => { const d = new Date(hoy + 'T12:00:00'); d.setDate(d.getDate() + n); return hoyLocal(d); };
-const hace = (n) => new Date(Date.now() - n * 86400000).toISOString();
+// Hace n días a las 10:00 del día dado: los mismos datos para el mismo día
+const hace = (hoy, n) => new Date(dia(hoy, -n) + 'T10:00:00').toISOString();
 
 /** Registros de ejemplo (ids fijos: sembrar dos veces no duplica). Datos inventados. */
 export function datosDemo(hoy = hoyLocal()) {
@@ -39,9 +40,9 @@ export function datosDemo(hoy = hoyLocal()) {
   ];
   // Historial: condiciones pedidas hace 20 días (sale un recordatorio) y otros movimientos
   const eventos = [
-    { id: 'demo_ev1', ref: 'demo_av2', data: { at: hace(20), kind: 'solicitud_presentada', text: 'Solicitud presentada a e-distribución' } },
-    { id: 'demo_ev2', ref: 'demo_av4', data: { at: hace(8), kind: 'solicitud_presentada', text: 'Solicitud presentada' } },
-    { id: 'demo_ev3', ref: 'demo_av3', data: { at: hace(12), kind: 'doc_enviada', text: 'Ficha del cliente: enviado' } },
+    { id: 'demo_ev1', ref: 'demo_av2', data: { at: hace(hoy, 20), kind: 'solicitud_presentada', text: 'Solicitud presentada a e-distribución' } },
+    { id: 'demo_ev2', ref: 'demo_av4', data: { at: hace(hoy, 8), kind: 'solicitud_presentada', text: 'Solicitud presentada' } },
+    { id: 'demo_ev3', ref: 'demo_av3', data: { at: hace(hoy, 12), kind: 'doc_enviada', text: 'Ficha del cliente: enviado' } },
   ];
   const citas = [
     { id: 'demo_ci1', ref: 'demo_av6', data: { titulo: 'Revisar cuadro general · Bar El Cruce', fecha: hoy, hora: '09:30', responsable: 'CARLOS', notas: '', alarma: false, antelacion: 15, hecho: false } },

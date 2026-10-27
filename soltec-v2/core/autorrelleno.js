@@ -19,7 +19,7 @@ const lleno = (v) => String(v ?? '').trim() !== '';
 export const CAMPOS_CLIENTE_AUTO = ['nombre', 'contacto', 'nif', 'telefono', 'email', 'iban'];
 export const CAMPOS_FACTURACION_AUTO = ['mismoCliente', 'nombre', 'nif', 'direccion', 'cp', 'poblacion', 'provincia'];
 export const CAMPOS_SUMINISTRO_AUTO = ['direccion', 'numero', 'piso', 'puerta', 'cp', 'poblacion', 'provincia', 'refCatastral', 'cups', 'lat', 'lon'];
-export const CAMPOS_ELECTRICO_AUTO = ['tension', 'iga', 'potenciaCalculada', 'potenciaKw', 'contador', 'contadorCercano', 'uso'];
+export const CAMPOS_ELECTRICO_AUTO = ['tension', 'iga', 'potenciaCalculada', 'potenciaContratar', 'potenciaKw', 'contador', 'contadorCercano', 'uso'];
 
 const ordenar = (avisos) => [...avisos].filter((r) => r && r.data && !r.deleted)
   .sort((a, b) => String(a.updatedAt || a.data.fecha || '').localeCompare(String(b.updatedAt || b.data.fecha || '')));

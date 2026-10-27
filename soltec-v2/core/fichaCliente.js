@@ -2,6 +2,7 @@
 // automática de lo que devuelve. Los mismos campos sirven para el PDF, el formulario y el lector.
 
 import { validarNif, validarTelefono, validarEmail, validarIban, validarCp, validarCups, validarRefCatastral } from './validate.js';
+import { problemaPotencia, potenciaDeIga } from './potencias.js';
 
 /** URL pública del formulario (GitHub Pages). Desde el PC instalado se usa también esta. */
 export const URL_PUBLICA = 'https://141carlos-source.github.io/Appcondiciones/soltec-v2/';
@@ -23,9 +24,10 @@ export const CAMPOS_FICHA = [
   ['suministro.provincia', 'Provincia', { grupo: 'suministro', peso: 1.6, req: true }],
   ['suministro.cups', 'CUPS (está en la factura de la luz)', { grupo: 'suministro', peso: 2, val: validarCups }],
   ['suministro.refCatastral', 'Referencia catastral', { grupo: 'suministro', peso: 2, val: validarRefCatastral }],
+  ['electrico.potenciaContratar', 'Potencia a contratar (kW)', { grupo: 'electrico', peso: 1.4, val: (v) => problemaPotencia(v), inputmode: 'decimal' }],
 ];
 export const REQUERIDOS_FICHA = new Set(CAMPOS_FICHA.filter(([, , o]) => o.req).map(([r]) => r));
-export const GRUPOS_FICHA = { cliente: 'DATOS DEL CLIENTE', suministro: 'DATOS DEL SUMINISTRO' };
+export const GRUPOS_FICHA = { cliente: 'DATOS DEL CLIENTE', suministro: 'DATOS DEL SUMINISTRO', electrico: 'DATOS ELÉCTRICOS' };
 
 /** Nombre del campo en el PDF (sin puntos: en los PDF el punto crea campos anidados). */
 export const nombreCampoPdf = (ruta) => ruta.replace('.', '__');
@@ -55,19 +57,75 @@ const deB64 = (s) => {
   return new TextDecoder().decode(Uint8Array.from(bin, (ch) => ch.charCodeAt(0)));
 };
 
-/** Datos que viajan en el enlace: solo los de la ficha, el número de aviso y cómo contactar con la empresa. */
-export function paqueteFicha(aviso, empresa) {
+/** Datos eléctricos fijos del aviso que ve el cliente (no los cambia): tensión, uso, IGA y potencia máxima. */
+export function electricoFicha(aviso) {
+  const el = aviso?.electrico || {};
+  const out = {};
+  if (limpio(el.tension)) out.t = limpio(el.tension);
+  if (limpio(el.uso)) out.u = limpio(el.uso);
+  if (limpio(el.iga)) out.i = limpio(el.iga);
+  const pc = limpio(el.potenciaCalculada) || potenciaDeIga(el.iga, el.tension);
+  if (pc) out.pc = pc;
+  return out;
+}
+
+/** Datos de la empresa que viajan en el enlace (para que el cliente sepa quién le pide los datos). */
+export function empresaFicha(empresa, logo) {
   const e = empresa?.empresa || {};
+  const out = { n: e.nombreComercial || e.nombre || '', t: e.telefono || '', m: e.email || '' };
+  if (e.nombreComercial && e.nombre && e.nombre !== e.nombreComercial) out.rs = e.nombre; // razón social
+  if (e.nif) out.f = e.nif;
+  const dir = [e.direccion, [e.cp, e.localidad].filter(Boolean).join(' '), e.provincia].map(limpio).filter(Boolean).join(', ');
+  if (dir) out.d = dir;
+  if (e.web) out.w = e.web;
+  if (typeof logo === 'string' && /^data:image\/(png|jpeg);base64,/.test(logo)) out.l = logo;
+  return out;
+}
+
+/** Empresa del enlace → formato de empresa de la app (para el PDF que se prepara en el móvil del cliente). */
+export function empresaDePaquete(p) {
+  const e = p?.e || {};
+  return { empresa: { nombre: e.rs || e.n || '', nombreComercial: e.rs ? e.n || '' : '', nif: e.f || '', telefono: e.t || '', email: e.m || '', web: e.w || '', direccion: e.d || '' } };
+}
+
+/**
+ * Datos que viajan en el enlace: los de la ficha, los eléctricos fijos, el número de aviso y la empresa.
+ * @param {string} [o.logo]  logo pequeño como data:URL (PNG o JPG); se omite si no se da
+ */
+export function paqueteFicha(aviso, empresa, o = {}) {
   const d = {};
   for (const [ruta] of CAMPOS_FICHA) { const v = limpio(leer(aviso, ruta)); if (v) d[ruta] = v; }
+  const el = electricoFicha(aviso);
   return {
     v: 1,
     id: aviso.id || '',
     n: aviso.numero || '',
     ref: aviso.condiciones?.ref || '',
-    e: { n: e.nombreComercial || e.nombre || '', t: e.telefono || '', m: e.email || '' },
+    e: empresaFicha(empresa, o.logo),
+    ...(Object.keys(el).length ? { el } : {}),
     d,
   };
+}
+
+// ---------------------------------------------------------------- protección de datos
+/**
+ * Información básica de protección de datos (RGPD art. 13 y LOPDGDD art. 11) para quien da sus datos.
+ * Texto de partida: la empresa debe revisarlo con su asesor.
+ * @returns {[string, string][]}  [apartado, texto]
+ */
+export function infoProteccionDatos(empresa) {
+  const e = empresa?.empresa || {};
+  const nombre = e.nombre || e.nombreComercial || 'la empresa instaladora';
+  const dir = [e.direccion, [e.cp, e.localidad].filter(Boolean).join(' '), e.provincia].map(limpio).filter(Boolean).join(', ');
+  const contacto = [e.email, e.telefono].filter(Boolean).join(' · ');
+  return [
+    ['Responsable', [nombre, e.nif && `NIF ${e.nif}`, dir, contacto].filter(Boolean).join(' · ')],
+    ['Finalidad', 'Tramitar su suministro eléctrico: solicitudes ante la empresa distribuidora (condiciones técnicas, acometida, alta o cambio de potencia), contratación con la comercializadora, certificados y documentación de la instalación.'],
+    ['Legitimación', 'La ejecución del encargo o contrato que nos ha hecho (o medidas previas a petición suya) y el cumplimiento de obligaciones legales del sector eléctrico.'],
+    ['Destinatarios', 'La empresa distribuidora de la zona (p. ej. e-distribución), la comercializadora que usted elija y, cuando proceda, la Administración competente en industria y energía. No se ceden a terceros para otros fines.'],
+    ['Conservación', 'Mientras dure la tramitación y, después, durante los plazos que exigen las leyes (fiscales y de instalaciones eléctricas).'],
+    ['Derechos', `Puede pedir el acceso, rectificación, supresión, oposición, limitación y portabilidad de sus datos escribiendo a ${e.email || nombre}${e.email ? '' : ' en la dirección indicada'}. Si cree que no se respetan sus derechos, puede reclamar ante la Agencia Española de Protección de Datos (www.aepd.es).`],
+  ];
 }
 
 /** Enlace al formulario con los datos dentro (tras «#»: no se envían a ningún servidor). */

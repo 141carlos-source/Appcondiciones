@@ -20,6 +20,7 @@ import { bloqueCuadros } from './cuadros.js';
 import { bloqueAutorizacion } from './autorizacion.js';
 import { bloquePartes } from './partes.js';
 import { calcularRecordatorios, tarjetasRecordatorios } from './recordatorios.js';
+import { IGAS, potenciaDeIga, potenciasNormalizadas, problemaPotencia } from '../core/potencias.js';
 
 const faseLabel = (id) => FASES_TRAMITE.find((f) => f.id === id)?.label || '';
 const leer = (o, ruta) => ruta.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
@@ -108,18 +109,12 @@ const CAMPOS_CLIENTE = [
   ['suministro.lat', 'Latitud', 'text', { inputmode: 'decimal' }],
   ['suministro.lon', 'Longitud', 'text', { inputmode: 'decimal' }],
 ];
-/** Calibres de IGA y potencia que admiten: 230 V → I·230; 400 V → √3·400·I (en kW, con coma). */
-const IGAS = [25, 40, 63, 80, 100, 125, 250];
-export const potenciaDeIga = (iga, tension) => {
-  const i = Number(iga), v = String(tension);
-  if (!i || !['230', '400'].includes(v)) return '';
-  const kw = v === '400' ? Math.sqrt(3) * 400 * i / 1000 : 230 * i / 1000;
-  return (Math.round(kw * 100) / 100).toString().replace('.', ',');
-};
+export { potenciaDeIga };
 const CAMPOS_ELEC = [
   ['electrico.tension', 'Tensión', 'select', { opciones: [['', '—'], ['230', '230 V (monofásico)'], ['400', '400 V (trifásico)']] }],
   ['electrico.iga', 'IGA (A)', 'select', { opciones: [['', '—'], ...IGAS.map((a) => [String(a), a + ' A'])] }],
   ['electrico.potenciaCalculada', 'Potencia calculada (kW) · según IGA y tensión', 'text', { inputmode: 'decimal', soloLectura: true }],
+  ['electrico.potenciaContratar', 'Potencia a contratar (kW) · con la comercializadora', 'text', { inputmode: 'decimal', placeholder: 'La que quiere el cliente', potencias: true }],
   ['electrico.potenciaKw', 'Potencia CNMC (kW) · la que va en la memoria', 'text', { inputmode: 'decimal', placeholder: '¿Qué potencia va en la CNMC?' }],
   ['electrico.contador', 'Contador', 'text'],
   ['electrico.contadorCercano', 'Contador cercano', 'text'],
@@ -340,6 +335,7 @@ export async function vistaFicha(app, id) {
         const kw = potenciaDeIga(draft.electrico?.iga, draft.electrico?.tension);
         escribir(draft, 'electrico.potenciaCalculada', kw);
         const c = cont.querySelector('#f-electrico-potenciaCalculada'); if (c) c.value = kw;
+        pintarPotencias();
         if (kw && !String(draft.electrico?.potenciaKw || '').trim()) cont.querySelector('#f-electrico-potenciaKw')?.focus();
       }
       alCambiar();
@@ -362,12 +358,32 @@ export async function vistaFicha(app, id) {
           obraDeDireccion();
           comprobarDuplicados(); alCambiar();
         } : null });
-    const sug = ctrl.tagName === 'INPUT' && !o.soloLectura ? sugerenciasDe(ruta, ctrl) : null;
+    const sug = ctrl.tagName === 'INPUT' && !o.soloLectura && !o.potencias ? sugerenciasDe(ruta, ctrl) : null;
+    // Potencia a contratar: botones con las potencias normalizadas hasta la que admite el IGA
+    const potencias = o.potencias ? cajaPotencias : null;
+    if (o.potencias) { ctrlPotencia = ctrl; ctrl.addEventListener('input', () => avisoPotencia()); }
     // Llamar / WhatsApp / correo al cliente directamente desde la ficha
     const contacto = ruta === 'cliente.telefono' ? accionesContacto(ctrl, 'telefono')
       : ruta === 'cliente.email' ? accionesContacto(ctrl, 'correo', { asunto: () => ['Aviso', draft.numero, direccionCompleta(draft.suministro)].filter(Boolean).join(' ') }) : null;
-    return h('div', { class: 'campo' + (o.ancho === 2 ? ' ancho' : ''), 'data-campo': ruta }, h('label', { for: idc }, etiqueta), ctrl, sug, contacto, h('div', { class: 'msg-pend' }));
+    return h('div', { class: 'campo' + (o.ancho === 2 ? ' ancho' : ''), 'data-campo': ruta }, h('label', { for: idc }, etiqueta), ctrl, sug, potencias, contacto, h('div', { class: 'msg-pend' }), o.potencias ? msgPotencia : null);
   };
+  // --- potencia a contratar
+  let ctrlPotencia = null;
+  const cajaPotencias = h('div', { class: 'chips potencias', id: 'potencias-normalizadas' });
+  const msgPotencia = h('div', { class: 'msg-potencia', id: 'msg-potencia' });
+  const avisoPotencia = () => { msgPotencia.textContent = problemaPotencia(draft.electrico?.potenciaContratar, draft.electrico?.potenciaCalculada) || ''; };
+  const pintarPotencias = () => {
+    const el = draft.electrico || {};
+    const lista = potenciasNormalizadas(el.tension, el.potenciaCalculada);
+    cajaPotencias.replaceChildren(...lista.map((p) => h('button', { class: 'chip' + (String(el.potenciaContratar || '') === p.kw ? ' activo' : ''), type: 'button', 'data-kw': p.kw, title: `${p.a} A`, onclick: () => {
+      escribir(draft, 'electrico.potenciaContratar', p.kw);
+      if (ctrlPotencia) ctrlPotencia.value = p.kw;
+      pintarPotencias(); avisoPotencia(); alCambiar();
+    } }, p.kw)));
+    cajaPotencias.hidden = !lista.length;
+    avisoPotencia();
+  };
+  pintarPotencias();
   const seccion = (titulo, abierta, ...hijos) => h('details', { class: 'card', open: abierta || null }, h('summary', {}, titulo), h('div', { class: 'cuerpo' }, ...hijos));
 
   // --- condiciones y trámite

@@ -144,6 +144,20 @@ input.mono { font-family: var(--mono); font-size: 15px; }
 .campo.pend input, .campo.pend select, .campo.pend textarea { background: var(--rojo-tinte); border-color: #f0c3c4; box-shadow: inset 3px 0 0 var(--rojo); }
 .msg-pend { font-size: 12.5px; font-weight: 500; color: var(--rojo-oscuro); margin-top: 4px; }
 .msg-pend:empty { display: none; }
+.msg-potencia { font-size: 12.5px; font-weight: 600; color: #8a5a00; margin-top: 4px; }
+.msg-potencia:empty { display: none; }
+.chips.potencias { flex-wrap: wrap; overflow: visible; padding: 8px 0 0; }
+.chips.potencias[hidden] { display: none; }
+.chips.potencias .chip { padding: 7px 11px; font-variant-numeric: tabular-nums; }
+/* Formulario web del cliente: empresa, datos eléctricos y protección de datos */
+.empresa-cab { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.empresa-cab img { max-height: 56px; max-width: 180px; object-fit: contain; }
+.empresa-cab .datos-emp { font-size: 13px; color: var(--acero, #5a6169); line-height: 1.45; }
+.dato-fijo { padding: 10px 12px; border: 1.5px dashed var(--linea); border-radius: 10px; background: var(--papel); font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.rgpd { font-size: 13px; line-height: 1.5; }
+.rgpd table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; }
+.rgpd th, .rgpd td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--linea); text-transform: none; }
+.rgpd th { width: 32%; font-weight: 700; }
 
 .check-linea { display: inline-flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 500; color: var(--tinta); margin: 10px 14px 0 0; cursor: pointer; }
 .check-linea input { width: 20px; height: 20px; accent-color: var(--rojo); margin: 0; }

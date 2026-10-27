@@ -2,7 +2,8 @@
 // Funciones puras: reciben pdf-lib (PDFLib) y los datos; no tocan la base de datos.
 
 import { direccionCompleta, calleNumero, nombreArchivo, datosPendientes } from './model.js';
-import { nombreCampoPdf, REQUERIDOS_FICHA } from './fichaCliente.js';
+import { nombreCampoPdf, REQUERIDOS_FICHA, infoProteccionDatos } from './fichaCliente.js';
+import { potenciaDeIga, TENSIONES, USOS } from './potencias.js';
 import { nombreEmpresa } from './empresa.js';
 
 // ---------------------------------------------------------------- utilidades
@@ -14,6 +15,18 @@ export const nombreFicha = (aviso, firmada = false) => {
   const s = aviso.suministro || {};
   return nombreArchivo('FICHA_CLIENTE', calleNumero(s) || aviso.numero, s.piso && `PISO ${s.piso}`, s.puerta && `PUERTA ${s.puerta}`, firmada && 'FIRMADA') + '.pdf';
 };
+
+/** Parte un texto en líneas que caben en un ancho (fuente estándar de pdf-lib). */
+export function partirLineas(t, font, size, ancho) {
+  const out = [];
+  let linea = '';
+  for (const pal of String(t).split(/\s+/).filter(Boolean)) {
+    const prueba = linea ? linea + ' ' + pal : pal;
+    if (linea && font.widthOfTextAtSize(prueba, size) > ancho) { out.push(linea); linea = pal; } else linea = prueba;
+  }
+  if (linea) out.push(linea);
+  return out;
+}
 
 const ROJO = [0.769, 0.086, 0.11], GRAFITO = [0.118, 0.133, 0.149], ACERO = [0.353, 0.38, 0.412], LINEA = [0.83, 0.843, 0.859], HUESO = [0.957, 0.949, 0.933];
 
@@ -86,14 +99,15 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma,
     const alto = size === 9 ? 18 : 16, gap = 8;
     const total = campos.reduce((a, f) => a + f[2], 0);
     let x = M;
-    for (const [etiqueta, valor, peso, ruta] of campos) {
+    for (const [etiqueta, valor, peso, ruta, fijo] of campos) {
       const w = (W - gap * (campos.length - 1)) * (peso / total);
       texto(etiqueta, x, y - 9, { size: 6.5, color: ACERO, maxW: w });
       // Los campos de datos se llaman como su ruta (cliente__nombre…) para poder leerlos al volver
       const tf = form.createTextField(ruta ? nombreCampoPdf(ruta) : `f${++n}_${nombreArchivo(etiqueta).slice(0, 30)}`);
       tf.setText(textoPdf(valor));
       if (ruta && REQUERIDOS_FICHA.has(ruta)) tf.enableRequired();
-      tf.addToPage(page, { x, y: y - 11 - alto, width: w, height: alto, font: fuente, borderColor: c(LINEA), backgroundColor: valor ? rgb(1, 1, 1) : rgb(0.984, 0.918, 0.918), borderWidth: 0.6 });
+      if (fijo) tf.enableReadOnly(); // dato del proyecto: el cliente lo ve pero no lo cambia
+      tf.addToPage(page, { x, y: y - 11 - alto, width: w, height: alto, font: fuente, borderColor: c(LINEA), backgroundColor: fijo ? c(HUESO) : valor ? rgb(1, 1, 1) : rgb(0.984, 0.918, 0.918), borderWidth: 0.6 });
       tf.setFontSize(size);
       x += w + gap;
     }
@@ -112,9 +126,10 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma,
   fila([['CUPS', su.cups, 2, 'suministro.cups'], ['Referencia catastral', su.refCatastral, 2, 'suministro.refCatastral']], 8);
   y -= 4;
   seccion('DATOS ELÉCTRICOS');
-  const tension = { 230: '230 V (monofásico)', 400: '400 V (trifásico)' }[el.tension] || el.tension || '';
-  const usos = { vivienda: 'Vivienda', local: 'Local comercial', comunes: 'Servicios comunes', garaje: 'Garaje / recarga', otro: 'Otro' };
-  fila([['Potencia (kW)', el.potenciaKw, 1], ['Tensión', tension, 1.4], ['Uso', usos[el.uso] || el.uso, 1.6]], 8);
+  const tension = TENSIONES[el.tension] || el.tension || '';
+  const maxIga = String(el.potenciaCalculada || '').trim() || potenciaDeIga(el.iga, el.tension);
+  fila([['Tensión', tension, 1.4, null, true], ['Uso', USOS[el.uso] || el.uso, 1.4, null, true], ['IGA (A)', el.iga ? el.iga + ' A' : '', 0.8, null, true]], 8);
+  fila([['Potencia máxima según IGA (kW)', maxIga, 1.6, null, true], ['Potencia a contratar (kW) · puede ser menor que la máxima', el.potenciaContratar, 2, 'electrico.potenciaContratar']], 8);
   y -= 8;
 
   // Firma
@@ -123,8 +138,9 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma,
   const conf = form.createCheckBox('conformidad');
   conf.addToPage(page, { x: M, y: y - 14, width: 12, height: 12, borderColor: c(GRAFITO), borderWidth: 0.8, backgroundColor: rgb(1, 1, 1) });
   if (firma) conf.check();
-  texto('Declaro que los datos son correctos y autorizo su uso para tramitar la solicitud con la distribuidora y la comercializadora.', M + 18, y - 11, { size: 7.5, maxW: W - 18 });
-  y -= 24;
+  const lConf = partirLineas('Declaro que los datos son correctos, que he leído la información básica sobre protección de datos (al pie) y autorizo su uso para tramitar la solicitud con la distribuidora y la comercializadora.', fuente, 7.5, W - 18);
+  lConf.forEach((l, i) => texto(l, M + 18, y - 11 - i * 9.5, { size: 7.5 }));
+  y -= 15 + lConf.length * 9.5;
   const firmaH = 80;
   page.drawRectangle({ x: M, y: y - firmaH, width: W * 0.6, height: firmaH, borderColor: c(LINEA), borderWidth: 0.6 });
   texto('Firma', M + 4, y - 9, { size: 6.5, color: ACERO });
@@ -147,7 +163,18 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma,
   campoFirma('Fecha', firma?.fecha || '', 40, 'firma__fecha');
   y -= firmaH + 14;
 
-  texto(`Documento preparado por ${nombreEmpresa(empresa)}${firma ? ' · Firmado en el dispositivo el ' + firma.fecha : ''}.`, M, Math.max(y, M), { size: 6.5, color: ACERO, maxW: W });
+  // Información básica de protección de datos (RGPD art. 13)
+  texto('INFORMACIÓN BÁSICA SOBRE PROTECCIÓN DE DATOS', M, y, { size: 6.8, font: negrita, color: GRAFITO });
+  y -= 9;
+  for (const [apartado, txt] of infoProteccionDatos(empresa)) {
+    const ancho = negrita.widthOfTextAtSize(textoPdf(apartado + ': '), 6.3);
+    const lineas = partirLineas(textoPdf(txt), fuente, 6.3, W - ancho);
+    texto(apartado + ':', M, y, { size: 6.3, font: negrita, color: GRAFITO });
+    lineas.forEach((l, i) => texto(l, M + ancho, y - i * 7.6, { size: 6.3, color: ACERO }));
+    y -= lineas.length * 7.6 + 1.2;
+  }
+  y -= 4;
+  texto(`Documento preparado por ${nombreEmpresa(empresa)}${firma ? ' · Firmado en el dispositivo el ' + firma.fecha : ''}.`, M, Math.max(y, M - 14), { size: 6.5, color: ACERO, maxW: W });
 
   form.updateFieldAppearances(fuente);
   // Pide al visor que redibuje los campos al rellenarlos (mejor resultado en móviles)
