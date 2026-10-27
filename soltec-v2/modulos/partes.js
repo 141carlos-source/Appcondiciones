@@ -1,6 +1,6 @@
 // SOLTEC V2 · Partes de trabajo: listado, ficha, firma del cliente, cierre y PDF.
 
-import { h, toast, irORepintar, abrirBlob, compartir, descargar, lienzoFirma, confirmar, sugerencias } from '../ui.js';
+import { h, toast, irORepintar, abrirBlob, compartir, descargar, lienzoFirma, confirmar, sugerencias, accionesContacto } from '../ui.js';
 import { clientesConocidos, suministrosConocidos, buscarClientes, buscarSuministros, valoresUsados, datosDeLocalidad, textoSuministro, normal, comoAvisoDeParte, catalogoMateriales, buscarMateriales } from '../core/autorrelleno.js';
 import { formatearTelefono } from '../core/validate.js';
 import { nuevoParte, normalizarParte, siguienteNumeroParte, faltaParaCerrar, generarPartePdf, nombrePartePdf, RESULTADOS, CONCEPTOS, horasNumero } from '../core/partes.js';
@@ -95,7 +95,7 @@ export async function vistaParte(app, id) {
     for (let [k, v] of Object.entries(cambios)) {
       if (k === 'telefono') v = formatearTelefono(v);
       p.cliente[k] = v;
-      const el = document.getElementById(ID_CLIENTE[k]); if (el) el.value = v;
+      const el = document.getElementById(ID_CLIENTE[k]); if (el) { el.value = v; el.dispatchEvent(new Event('soltec:valor')); }
     }
     marca();
   };
@@ -151,7 +151,8 @@ export async function vistaParte(app, id) {
       const usados = valoresUsados(otrosPartes, 'tecnico');
       sug = sugerencias(input, { alEnfocar: true, buscar: (t) => usados.filter((v) => normal(v) !== normal(t) && normal(v).includes(normal(t))).slice(0, 6).map((v) => ({ titulo: v, v })), elegir: (it) => { input.value = it.v; p.tecnico = it.v; marca(); } });
     }
-    return h('div', { class: 'campo' + (ancho ? ' ancho' : '') }, h('label', { for: id }, etq), input, sug);
+    const contacto = obj === p.cliente && k === 'telefono' ? accionesContacto(input, 'telefono') : obj === p.cliente && k === 'email' ? accionesContacto(input, 'correo', { asunto: () => `Parte ${p.numero || ''}`.trim() }) : null;
+    return h('div', { class: 'campo' + (ancho ? ' ancho' : '') }, h('label', { for: id }, etq), input, sug, contacto);
   };
   const area = (k, etq, filas = 4) => h('div', { class: 'campo ancho' }, h('label', { for: 'p-' + k }, etq),
     h('textarea', { id: 'p-' + k, rows: filas, value: p[k] || '', disabled: bloqueado || null, oninput: (e) => { p[k] = e.target.value; marca(); } }));

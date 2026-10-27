@@ -1,7 +1,7 @@
 // SOLTEC V2 · Capa 6 · Avisos y Expedientes: listados y ficha.
 // Un expediente es un aviso con referencia o PDF de condiciones: misma ficha, distinto listado.
 
-import { h, toast, fecha, fechaHora, abrirBlob, compartir, ir, confirmar, sugerencias } from '../ui.js';
+import { h, toast, fecha, fechaHora, abrirBlob, compartir, ir, confirmar, sugerencias, accionesContacto } from '../ui.js';
 import { clientesConocidos, suministrosConocidos, buscarClientes, buscarSuministros, rellenoCliente, rellenoSuministro, valoresUsados, datosDeLocalidad, textoSuministro, normal } from '../core/autorrelleno.js';
 import {
   nuevoAviso, normalizarAviso, siguienteNumero, isExpediente, conPdfCondiciones, pdfCondicionesActual, datosPendientes,
@@ -220,6 +220,7 @@ export async function vistaFicha(app, id) {
       if (el) {
         if (el.tagName === 'SELECT' && v && ![...el.options].some((o) => o.value === String(v))) el.append(h('option', { value: String(v) }, String(v)));
         el.value = v;
+        el.dispatchEvent(new Event('soltec:valor')); // botones de llamar / correo
       }
       if (ruta === 'electrico.uso' && draft.memoria) { draft.memoria.usoFinca = usoFincaDeUso(v); const u = cont.querySelector('#m-uso'); if (u) u.value = draft.memoria.usoFinca; }
     }
@@ -362,7 +363,10 @@ export async function vistaFicha(app, id) {
           comprobarDuplicados(); alCambiar();
         } : null });
     const sug = ctrl.tagName === 'INPUT' && !o.soloLectura ? sugerenciasDe(ruta, ctrl) : null;
-    return h('div', { class: 'campo' + (o.ancho === 2 ? ' ancho' : ''), 'data-campo': ruta }, h('label', { for: idc }, etiqueta), ctrl, sug, h('div', { class: 'msg-pend' }));
+    // Llamar / WhatsApp / correo al cliente directamente desde la ficha
+    const contacto = ruta === 'cliente.telefono' ? accionesContacto(ctrl, 'telefono')
+      : ruta === 'cliente.email' ? accionesContacto(ctrl, 'correo', { asunto: () => ['Aviso', draft.numero, direccionCompleta(draft.suministro)].filter(Boolean).join(' ') }) : null;
+    return h('div', { class: 'campo' + (o.ancho === 2 ? ' ancho' : ''), 'data-campo': ruta }, h('label', { for: idc }, etiqueta), ctrl, sug, contacto, h('div', { class: 'msg-pend' }));
   };
   const seccion = (titulo, abierta, ...hijos) => h('details', { class: 'card', open: abierta || null }, h('summary', {}, titulo), h('div', { class: 'cuerpo' }, ...hijos));
 

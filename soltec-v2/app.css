@@ -426,3 +426,8 @@ select { background-color: var(--papel); color: var(--tinta); }
   main { padding: 0; max-width: none; }
   .card, .tarjeta { border-color: #000; break-inside: avoid; box-shadow: none; }
 }
+
+/* Llamar / WhatsApp / correo bajo el teléfono y el correo del cliente */
+.acciones-contacto { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.acciones-contacto[hidden] { display: none; }
+.acciones-contacto .btn { min-height: 40px; }

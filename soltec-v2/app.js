@@ -6,9 +6,9 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.27.1';
+export const VERSION = 'V2-1.28.0';
 
-import { h, ico, toast, hace, descargar, activarMayusculas, confirmar, preguntar } from './ui.js';
+import { h, ico, toast, hace, descargar, activarMayusculas, vigilarFocoTeclado, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
 import { vistaAgenda, vistaCita, iniciarAlarmas } from './modulos/agenda.js';
 import { vistaEmpresa } from './modulos/empresa.js';
@@ -811,6 +811,7 @@ export async function iniciar() {
   carcasa();
   pintarBotonInstalar();
   activarMayusculas();
+  vigilarFocoTeclado((d) => app.anotarError?.({ message: d.mensaje, stack: d.pila }, 'teclado'));
   try {
     app.storage = await Storage.open();
   } catch (e) {

@@ -18,6 +18,9 @@ export function h(tag, attrs = {}, ...children) {
 const ICO = {
   campana: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
   documento: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 15.5h5"/>',
+  telefono: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+  correo: '<path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/>',
+  whatsapp: '<path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1a4 4 0 0 1-2-2l1-1-1-2z"/>',
 };
 /** Icono SVG propio (sin emojis). Con «texto» se anuncia a los lectores de pantalla; sin él, es decorativo. */
 export function ico(nombre, texto = '') {
@@ -166,12 +169,27 @@ export function activarMayusculas(raiz = document) {
     el.value = m;
     return true;
   };
-  raiz.addEventListener('focusin', (e) => {
-    const el = e.target;
-    if (!vaEnMayusculas(el)) return;
+  // El campo se prepara (mayúsculas en el teclado y a la vista) ANTES de recibir el foco: al tocarlo.
+  // Cambiar un campo ya enfocado hace que algunos teclados de Android se reinicien: el teclado sale y se esconde.
+  const preparar = (el) => {
+    if (!vaEnMayusculas(el) || el.dataset.mayusPreparado) return;
+    el.dataset.mayusPreparado = '1';
     if (!el.hasAttribute('autocapitalize')) el.setAttribute('autocapitalize', 'characters');
     if (tactil()) el.style.textTransform = 'uppercase';
-  }, true);
+  };
+  raiz.addEventListener('pointerdown', (e) => preparar(e.target), true);
+  raiz.addEventListener('touchstart', (e) => preparar(e.target), { capture: true, passive: true });
+  // Con el teclado del PC (tabulador) no hay toque: se prepara al entrar (ahí no hay teclado en pantalla que reiniciar)
+  raiz.addEventListener('focusin', (e) => { if (!tactil()) preparar(e.target); }, true);
+  // Los campos que ya están en pantalla se preparan al pintarse (así ni siquiera cambian al tocarlos)
+  const prepararTodo = (n) => {
+    if (!tactil() || !n || n.nodeType !== 1) return;
+    if (n.matches?.('input,textarea')) preparar(n);
+    n.querySelectorAll?.('input,textarea').forEach(preparar);
+  };
+  if (typeof MutationObserver === 'function' && raiz.body !== undefined) {
+    new MutationObserver((ms) => { for (const m of ms) m.addedNodes.forEach(prepararTodo); }).observe(raiz.body || raiz, { childList: true, subtree: true });
+  }
   raiz.addEventListener('input', (e) => {
     const el = e.target;
     if (e.isComposing || tactil() || !vaEnMayusculas(el)) return;
@@ -237,4 +255,80 @@ export function sugerencias(input, { buscar, elegir, alEnfocar = false }) {
   });
   input.setAttribute('aria-autocomplete', 'list');
   return lista;
+}
+
+// --- Diagnóstico del teclado del móvil: si un campo pierde el foco solo (sin tocar otra cosa) mientras se escribe,
+// se anota en el registro de errores con los detalles, para saber qué lo provoca en ese teléfono.
+export function vigilarFocoTeclado(anotar) {
+  if (typeof matchMedia !== 'function' || !matchMedia('(pointer: coarse)').matches) return;
+  let ultimoToque = 0, ultimaTecla = 0;
+  const vv = () => (window.visualViewport ? Math.round(window.visualViewport.height) : window.innerHeight);
+  let alto = vv();
+  document.addEventListener('pointerdown', () => { ultimoToque = Date.now(); }, true);
+  document.addEventListener('input', () => { ultimaTecla = Date.now(); }, true);
+  document.addEventListener('focusout', (e) => {
+    const el = e.target;
+    if (!el.matches?.('input,textarea') || document.visibilityState !== 'visible') return;
+    const ahora = Date.now();
+    if (ahora - ultimoToque < 700) return; // lo ha cambiado el usuario tocando otra cosa
+    if (ahora - ultimaTecla > 4000 && ahora - ultimoToque > 4000) return; // no estaba escribiendo
+    const id = el.id || el.name || el.className || el.tagName;
+    setTimeout(() => {
+      const act = document.activeElement;
+      anotar({
+        mensaje: `Teclado: el campo «${id}» perdió el foco solo mientras se escribía`,
+        pila: [`pasa a: ${act ? (act.id || act.tagName) : 'nada'}`, `relatedTarget: ${e.relatedTarget ? (e.relatedTarget.id || e.relatedTarget.tagName) : 'ninguno'}`,
+          `campo en pantalla: ${el.isConnected ? 'sí' : 'no (se ha redibujado)'}`, `alto visible: ${alto} → ${vv()} px`, `ruta: ${location.hash}`].join('\n'),
+        origen: 'teclado',
+      });
+    }, 300);
+  }, true);
+  window.visualViewport?.addEventListener('resize', () => { setTimeout(() => { alto = vv(); }, 1000); });
+}
+
+// --- Llamar, WhatsApp y correo desde un campo (teléfono / correo del cliente)
+/** Enlace «tel:» de un teléfono (españoles con +34), o null si no parece un teléfono. */
+export function hrefTelefono(t) {
+  const d = String(t || '').replace(/[\s.\-()]/g, '');
+  if (/^(\+34|0034)?[6789]\d{8}$/.test(d)) return 'tel:+34' + d.slice(-9);
+  if (/^(\+|00)\d{8,15}$/.test(d)) return 'tel:' + d.replace(/^00/, '+');
+  return null;
+}
+/** Enlace de WhatsApp de un móvil español (6 o 7), o null. */
+export function hrefWhatsApp(t) {
+  const d = String(t || '').replace(/[\s.\-()]/g, '').replace(/^(\+34|0034)/, '');
+  return /^[67]\d{8}$/.test(d) ? 'https://wa.me/34' + d : null;
+}
+/** Enlace «mailto:» de un correo, o null si no parece un correo. */
+export function hrefCorreo(e, asunto = '') {
+  const c = String(e || '').trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(c)) return null;
+  return 'mailto:' + c + (asunto ? '?subject=' + encodeURIComponent(asunto) : '');
+}
+/**
+ * Botones bajo un campo: «Llamar» (+ «WhatsApp» si es móvil) o «Enviar correo». Solo se ven con un dato válido
+ * y se actualizan al escribir o cuando el autorrelleno pone el valor (evento «soltec:valor»).
+ * @param {'telefono'|'correo'} tipo
+ */
+export function accionesContacto(input, tipo, { asunto = '' } = {}) {
+  const caja = h('div', { class: 'acciones-contacto', 'data-tipo': tipo });
+  const pintar = () => {
+    const v = input.value;
+    const hijos = [];
+    if (tipo === 'telefono') {
+      const t = hrefTelefono(v), w = hrefWhatsApp(v);
+      if (t) hijos.push(h('a', { class: 'btn peq', href: t, 'data-accion': 'llamar' }, ico('telefono'), 'Llamar'));
+      if (w) hijos.push(h('a', { class: 'btn peq', href: w, target: '_blank', rel: 'noopener', 'data-accion': 'whatsapp' }, ico('whatsapp'), 'WhatsApp'));
+    } else {
+      const m = hrefCorreo(v, typeof asunto === 'function' ? asunto() : asunto);
+      // El asunto se calcula al pulsar (con los datos del aviso de ese momento)
+      if (m) hijos.push(h('a', { class: 'btn peq', href: m, 'data-accion': 'correo', onclick: (e) => { e.currentTarget.href = hrefCorreo(input.value, typeof asunto === 'function' ? asunto() : asunto) || m; } }, ico('correo'), 'Enviar correo'));
+    }
+    caja.replaceChildren(...hijos);
+    caja.hidden = !hijos.length;
+  };
+  input.addEventListener('input', pintar);
+  input.addEventListener('soltec:valor', pintar);
+  pintar();
+  return caja;
 }
