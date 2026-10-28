@@ -62,21 +62,15 @@ try {
     electrico: { potenciaKw: '5,75', tension: '230' }, docs: {},
   }, { event: { kind: 'creado' } })).id);
 
-  // Ficha PDF
   await page.goto(base + '#/aviso/' + id);
   await page.click('summary:has-text("Solicitudes y comunicaciones")');
-  await page.click('#btn-ficha-pdf');
-  await page.waitForSelector('#panel-ficha-pdf');
-  assert.match(await page.textContent('#panel-ficha-pdf'), /Ficha rellenable preparada/);
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#panel-ficha-pdf >> text=Descargar PDF')]);
-  assert.equal(dl.suggestedFilename(), 'FICHA_CLIENTE_CALLE_RAMON_Y_CAJAL_12_PISO_3_PUERTA_B.pdf');
-  const doc = await PDFLib.PDFDocument.load(readFileSync(await dl.path()));
-  const vals = doc.getForm().getFields().map((f) => f.getText?.());
-  assert.ok(vals.includes('María Pérez Núñez') && vals.includes('12345678Z'));
-  assert.ok(doc.getForm().getCheckBox('conformidad'), 'casilla de conformidad');
-  ok('Ficha PDF rellenable generada en el móvil con los datos del aviso, el logo y la casilla de conformidad');
+  const pasos = await page.$$eval('#comunicaciones .paso-com[data-paso] .tarjeta-cab b', (b) => b.map((x) => x.textContent));
+  assert.deepEqual(pasos, ['1 · Datos del cliente', '2 · Condiciones de suministro', '3 · Contrato de electricidad']);
+  assert.ok(!(await page.$('#btn-ficha-pdf')), 'sin ficha PDF rellenable');
+  ok('Solicitudes y comunicaciones en tres pasos: datos del cliente, condiciones y contrato');
 
   // WhatsApp
+  await page.click('#comunicaciones summary:has-text("Otros mensajes")');
   await page.click('#btn-whatsapp');
   const texto = await page.inputValue('#texto-whatsapp');
   assert.match(texto, /le escribimos de M\. A\. SOLTEC/);
@@ -91,13 +85,22 @@ try {
   await page.waitForSelector('text=Anotado como enviado en el historial.');
   ok('Resumen de WhatsApp editable; abrir WhatsApp y «enviado» quedan separados en el historial');
 
-  // Correo de solicitud con revisión previa de datos
-  await page.click('text=Correo: solicitar contrato de electricidad');
-  await page.waitForSelector('text=Continuar con el borrador');
-  assert.match(await page.textContent('.aviso.info'), /CUPS/);
-  await page.click('text=Continuar con el borrador');
-  await page.waitForSelector('text=Adjunta el PDF antes de enviarlo');
-  ok('Correo de contrato: avisa de los datos que faltan y recuerda adjuntar el PDF');
+  // Correo de solicitud: se ve antes de enviarlo
+  await page.click('#btn-correo-contrato');
+  await page.waitForSelector('#vista-correo');
+  assert.match(await page.textContent('#correo-faltan'), /CUPS/);
+  assert.match(await page.inputValue('#correo-asunto'), /Solicitud de contrato/);
+  assert.match(await page.inputValue('#correo-cuerpo'), /Titular: María Pérez Núñez/);
+  await page.fill('#correo-para', 'altas@comercializadora.es');
+  await page.click('#correo-abrir');
+  await page.waitForSelector('text=Sí, marcar como enviado');
+  ok('Correo de contrato: se ve y se puede cambiar antes de enviarlo, avisa de lo que falta');
+
+  await page.click('#btn-correo-condiciones');
+  await page.waitForSelector('#vista-correo[data-tipo="condiciones"]');
+  assert.match(await page.inputValue('#correo-cuerpo'), /Solicitamos condiciones/);
+  assert.ok(await page.$('[data-paso="2"] #vista-correo'), 'el borrador sale en su paso');
+  ok('Correo de condiciones: borrador en su paso, con texto editable');
 
   // Firma con el dedo
   await page.goto(base + '#/firma/' + id);
@@ -118,7 +121,7 @@ try {
   }, id);
   assert.equal(info.archivos, 1);
   assert.notEqual(info.firmado, 'recibido', 'firmar no marca la firma como recibida');
-  for (const k of ['formulario', 'doc_preparada', 'doc_enviada', 'firma_pdf']) assert.ok(info.h.includes(k), k);
+  for (const k of ['doc_preparada', 'doc_enviada', 'firma_pdf']) assert.ok(info.h.includes(k), k);
   await page.goto(base + '#/aviso/' + id);
   await page.click('summary:has-text("Documentación")');
   await page.waitForSelector('text=FICHA_CLIENTE_CALLE_RAMON_Y_CAJAL_12_PISO_3_PUERTA_B_FIRMADA.pdf');

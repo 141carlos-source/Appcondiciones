@@ -471,3 +471,12 @@ html[data-demo] .toast, html[data-demo] .banda { bottom: calc(var(--nav-h) + 56p
 
 /* Avisos cerrados */
 .insignia.cerrado, .etiqueta.cerrado { background: #e9ecef; color: #495057; border-color: #ced4da; }
+/* Solicitudes y comunicaciones: pasos del trámite */
+.paso-com { border: 1.5px solid var(--linea); border-radius: 12px; padding: 12px 14px; margin: 0 0 10px; background: var(--papel, #fff); }
+.paso-com > .tarjeta-cab b { font-size: 15.5px; }
+.paso-com > p.muted { margin: 4px 0 8px; }
+.paso-com.otros summary { font-weight: 700; cursor: pointer; }
+.paso-com .card { margin-top: 10px; }
+.vista-correo { width: 100%; height: 360px; border: 1.5px solid var(--linea); border-radius: 10px; background: #fff; }
+#vista-correo textarea { font-family: inherit; text-transform: none; }
+#vista-correo input, #vista-correo textarea, #para-cliente { text-transform: none; }

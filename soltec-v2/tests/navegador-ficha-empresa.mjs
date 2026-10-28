@@ -66,6 +66,10 @@ try {
   const enlace = await page.inputValue('#enlace-cliente');
   assert.ok(enlace.length < 20000, `enlace de ${enlace.length} caracteres`);
   assert.ok(!(await page.isVisible('#enlace-cliente')), 'el enlace largo no se ve');
+  const previa = await page.frameLocator('#vista-correo-cliente').locator('body').innerText();
+  assert.match(previa, /ABRIR FORMULARIO AQUÍ/);
+  assert.equal(await page.inputValue('#para-cliente'), 'ana@correo.es');
+  if (CAP) await page.locator('#comunicaciones').screenshot({ path: CAP + '/comunicaciones.png' });
   await page.click('#enlace-correo');
   await page.waitForSelector('#pasos-correo .aviso');
   const html = await page.evaluate(async () => { const [it] = await navigator.clipboard.read(); return (await it.getType('text/html')).text(); });
