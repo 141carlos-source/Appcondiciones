@@ -468,3 +468,6 @@ html[data-demo] #bloque-instalar, html[data-demo] #instalar-cab { display: none 
 html[data-demo] .barra-guardar { bottom: calc(var(--nav-h) + 52px + env(safe-area-inset-bottom)); }
 html[data-demo] .toast, html[data-demo] .banda { bottom: calc(var(--nav-h) + 56px + env(safe-area-inset-bottom)); }
 @media (min-width: 900px) { .barra-demo-txt span { display: inline; color: #b8bec5; margin-left: 6px; } }
+
+/* Avisos cerrados */
+.insignia.cerrado, .etiqueta.cerrado { background: #e9ecef; color: #495057; border-color: #ced4da; }

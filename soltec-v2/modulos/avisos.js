@@ -6,7 +6,7 @@ import { clientesConocidos, suministrosConocidos, buscarClientes, buscarSuminist
 import {
   nuevoAviso, normalizarAviso, siguienteNumero, isExpediente, conPdfCondiciones, pdfCondicionesActual, datosPendientes,
   docsPendientes, direccionCompleta, FASES_TRAMITE, DOCUMENTOS, ESTADOS_DOC, ESTADOS_AVISO, EVENTOS, EVENTOS_MANUALES, DESTINOS,
-  separarNumero,
+  separarNumero, estaCerrado,
 } from '../core/model.js';
 import { buscar, duplicados } from '../core/search.js';
 import { provinciaDeCp, formatearIban, validarCups, formatearTelefono } from '../core/validate.js';
@@ -28,12 +28,13 @@ const escribir = (o, ruta, v) => { const ks = ruta.split('.'); let x = o; for (c
 const clonar = (o) => structuredClone(o);
 
 // ---------------------------------------------------------------- listados
-function tarjetaAviso(r) {
+function tarjetaAviso(r, marcarTipo = false) {
   const a = r.data;
   const faltan = datosPendientes(a).length;
   const docs = docsPendientes(a).length;
   return h('a', { class: 'tarjeta', href: `#/aviso/${r.id}` },
-    h('div', { class: 'tarjeta-cab' }, h('span', { class: 'mono' }, a.numero || 'Sin número'), h('span', { class: 'etiqueta' }, a.estado || '')),
+    h('div', { class: 'tarjeta-cab' }, h('span', { class: 'mono' }, a.numero || 'Sin número'),
+      h('span', {}, isExpediente(a) && marcarTipo ? h('span', { class: 'insignia ok' }, 'Expediente') : null, h('span', { class: 'etiqueta' + (estaCerrado(a) ? ' cerrado' : '') }, a.estado || ''))),
     h('b', {}, a.cliente?.nombre || '(sin nombre)'),
     h('div', { class: 'muted' }, direccionCompleta(a.suministro) || 'Sin dirección'),
     h('div', { class: 'insignias' },
@@ -56,32 +57,44 @@ function tarjetaExpediente(r) {
     h('div', { class: 'insignias' },
       ind(!validarCups(a.suministro?.cups), 'CUPS'),
       ind(a.docs?.contrato === 'recibido' || a.docs?.contrato === 'na', 'Contrato'),
-      a.tramite ? h('span', { class: 'insignia' }, faseLabel(a.tramite)) : null));
+      a.tramite ? h('span', { class: 'insignia' }, faseLabel(a.tramite)) : null,
+      estaCerrado(a) ? h('span', { class: 'insignia cerrado' }, 'Cerrado') : null));
 }
 
 async function listado(app, { expedientes }) {
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
-  const papelera = params.get('ver') === 'papelera';
+  const ver = ['cerrados', 'papelera'].includes(params.get('ver')) ? params.get('ver') : 'activos';
+  const papelera = ver === 'papelera';
   const todos = await app.storage.list('aviso', papelera ? { onlyDeleted: true } : {});
-  const base = papelera ? todos : todos.filter((r) => isExpediente(r.data) === expedientes);
+  const deEsta = papelera ? todos : todos.filter((r) => isExpediente(r.data) === expedientes);
+  const base = papelera ? deEsta : deEsta.filter((r) => estaCerrado(r.data) === (ver === 'cerrados'));
+  const nCerrados = papelera ? 0 : deEsta.filter((r) => estaCerrado(r.data)).length;
   const ruta = expedientes ? 'expedientes' : 'avisos';
-  const lista = h('div', { class: 'lista' });
+  const lista = h('div', { class: 'lista', id: 'lista-avisos' });
   const pintar = (q) => {
-    const regs = q.trim() ? buscar(base, q).map((x) => x.registro) : base;
+    // Al buscar se busca en todo (activos y cerrados, avisos y expedientes); en la papelera, solo en ella
+    const donde = papelera ? base : todos;
+    const regs = q.trim() ? buscar(donde, q).map((x) => x.registro) : base;
     const orden = [...regs].sort((a, b) => (b.data.numero || '').localeCompare(a.data.numero || '') || b.updatedAt.localeCompare(a.updatedAt));
-    lista.replaceChildren(...(orden.length ? orden.map((r) => (expedientes && !papelera ? tarjetaExpediente(r) : tarjetaAviso(r)))
-      : [h('div', { class: 'card muted' }, q.trim() ? 'Sin resultados.' : papelera ? 'La papelera está vacía.' : expedientes ? 'Todavía no hay expedientes. Un aviso pasa aquí al tener referencia o PDF de condiciones.' : 'Todavía no hay avisos.')]));
+    const tarjeta = (r) => (q.trim() && !papelera ? tarjetaAviso(r, true) : expedientes && !papelera ? tarjetaExpediente(r) : tarjetaAviso(r));
+    lista.replaceChildren(...(orden.length ? orden.map(tarjeta)
+      : [h('div', { class: 'card muted' }, q.trim() ? 'Sin resultados.' : papelera ? 'La papelera está vacía.'
+        : ver === 'cerrados' ? `No hay ${expedientes ? 'expedientes' : 'avisos'} cerrados. Se cierran desde su ficha con «Cerrar ${expedientes ? 'expediente' : 'aviso'}».`
+          : nCerrados ? `No hay ${expedientes ? 'expedientes' : 'avisos'} abiertos: los cerrados están en «Cerrados».`
+            : expedientes ? 'Todavía no hay expedientes. Un aviso pasa aquí al tener referencia o PDF de condiciones.' : 'Todavía no hay avisos.')]));
   };
-  const busca = h('input', { type: 'search', class: 'buscador', placeholder: 'Buscar: cliente, teléfono, dirección, CUPS, referencia…', oninput: (e) => pintar(e.target.value) });
+  const busca = h('input', { type: 'search', class: 'buscador', id: 'buscar-avisos', placeholder: papelera ? 'Buscar en la papelera…' : 'Buscar en todos (abiertos y cerrados): cliente, teléfono, dirección, CUPS…', oninput: (e) => pintar(e.target.value) });
   pintar('');
+  const titulo = { activos: expedientes ? 'Expedientes' : 'Avisos', cerrados: expedientes ? 'Expedientes cerrados' : 'Avisos cerrados', papelera: 'Papelera' }[ver];
   return h('div', {},
     h('div', { class: 'titulo-fila' },
-      h('h1', {}, papelera ? 'Papelera' : expedientes ? 'Expedientes' : 'Avisos'),
-      expedientes || papelera ? null : h('a', { class: 'btn prim', href: '#/aviso/nuevo' }, '+ Nuevo aviso')),
+      h('h1', {}, titulo),
+      expedientes || ver !== 'activos' ? null : h('a', { class: 'btn prim', href: '#/aviso/nuevo' }, '+ Nuevo aviso')),
     busca,
-    h('div', { class: 'chips' },
-      h('a', { class: 'chip' + (papelera ? '' : ' activo'), href: `#/${ruta}` }, expedientes ? 'Expedientes' : 'Activos'),
-      h('a', { class: 'chip' + (papelera ? ' activo' : ''), href: `#/${ruta}?ver=papelera` }, 'Papelera')),
+    h('div', { class: 'chips', id: 'chips-ver' },
+      h('a', { class: 'chip' + (ver === 'activos' ? ' activo' : ''), href: `#/${ruta}`, 'data-ver': 'activos' }, 'Activos'),
+      h('a', { class: 'chip' + (ver === 'cerrados' ? ' activo' : ''), href: `#/${ruta}?ver=cerrados`, 'data-ver': 'cerrados' }, 'Cerrados' + (nCerrados && ver !== 'cerrados' ? ` (${nCerrados})` : '')),
+      h('a', { class: 'chip' + (papelera ? ' activo' : ''), href: `#/${ruta}?ver=papelera`, 'data-ver': 'papelera' }, 'Papelera')),
     lista);
 }
 
@@ -464,6 +477,10 @@ export async function vistaFicha(app, id) {
     }
     if (!nuevoReg && (original.cuadro?.actualizado || '') !== (draft.cuadro?.actualizado || '')) eventos.push({ kind: 'actualizado', text: draft.cuadro?.proyecto ? 'Cuadro eléctrico actualizado' : 'Cuadro eléctrico quitado' });
     if (!nuevoReg && (original.autorizacion?.actualizado || '') !== (draft.autorizacion?.actualizado || '')) eventos.push({ kind: 'actualizado', text: draft.autorizacion?.datos ? 'Autorización de representatividad actualizada' : 'Autorización de representatividad quitada' });
+    if (!nuevoReg && estaCerrado(original) !== estaCerrado(draft)) {
+      const que = isExpediente(draft) ? 'Expediente' : 'Aviso';
+      eventos.push(estaCerrado(draft) ? { kind: 'aviso_cerrado', text: `${que} cerrado` } : { kind: 'aviso_reabierto', text: `${que} reabierto` });
+    }
     for (const p of pdfsNuevos) eventos.push({ kind: 'condiciones_pdf', text: p.name });
     const r = await app.storage.save('aviso', draft, { id: registro?.id, event: nuevoReg ? { kind: 'creado', text: `Aviso ${draft.numero} creado` } : eventos.length ? null : { kind: 'actualizado', text: 'Datos actualizados' } });
     for (const ev of eventos) await app.storage.addEvent(r.id, ev.kind, ev.text);
@@ -483,10 +500,23 @@ export async function vistaFicha(app, id) {
     draft.archivos.push(ficha);
     await guardar();
   });
+  /** Cerrar: el aviso sale de Activos y pasa a «Cerrados». Reabrir: vuelve a Activos. Se guardan también los cambios. */
+  const cambiarCierre = async (cerrar) => {
+    const que = isExpediente(draft) ? 'expediente' : 'aviso';
+    if (cerrar && !(await confirmar(`¿Cerrar este ${que}? Saldrá de Activos y de Inicio y pasará a «Cerrados». Lo puedes abrir y reabrir cuando quieras.`, { si: `Cerrar ${que}` }))) return;
+    draft.estado = cerrar ? 'Cerrado' : 'Abierto';
+    const sel = cont.querySelector('#f-estado'); if (sel) sel.value = draft.estado;
+    await guardar();
+    if (estaCerrado(registro.data) !== cerrar) return; // no se guardó (p. ej. cambiado en otro dispositivo)
+    toast(cerrar ? `Cerrado: está en «Cerrados»` : 'Reabierto: vuelve a Activos');
+    if (cerrar) ir(isExpediente(draft) ? 'expedientes' : 'avisos'); else window.dispatchEvent(new HashChangeEvent('hashchange'));
+  };
   const cont = h('form', { class: 'ficha', onsubmit: (e) => { e.preventDefault(); guardar(); } },
     h('div', { class: 'titulo-fila' },
       h('div', {}, h('h1', {}, titulo), registro && isExpediente(draft) ? h('span', { class: 'insignia ok' }, 'Expediente') : null, draft.v1?.id ? h('span', { class: 'insignia', style: 'margin-left:6px' }, `V1.35 nº ${draft.v1.id}`) : null),
       h('a', { class: 'btn', href: registro && isExpediente(draft) ? '#/expedientes' : '#/avisos' }, 'Volver')),
+    registro && !registro.deleted && estaCerrado(registro.data) ? h('div', { class: 'aviso info', id: 'aviso-cerrado' }, h('b', {}, `Este ${isExpediente(draft) ? 'expediente' : 'aviso'} está cerrado. `), 'No sale en Activos ni en Inicio. ',
+      h('button', { class: 'btn peq prim', type: 'button', id: 'btn-reabrir', onclick: () => cambiarCierre(false) }, 'Reabrir')) : null,
     registro?.deleted ? h('div', { class: 'aviso err' }, 'Este aviso está en la papelera. ', h('button', { class: 'btn peq', type: 'button', onclick: async () => { await app.storage.restore(registro.id); toast('Recuperado'); window.dispatchEvent(new HashChangeEvent('hashchange')); } }, 'Recuperar')) : null,
     resumen, recordatoriosEl, avisoDup,
     seccion('Plano de situación y fotografías', false, h('label', {}, 'Plano de situación'), planoEl, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
@@ -522,6 +552,8 @@ export async function vistaFicha(app, id) {
           toast('Movimiento registrado');
         } }, 'Añadir al historial'))) : null),
     registro && !registro.deleted ? h('div', { class: 'fila' },
+      estaCerrado(registro.data) ? h('button', { class: 'btn', type: 'button', id: 'btn-reabrir-pie', onclick: () => cambiarCierre(false) }, 'Reabrir')
+        : h('button', { class: 'btn', type: 'button', id: 'btn-cerrar-aviso', onclick: () => cambiarCierre(true) }, `Cerrar ${isExpediente(draft) ? 'expediente' : 'aviso'}`),
       h('a', { class: 'btn', href: `#/aviso/duplicar?de=${registro.id}` }, 'Duplicar con los mismos datos'),
       h('button', { class: 'btn', type: 'button', onclick: async () => {
         if (!(await confirmar('¿Enviar este aviso a la papelera? Podrás recuperarlo.', { si: 'Enviar a la papelera', peligro: true }))) return;

@@ -48,7 +48,7 @@ try {
   await page.waitForFunction(() => document.documentElement.dataset.tema === '3');
   await page.click('nav.inferior a[data-ruta="avisos"]');
   await page.waitForSelector('.tarjeta');
-  assert.equal(await page.locator('.tarjeta').count() >= 4, true);
+  assert.equal(await page.locator('.tarjeta').count() >= 3, true, 'avisos activos (el cerrado está en «Cerrados»)');
   await page.goto(base + '/index.html?demo=1&tema=4#/aviso/demo_av1');
   await page.waitForSelector('#f-cliente-nombre', { state: 'attached' });
   ok('Se cambia de tema con un toque y se navega por la app de ejemplo (avisos, ficha)');

@@ -2,7 +2,7 @@
 // Solo guarda los archivos de la aplicación. Los datos viven en IndexedDB y nunca se tocan aquí.
 // Una versión nueva se instala en segundo plano y espera a que pulses «Actualizar».
 
-const VERSION = 'V2-1.31.0';
+const VERSION = 'V2-1.32.0';
 const CACHE = 'SOLTEC-V2-' + VERSION;
 // Reglas de los recordatorios (las mismas que usa la app) para avisar aunque la app esté cerrada.
 importScripts('./core/recordatorios-reglas.js');

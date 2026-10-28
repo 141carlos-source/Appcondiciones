@@ -7,6 +7,8 @@ import {
 } from './validate.js';
 
 export const ESTADOS_AVISO = ['Abierto', 'En curso', 'Cerrado'];
+/** Cerrado: sale de Activos y pasa a «Cerrados» (se puede abrir y reabrir). */
+export const estaCerrado = (a) => a?.estado === 'Cerrado';
 
 export const FASES_TRAMITE = [
   { id: 'datos', label: 'Pendiente de datos' },
@@ -46,6 +48,8 @@ export const EVENTOS = {
   seguimiento_reabierto: 'Seguimiento reabierto',
   papelera: 'Enviado a la papelera',
   restaurado: 'Recuperado de la papelera',
+  aviso_cerrado: 'Aviso cerrado',
+  aviso_reabierto: 'Aviso reabierto',
   parte_creado: 'Parte de trabajo creado',
   parte_cerrado: 'Parte de trabajo cerrado',
   parte_reabierto: 'Parte de trabajo reabierto',
