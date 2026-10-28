@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.32.0';
+export const VERSION = 'V2-1.33.0';
 
 import { h, ico, toast, hace, descargar, activarMayusculas, vigilarFocoTeclado, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -25,6 +25,7 @@ import { opcionesDemo, DB_DEMO } from './core/demo.js';
 import { aplicarTema, sembrarDemo, barraDemo } from './modulos/demo.js';
 import { bloqueCertificadosAntiguos } from './modulos/certificados.js';
 import { vistaPruebas, pruebaEnCurso, botonVolverPruebas } from './modulos/pruebas.js';
+import { vistaRecibir, iniciarRecepcion } from './modulos/recepcion.js';
 import { registrarError, describirError, leerErrores, borrarErrores, informeErrores } from './core/errores.js';
 
 const ICONOS = {
@@ -55,6 +56,7 @@ const RUTAS = {
   ajustes: { titulo: 'Ajustes', vista: vistaAjustes },
   alta: { titulo: 'Conectar este dispositivo', vista: (c) => vistaAlta(c), nav: 'ajustes' },
   pruebas: { titulo: 'Probar en este dispositivo', vista: () => vistaPruebas(app, { version: VERSION }), nav: 'ajustes' },
+  recibir: { titulo: 'Ficha del cliente', vista: () => vistaRecibir(app), nav: 'inicio' },
   salir: { titulo: 'Salir', vista: vistaSalir },
 };
 const partesRuta = () => location.hash.replace(/^#\/?/, '').split('?')[0].split('/');
@@ -395,6 +397,7 @@ async function vistaInicio() {
     h('div', { class: 'accesos' },
       h('a', { class: 'btn', href: '#/partes', id: 'acceso-partes' }, `Partes de trabajo${partesAbiertos ? ` (${partesAbiertos} abiertos)` : ''}`),
       h('a', { class: 'btn', href: '#/aviso/nuevo' }, '+ Nuevo aviso'),
+      h('a', { class: 'btn', href: '#/recibir', id: 'acceso-recibir' }, 'Recibir ficha del cliente'),
       h('a', { class: 'btn', href: '#/empresa' }, 'Empresa')),
     recsEl,
     h('h2', {}, 'Qué toca hoy'), chips, h('div', { class: 'lista' }, ...tarjetas),
@@ -855,6 +858,8 @@ export async function iniciar() {
   navigator.storage?.persist?.().catch(() => {});
 
   await refrescarEstado();
+  // Fichas del cliente que llegan solas: «Abrir con SOLTEC» o arrastrar el PDF (PC)
+  iniciarRecepcion(app);
   await render();
   if (app.demo) { document.body.append(barraDemo(od.tema)); return; } // sin alarmas, notificaciones ni sincronización
   app.revisarAlarmas = iniciarAlarmas(app);

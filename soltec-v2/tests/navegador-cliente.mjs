@@ -87,10 +87,8 @@ try {
   await page.setInputFiles('#ficha-devuelta', { name: desc.suggestedFilename(), mimeType: 'application/pdf', buffer: pdf });
   await page.waitForSelector('#cambios-ficha');
   const t = await page.textContent('#cambios-ficha');
-  assert.match(t, /3 dato\(s\) del cliente/);
+  assert.match(t, /3 dato\(s\) del cliente aplicados/);
   assert.match(t, /Firmada por ANA GIL/);
-  await page.click('#aplicar-ficha');
-  await page.waitForFunction(async (aid) => true, id);
   let a;
   for (let i = 0; i < 30; i++) { a = await page.evaluate(async (aid) => (await window.soltec.storage.get(aid)).data, id); if (a.cliente.nif) break; await page.waitForTimeout(200); }
   assert.equal(a.cliente.nif, '12345678Z');
@@ -98,7 +96,7 @@ try {
   assert.equal(a.cliente.iban, 'ES9121000418450200051332');
   assert.equal(a.docs.firmado, 'recibido');
   assert.ok(a.archivos.some((x) => x.tipo === 'ficha_cliente'));
-  ok('La app lee el PDF devuelto: aplica los datos, guarda el PDF y marca la firma como recibida');
+  ok('La app lee el PDF devuelto y aplica sola los datos, guarda el PDF y marca la firma como recibida');
 
   // También vale pegar el texto del mensaje
   await page.evaluate(async (aid) => window.soltec.storage.patch(aid, { cliente: { nombre: 'ANA GIL', telefono: '600123456', nif: '', email: '', iban: '' } }), id);
@@ -108,6 +106,8 @@ try {
   await page.fill('#texto-devuelto', texto);
   await page.click('#leer-texto');
   await page.waitForSelector('#cambios-ficha:has-text("3 dato(s)")');
+  for (let i = 0; i < 30; i++) { a = await page.evaluate(async (aid) => (await window.soltec.storage.get(aid)).data, id); if (a.cliente.nif) break; await page.waitForTimeout(200); }
+  assert.equal(a.cliente.nif, '12345678Z', 'también se aplica solo');
   ok('Pegando el mensaje de WhatsApp también se leen los datos');
 
   assert.deepEqual(errores, []);

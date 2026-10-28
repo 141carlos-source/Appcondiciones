@@ -189,7 +189,10 @@ export async function datosDePdf(PDFLib, bytes) {
   } catch { /* sin anotaciones */ }
   if (!Object.keys(d).length && !conforme && !dibujada) return null;
   const firma = dibujada || conforme ? { nombre: firmante || d['cliente.contacto'] || d['cliente.nombre'] || '', fecha: fechaFirma, dibujada, conforme } : null;
-  return { v: 1, d, origen: 'pdf', firma, conforme };
+  // De qué aviso es: la marca SOLTEC-AVISO (fichas nuevas) o el número del título
+  const id = /SOLTEC-AVISO:([A-Za-z0-9_-]+)/.exec(doc.getKeywords() || '')?.[1] || '';
+  const n = /Aviso\s+([A-Za-z0-9-]+)/.exec(doc.getTitle() || '')?.[1] || '';
+  return { v: 1, id, n, d, origen: 'pdf', firma, conforme };
 }
 
 /** Cambios que traen los datos del cliente respecto al aviso: [{ruta, etiqueta, antes, ahora, problema}]. */

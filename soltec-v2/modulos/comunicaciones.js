@@ -1,12 +1,13 @@
 // SOLTEC V2 · Ficha PDF del cliente, firma con el dedo, resumen de WhatsApp y correos.
 // Preparar una comunicación no es enviarla: el historial lo distingue.
 
-import { h, ico, toast, abrirBlob, compartir, puedeCompartirArchivos, descargar, fecha, lienzoFirma, irORepintar } from '../ui.js';
+import { h, ico, toast, abrirBlob, compartir, puedeCompartirArchivos, descargar, fecha, lienzoFirma } from '../ui.js';
 import { generarFicha, nombreFicha, resumenWhatsApp, enlaceWhatsApp, telefonoWhatsApp, correo, enlaceCorreo, TIPOS_CORREO } from '../core/documentos.js';
 import { faltaParaFormulario } from '../core/empresa.js';
 import { datosPendientes, normalizarAviso, hoyLocal } from '../core/model.js';
 import { leerEmpresa } from './empresa.js';
-import { paqueteFicha, enlaceFormulario, correoFormulario, emlBorrador, URL_PUBLICA, leerDatos, datosDePdf, cambiosFicha, aplicarCambios } from '../core/fichaCliente.js';
+import { panelRecibir } from './recepcion.js';
+import { paqueteFicha, enlaceFormulario, correoFormulario, emlBorrador, URL_PUBLICA } from '../core/fichaCliente.js';
 
 let cargaPdfLib = null;
 /** Carga pdf-lib solo cuando hace falta (pesa ~500 KB). */
@@ -112,7 +113,7 @@ export async function bloqueComunicaciones(app, avisoId) {
     const aviso = await leer();
     revisar(aviso, 'ficha', async () => {
       try {
-        const blob = await crearFichaPdf(app, aviso);
+        const blob = await crearFichaPdf(app, { ...aviso, id: avisoId });
         const nombre = nombreFicha(aviso);
         const mensaje = resumenWhatsApp({ aviso, empresa, seguimiento: await proximoSeguimiento(app, avisoId) });
         const cl = aviso.cliente || {};
@@ -221,64 +222,14 @@ export async function bloqueComunicaciones(app, avisoId) {
         h('button', { class: 'btn peq', type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(url); toast('Enlace copiado'); } catch { toast('Selecciona y copia el enlace', true); } } }, 'Copiar enlace'))));
   };
 
-  // --- Leer lo que devuelve el cliente: PDF (formulario web o PDF rellenado) o el texto del mensaje
-  const leerDevuelta = () => {
-    const resultado = h('div');
-    const procesar = async (r, archivo) => {
-      if (!r) { resultado.replaceChildren(h('div', { class: 'aviso err' }, 'No se han encontrado datos de la ficha. Si el cliente rellenó el PDF a mano sin guardarlo, pídele que lo guarde y lo reenvíe.')); return; }
-      if (r.n && r.n !== (await leer()).numero) toast(`Ojo: la ficha es del aviso ${r.n}`, true);
-      const aviso = await leer();
-      const cambios = cambiosFicha(aviso, r.d);
-      const marcas = cambios.map((c) => h('input', { type: 'checkbox', checked: c.problema ? null : true }));
-      // Firmada: firma dibujada en el formulario web o en el propio PDF. Si solo marcó la casilla, es conformidad.
-      const firmada = !!r.firma && (r.origen === 'formulario' || !!r.firma.dibujada);
-      const descFirma = !r.firma ? 'El cliente no ha firmado ni marcado la conformidad: pídele que lo haga si hace falta.'
-        : firmada ? `Firmada${r.firma.nombre ? ' por ' + r.firma.nombre : ''}${r.firma.fecha ? ' el ' + r.firma.fecha : ''}${r.firma.conforme === false ? ' (sin marcar la casilla de conformidad)' : ''}.`
-          : `Ha marcado la casilla de conformidad${r.firma.nombre ? ' (' + r.firma.nombre + ')' : ''}, sin firma dibujada.`;
-      resultado.replaceChildren(h('div', { class: 'card', id: 'cambios-ficha' },
-        h('b', {}, cambios.length ? `${cambios.length} dato(s) del cliente para el aviso` : 'Los datos que envía el cliente ya están en el aviso.'),
-        h('div', { class: 'muted', id: 'estado-firma' }, descFirma),
-        cambios.length ? h('ul', { class: 'lista-chk' }, ...cambios.map((c, i) => h('li', {},
-          h('label', { class: 'check-linea', style: 'flex:1' }, marcas[i],
-            h('span', {}, h('b', {}, c.etiqueta), h('div', { class: 'muted' }, c.antes ? `Antes: ${c.antes}` : 'Estaba vacío'), h('div', {}, `Ahora: ${c.ahora}`),
-              c.problema ? h('div', { class: 'faltan' }, `Revisar: ${c.problema}`) : null))))) : null,
-        h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', id: 'aplicar-ficha', onclick: async (e) => {
-          e.target.disabled = true;
-          const elegidos = cambios.filter((_, i) => marcas[i].checked);
-          const actual = normalizarAviso((await app.storage.get(avisoId)).data);
-          const nuevo = aplicarCambios(actual, elegidos);
-          if (archivo) {
-            const f = await app.storage.putFile({ name: archivo.name, mime: 'application/pdf', bytes: archivo.bytes });
-            if (!nuevo.archivos.some((x) => x.hash === f.hash)) nuevo.archivos.push({ tipo: 'ficha_cliente', hash: f.hash, name: f.name, mime: 'application/pdf', size: f.size, addedAt: new Date().toISOString() });
-          }
-          if (firmada && archivo) nuevo.docs = { ...nuevo.docs, firmado: 'recibido' };
-          await app.storage.save('aviso', nuevo, { id: avisoId, event: { kind: 'doc_recibida', text: `Ficha del cliente recibida: ${elegidos.length} dato(s) actualizados${firmada ? `, firmada${r.firma.nombre ? ' por ' + r.firma.nombre : ''}` : r.firma ? ', con la casilla de conformidad marcada' : ''}${archivo ? ' · PDF guardado' : ''}` } });
-          toast('Datos del cliente aplicados al aviso');
-          irORepintar('aviso/' + avisoId);
-        } }, cambios.length ? 'Aplicar al aviso' : (archivo ? 'Guardar el PDF en el aviso' : 'Cerrar')))));
-    };
-    const fichero = h('input', { type: 'file', accept: 'application/pdf,.pdf', style: 'display:none', id: 'ficha-devuelta', onchange: async (e) => {
-      const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-      try {
-        const bytes = new Uint8Array(await f.arrayBuffer());
-        await procesar(await datosDePdf(await cargarPdfLib(), bytes), { name: f.name, bytes });
-      } catch (err) { resultado.replaceChildren(h('div', { class: 'aviso err' }, 'No se puede leer ese PDF: ' + err.message)); }
-    } });
-    const pegado = h('textarea', { rows: 4, id: 'texto-devuelto', 'data-minusculas': '', placeholder: 'O pega aquí el mensaje del formulario web (el que termina en SOLTEC-DATOS:…)' });
-    panel.replaceChildren(h('div', { class: 'card' },
-      h('b', {}, 'Leer la ficha que devuelve el cliente'),
-      h('p', { class: 'muted' }, 'Elige el PDF que te ha enviado (el del formulario o el PDF rellenado) o pega su mensaje. Verás qué datos cambian antes de aplicarlos.'),
-      h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', onclick: () => fichero.click() }, 'Elegir PDF devuelto'), fichero),
-      pegado,
-      h('div', { class: 'fila' }, h('button', { class: 'btn', type: 'button', id: 'leer-texto', onclick: () => procesar(leerDatos(pegado.value), null) }, 'Leer el mensaje pegado'))),
-      resultado);
-  };
+  // --- Leer lo que devuelve el cliente: se aplica solo al aviso (PDF o mensaje); se puede deshacer
+  const leerDevuelta = () => { if (sinGuardar()) return; panel.replaceChildren(panelRecibir(app, { avisoId })); };
 
   return h('div', {},
     faltaEmpresa.length ? h('div', { class: 'aviso info' }, `Configura ${faltaEmpresa.join(' y ')} de la empresa para la ficha PDF. `, h('a', { href: '#/empresa' }, 'Ir a Empresa')) : null,
     h('div', { class: 'acciones' },
       h('button', { class: 'btn prim', type: 'button', id: 'btn-ficha-pdf', onclick: fichaPdf }, 'Enviar ficha PDF rellenable'),
-      h('button', { class: 'btn', type: 'button', id: 'btn-leer-devuelta', onclick: leerDevuelta }, 'Leer ficha devuelta por el cliente'),
+      h('button', { class: 'btn', type: 'button', id: 'btn-leer-devuelta', onclick: leerDevuelta }, 'Recibir ficha devuelta por el cliente'),
       h('a', { class: 'btn', href: `#/firma/${avisoId}` }, 'Firmar en este dispositivo'),
       h('button', { class: 'btn', type: 'button', id: 'btn-whatsapp', onclick: whatsapp }, 'Resumen para WhatsApp'),
       h('button', { class: 'btn', type: 'button', id: 'btn-enlace-cliente', onclick: enlaceCliente }, 'Formulario web (alternativa)'),
@@ -303,7 +254,7 @@ export async function vistaFirma(app, avisoId) {
     const png = await lienzo.png();
     const hoy = hoyLocal().split('-').reverse().join('/');
     try {
-      const blob = await crearFichaPdf(app, aviso, { png, nombre: nombre.value.trim(), fecha: hoy });
+      const blob = await crearFichaPdf(app, { ...aviso, id: avisoId }, { png, nombre: nombre.value.trim(), fecha: hoy });
       const nom = nombreFicha(aviso, true);
       await app.storage.addEvent(avisoId, 'firma_pdf', `Firma de ${nombre.value.trim()} incorporada a la ficha`);
       resultado.replaceChildren(h('div', { class: 'aviso ok' }, h('b', {}, 'Ficha firmada: '), nom,

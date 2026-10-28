@@ -2,13 +2,13 @@
 // Solo guarda los archivos de la aplicación. Los datos viven en IndexedDB y nunca se tocan aquí.
 // Una versión nueva se instala en segundo plano y espera a que pulses «Actualizar».
 
-const VERSION = 'V2-1.32.0';
+const VERSION = 'V2-1.33.0';
 const CACHE = 'SOLTEC-V2-' + VERSION;
 // Reglas de los recordatorios (las mismas que usa la app) para avisar aunque la app esté cerrada.
 importScripts('./core/recordatorios-reglas.js');
 const SHELL = [
   './', './index.html', './app.css', './app.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',
-  './core/db.js', './core/storage.js', './core/model.js', './core/validate.js', './core/search.js', './core/backup.js', './core/sync.js', './ui.js', './modulos/avisos.js', './modulos/agenda.js', './modulos/empresa.js', './modulos/comunicaciones.js', './core/empresa.js', './core/documentos.js', './core/memoria.js', './modulos/memoria.js', './core/geo.js', './modulos/ubicacion.js', './core/partes.js', './modulos/partes.js', './core/importarV1.js', './core/calendario.js', './core/plano.js', './core/fichaCliente.js', './core/potencias.js', './core/certificados.js', './core/tinta.js', './modulos/certificados.js', './cliente.html', './cliente.js', './modulos/importar.js', './core/cuadros.js', './modulos/cuadros.js', './assets/cuadrolab.html', './core/autorizacion.js', './modulos/autorizacion.js', './assets/autorizacion.html', './vendor/pdf-lib.min.js', './vendor/qrcode.mjs', './core/alta.js', './core/errores.js', './core/recordatorios.js', './core/recordatorios-reglas.js', './core/autorrelleno.js', './core/pruebas.js', './core/estadoSync.js', './core/demo.js', './modulos/demo.js', './temas.html', './assets/temas/tema-1.css', './assets/temas/tema-2.css', './assets/temas/tema-3.css', './assets/temas/tema-4.css', './modulos/pruebas.js', './modulos/recordatorios.js', './assets/soltec-tema.css', './assets/cuadro-reglas.js', './assets/cuadro-frontal.js', './assets/cuadro-unifilar.js', './assets/soltec-dialogo.js', './assets/autorizacion-datos.js', './assets/autorizacion-pdf.js', './vendor/fonts/archivo.woff2', './assets/logo_e-distribucion.jpg',
+  './core/db.js', './core/storage.js', './core/model.js', './core/validate.js', './core/search.js', './core/backup.js', './core/sync.js', './ui.js', './modulos/avisos.js', './modulos/agenda.js', './modulos/empresa.js', './modulos/comunicaciones.js', './core/empresa.js', './core/documentos.js', './core/memoria.js', './modulos/memoria.js', './core/geo.js', './modulos/ubicacion.js', './core/partes.js', './modulos/partes.js', './core/importarV1.js', './core/calendario.js', './core/plano.js', './core/fichaCliente.js', './core/potencias.js', './core/recepcionFicha.js', './modulos/recepcion.js', './core/certificados.js', './core/tinta.js', './modulos/certificados.js', './cliente.html', './cliente.js', './modulos/importar.js', './core/cuadros.js', './modulos/cuadros.js', './assets/cuadrolab.html', './core/autorizacion.js', './modulos/autorizacion.js', './assets/autorizacion.html', './vendor/pdf-lib.min.js', './vendor/qrcode.mjs', './core/alta.js', './core/errores.js', './core/recordatorios.js', './core/recordatorios-reglas.js', './core/autorrelleno.js', './core/pruebas.js', './core/estadoSync.js', './core/demo.js', './modulos/demo.js', './temas.html', './assets/temas/tema-1.css', './assets/temas/tema-2.css', './assets/temas/tema-3.css', './assets/temas/tema-4.css', './modulos/pruebas.js', './modulos/recordatorios.js', './assets/soltec-tema.css', './assets/cuadro-reglas.js', './assets/cuadro-frontal.js', './assets/cuadro-unifilar.js', './assets/soltec-dialogo.js', './assets/autorizacion-datos.js', './assets/autorizacion-pdf.js', './vendor/fonts/archivo.woff2', './assets/logo_e-distribucion.jpg',
 ];
 
 self.addEventListener('install', (e) => {
@@ -80,8 +80,26 @@ self.addEventListener('message', (e) => {
   if (e.data && e.data.tipo === 'REVISAR_RECORDATORIOS') e.waitUntil(revisarRecordatorios()); // para pruebas
 });
 
+async function recibirCompartido(req) {
+  const destino = new URL('index.html#/recibir', self.registration.scope).href;
+  try {
+    const fd = await req.formData();
+    const cache = await caches.open('soltec-recibidos');
+    let i = 0;
+    for (const f of fd.getAll('ficha')) {
+      if (!f || !f.size) continue;
+      await cache.put(`recibido/${Date.now()}-${i++}`, new Response(f, { headers: { 'content-type': f.type || 'application/pdf', 'x-nombre': encodeURIComponent(f.name || 'FICHA.pdf') } }));
+    }
+    const texto = ['title', 'text', 'url'].map((k) => fd.get(k)).filter(Boolean).join('\n');
+    if (/SOLTEC-DATOS:/.test(texto)) await cache.put(`recibido/${Date.now()}-texto`, new Response(texto, { headers: { 'content-type': 'text/plain' } }));
+  } catch { /* se abre la app igualmente */ }
+  return Response.redirect(destino, 303);
+}
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
+  // «Compartir › SOLTEC V2» (ficha del cliente desde WhatsApp o el correo): se guarda y se abre la app
+  if (req.method === 'POST' && new URL(req.url).pathname.endsWith('/recibir-ficha')) { e.respondWith(recibirCompartido(req)); return; }
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // el PC de casa y otros servicios van directos

@@ -44,7 +44,10 @@ export async function generarFicha(PDFLib, { aviso, empresa, logo, edist, firma,
   pdf.setAuthor(textoPdf(nombreEmpresa(empresa)));
   pdf.setCreator('SOLTEC V2');
   // Datos del cliente codificados (formulario web): la app los lee al recibir el PDF de vuelta
-  if (datosCliente) { pdf.setSubject(datosCliente); pdf.setKeywords([datosCliente]); }
+  if (datosCliente) pdf.setSubject(datosCliente);
+  // Marca del aviso: al volver el PDF (aunque lo rellenen a mano) la app sabe de qué aviso es
+  const claves = [datosCliente, aviso.id && `SOLTEC-AVISO:${aviso.id}`].filter(Boolean);
+  if (claves.length) pdf.setKeywords(claves);
   const page = pdf.addPage([595.28, 841.89]);
   const fuente = await pdf.embedFont(StandardFonts.Helvetica);
   const negrita = await pdf.embedFont(StandardFonts.HelveticaBold);
