@@ -480,3 +480,8 @@ html[data-demo] .toast, html[data-demo] .banda { bottom: calc(var(--nav-h) + 56p
 .vista-correo { width: 100%; height: 360px; border: 1.5px solid var(--linea); border-radius: 10px; background: #fff; }
 #vista-correo textarea { font-family: inherit; text-transform: none; }
 #vista-correo input, #vista-correo textarea, #para-cliente { text-transform: none; }
+
+/* Apartados que no aplican (sin boletín / sin condiciones): no se pueden abrir */
+details.inhabil > summary { color: var(--acero, #8a929b); cursor: not-allowed; opacity: .6; }
+details.inhabil > summary::after { opacity: .3; }
+details > summary .no-aplica { font-weight: 500; font-size: 13px; }

@@ -36,7 +36,23 @@ try {
   assert.equal(await page.inputValue('#doc-condiciones'), 'na');
   await page.selectOption('#lleva-condiciones', 'si');
   assert.equal(await page.inputValue('#doc-condiciones'), 'pendiente');
+  // Sin boletín: CUPS y catastro fuera de pendientes; memoria, autorización y condiciones bloqueadas
+  await page.fill('#f-suministro-cups', '');
+  await page.selectOption('#lleva-boletin', 'no');
+  const pendientes = async () => page.$$eval('.campo.pend[data-campo]', (c) => c.map((x) => x.dataset.campo));
+  assert.ok(!(await pendientes()).includes('suministro.cups') && !(await pendientes()).includes('suministro.refCatastral'));
+  for (const k of ['memoria', 'autorizacion', 'condiciones']) {
+    const d = page.locator(`details[data-apartado="${k}"]`);
+    assert.match(await d.getAttribute('class'), /inhabil/);
+    await d.locator(':scope > summary').click();
+    assert.equal(await d.evaluate((x) => x.open), false, k + ' no se abre');
+  }
+  assert.match(await page.textContent('details[data-apartado="memoria"] > summary'), /No aplica \(no lleva boletín\)/);
   await page.selectOption('#lleva-boletin', 'si');
+  assert.ok((await pendientes()).includes('suministro.cups'), 'con boletín vuelve a pedir el CUPS');
+  assert.doesNotMatch(await page.getAttribute('details[data-apartado="memoria"]', 'class'), /inhabil/);
+  await page.fill('#f-suministro-cups', 'ES0031408137891001FE0F');
+  ok('Sin boletín: CUPS y referencia catastral no salen en pendientes; memoria, autorización y condiciones bloqueadas');
   ok('Cliente: «Boletín ¿lo lleva?» y «Condiciones ¿las lleva?» (No = el documento no aplica)');
 
   await page.click('summary:has-text("Documentación")');

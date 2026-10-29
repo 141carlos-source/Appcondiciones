@@ -55,3 +55,16 @@ test('el PDF rellenable de la app lleva la marca de su aviso (aunque se rellene 
   assert.equal(r.n, '2026-0007');
   assert.equal(r.d['cliente.nif'], '12345678Z');
 });
+
+test('sin boletín: el CUPS y la referencia catastral no son pendientes; memoria, autorización y condiciones no aplican', async () => {
+  const { datosPendientes, apartadosNoAplican } = await import('../core/model.js');
+  const base = normalizarAviso({ cliente: { nombre: 'A' }, suministro: {} });
+  const campos = (a) => datosPendientes(a).map((p) => p.campo);
+  assert.ok(campos(base).includes('suministro.cups') && campos(base).includes('suministro.refCatastral'));
+  const sin = { ...base, lleva: { boletin: 'no', condiciones: '' } };
+  assert.ok(!campos(sin).includes('suministro.cups') && !campos(sin).includes('suministro.refCatastral'));
+  assert.ok(campos({ ...sin, suministro: { ...sin.suministro, cups: 'ES123' } }).includes('suministro.cups'), 'si está escrito y mal, se avisa');
+  assert.deepEqual(Object.keys(apartadosNoAplican(sin)), ['memoria', 'autorizacion', 'condiciones']);
+  assert.deepEqual(apartadosNoAplican({ ...base, lleva: { boletin: 'si', condiciones: 'no' } }), { condiciones: 'No lleva condiciones' });
+  assert.deepEqual(apartadosNoAplican(base), {});
+});

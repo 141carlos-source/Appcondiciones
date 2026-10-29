@@ -6,7 +6,7 @@ import { clientesConocidos, suministrosConocidos, buscarClientes, buscarSuminist
 import {
   nuevoAviso, normalizarAviso, siguienteNumero, isExpediente, conPdfCondiciones, pdfCondicionesActual, datosPendientes,
   docsPendientes, direccionCompleta, FASES_TRAMITE, DOCUMENTOS, ESTADOS_DOC, ESTADOS_AVISO, EVENTOS, EVENTOS_MANUALES, DESTINOS,
-  separarNumero, estaCerrado, boletinActual,
+  separarNumero, estaCerrado, boletinActual, apartadosNoAplican,
 } from '../core/model.js';
 import { buscar, duplicados } from '../core/search.js';
 import { provinciaDeCp, formatearIban, validarCups, formatearTelefono } from '../core/validate.js';
@@ -398,6 +398,26 @@ export async function vistaFicha(app, id) {
   };
   pintarPotencias();
   const seccion = (titulo, abierta, ...hijos) => h('details', { class: 'card', open: abierta || null }, h('summary', {}, titulo), h('div', { class: 'cuerpo' }, ...hijos));
+  /** Apartado que se bloquea (no se puede abrir) si no aplica: sin boletín o sin condiciones. */
+  const seccionBloqueable = (clave, titulo, ...hijos) => {
+    const d = seccion(titulo, false, ...hijos);
+    d.dataset.apartado = clave;
+    d.querySelector('summary').append(h('span', { class: 'no-aplica' }));
+    d.addEventListener('toggle', () => { if (d.open && d.classList.contains('inhabil')) d.open = false; });
+    d.querySelector('summary').addEventListener('click', (e) => { if (d.classList.contains('inhabil')) { e.preventDefault(); toast(d.dataset.motivo + ': este apartado no aplica'); } });
+    return d;
+  };
+  const pintarApartados = () => {
+    const no = apartadosNoAplican(draft);
+    for (const d of cont.querySelectorAll('details[data-apartado]')) {
+      const motivo = no[d.dataset.apartado];
+      d.classList.toggle('inhabil', !!motivo);
+      d.setAttribute('aria-disabled', motivo ? 'true' : 'false');
+      d.dataset.motivo = motivo || '';
+      if (motivo) d.open = false;
+      d.querySelector('.no-aplica').textContent = motivo ? ` · No aplica (${motivo.toLowerCase()})` : '';
+    }
+  };
 
   // --- condiciones y trámite
   const listaPdfs = h('div');
@@ -436,6 +456,7 @@ export async function vistaFicha(app, id) {
       const actual = draft.docs?.[doc];
       const nuevo = e.target.value === 'no' ? 'na' : e.target.value === 'si' && actual === 'na' ? 'pendiente' : actual;
       if (nuevo !== actual) { draft.docs = { ...draft.docs, [doc]: nuevo }; const d = cont.querySelector('#doc-' + doc); if (d) d.value = nuevo; }
+      pintarApartados();
       alCambiar();
     } }, ...[['', '—'], ['si', 'Sí'], ['no', 'No']].map(([v, t]) => h('option', { value: v, selected: (draft.lleva?.[k] || '') === v || null }, t)));
     return h('div', { class: 'campo', 'data-campo': 'lleva.' + k }, h('label', { for: 'lleva-' + k }, etiqueta), sel, h('div', { class: 'msg-pend' }));
@@ -562,12 +583,12 @@ export async function vistaFicha(app, id) {
     seccion('Plano de situación y fotografías', false, h('label', {}, 'Plano de situación'), planoEl, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
     registro ? seccion('Solicitudes y comunicaciones', false, comunicaciones) : null,
     seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
-    seccion('Memoria técnica CNMC', false, bloqueMemoria(app, draft, alCambiar, registro?.id, async (ficha) => {
+    seccionBloqueable('memoria', 'Memoria técnica CNMC', bloqueMemoria(app, draft, alCambiar, registro?.id, async (ficha) => {
       if (!draft.archivos.some((x) => x.hash === ficha.hash)) draft.archivos.push(ficha);
       await guardar();
     })),
-    seccion('Autorización de representatividad', false, bloqueAutorizacion(app, draft, alCambiar, () => guardar())),
-    seccion('Condiciones y trámite', false,
+    seccionBloqueable('autorizacion', 'Autorización de representatividad', bloqueAutorizacion(app, draft, alCambiar, () => guardar())),
+    seccionBloqueable('condiciones', 'Condiciones y trámite',
       h('div', { class: 'grid2' },
         campo(['condiciones.ref', 'Referencia de condiciones', 'text', { mono: true, mayus: true }]),
         campo(['tramite', 'Estado del trámite', 'select', { opciones: FASES_TRAMITE.map((f) => [f.id, f.label]) }])),
@@ -607,6 +628,7 @@ export async function vistaFicha(app, id) {
       } }, 'Enviar a la papelera')) : null,
     h('div', { class: 'barra-guardar' }, h('button', { class: 'btn prim ancho', type: 'submit', id: 'guardar' }, registro ? 'Guardar cambios' : 'Crear aviso')));
 
+  pintarApartados();
   marcarPendientes();
   comprobarDuplicados();
   pintarRecordatorios();

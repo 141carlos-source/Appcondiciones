@@ -202,6 +202,16 @@ const CHECKS = [
   ['electrico.tension', 'Tensión', (x) => (['230', '400', '230/400'].includes(String(x)) ? null : 'Indica la tensión: 230 V o 400 V'), ['contrato', 'boletin']],
 ];
 
+/** El trabajo no lleva boletín (Cliente y suministro › «Boletín: ¿lo lleva?» = No): sin CUPS ni referencia catastral. */
+export const sinBoletin = (aviso) => aviso?.lleva?.boletin === 'no';
+/** Apartados que no aplican y se bloquean: sin boletín, memoria, autorización y condiciones; sin condiciones, condiciones. */
+export function apartadosNoAplican(aviso) {
+  const out = {};
+  if (sinBoletin(aviso)) for (const k of ['memoria', 'autorizacion', 'condiciones']) out[k] = 'No lleva boletín';
+  if (aviso?.lleva?.condiciones === 'no' && !out.condiciones) out.condiciones = 'No lleva condiciones';
+  return out;
+}
+
 /** El aviso no lleva contrato de electricidad (Documentos › Contrato marcado «No aplica»). */
 export const sinContrato = (aviso) => aviso?.docs?.contrato === 'na';
 
@@ -221,6 +231,8 @@ export function datosPendientes(aviso, destino) {
     if (destino && !destinos.includes(destino)) continue;
     // Sin contrato (Documentos › Contrato: «No aplica») el IBAN vacío no es una falta
     if (campo === 'cliente.iban' && sinContrato(aviso) && !String(leer(aviso, campo) ?? '').trim()) continue;
+    // Sin boletín no hacen falta el CUPS ni la referencia catastral (si están escritos y mal, se avisa igual)
+    if ((campo === 'suministro.cups' || campo === 'suministro.refCatastral') && sinBoletin(aviso) && !String(leer(aviso, campo) ?? '').trim()) continue;
     const problema = check(leer(aviso, campo));
     if (problema) out.push({ campo, etiqueta, problema });
   }
