@@ -48,6 +48,17 @@ try {
     assert.equal(await d.evaluate((x) => x.open), false, k + ' no se abre');
   }
   assert.match(await page.textContent('details[data-apartado="memoria"] > summary'), /No aplica \(no lleva boletín\)/);
+  // Sin boletín y sin contrato: potencia y tensión no pendientes; solo cuenta la ficha
+  await page.selectOption('#lleva-contrato', 'no');
+  assert.equal(await page.inputValue('#doc-contrato'), 'na');
+  const pend2 = await pendientes();
+  assert.ok(!pend2.includes('electrico.potenciaKw') && !pend2.includes('electrico.tension'), pend2.join());
+  const resumenTxt = await page.textContent('main');
+  assert.doesNotMatch(resumenTxt, /Boletín \/ memoria CNMC: \d+ pendiente/);
+  assert.doesNotMatch(resumenTxt, /Contrato: \d+ pendiente/);
+  await page.selectOption('#lleva-contrato', 'si');
+  assert.equal(await page.inputValue('#doc-contrato'), 'pendiente');
+  ok('Sin boletín y sin contrato: potencia y tensión no quedan pendientes; «Contrato: ¿lo lleva?» = No lo marca «No aplica»');
   await page.selectOption('#lleva-boletin', 'si');
   assert.ok((await pendientes()).includes('suministro.cups'), 'con boletín vuelve a pedir el CUPS');
   assert.doesNotMatch(await page.getAttribute('details[data-apartado="memoria"]', 'class'), /inhabil/);

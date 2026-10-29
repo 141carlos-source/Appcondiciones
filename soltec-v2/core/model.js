@@ -213,7 +213,10 @@ export function apartadosNoAplican(aviso) {
 }
 
 /** El aviso no lleva contrato de electricidad (Documentos › Contrato marcado «No aplica»). */
-export const sinContrato = (aviso) => aviso?.docs?.contrato === 'na';
+export const sinContrato = (aviso) => aviso?.lleva?.contrato === 'no' || aviso?.docs?.contrato === 'na';
+
+/** Destinos que aplican a este aviso: sin boletín no cuenta «Boletín / memoria CNMC»; sin contrato, «Contrato». */
+export const destinosAviso = (aviso) => Object.keys(DESTINOS).filter((k) => !(k === 'boletin' && sinBoletin(aviso)) && !(k === 'contrato' && sinContrato(aviso)));
 
 export const DESTINOS = { ficha: 'Ficha de datos del cliente', contrato: 'Contrato', boletin: 'Boletín / memoria CNMC' };
 
@@ -227,8 +230,12 @@ const leer = (obj, ruta) => ruta.split('.').reduce((o, k) => (o == null ? o : o[
  */
 export function datosPendientes(aviso, destino) {
   const out = [];
+  const activos = destinosAviso(aviso);
+  if (destino && !activos.includes(destino)) return [];
   for (const [campo, etiqueta, check, destinos] of CHECKS) {
     if (destino && !destinos.includes(destino)) continue;
+    // Solo cuenta si lo pide algún destino que aplica (sin boletín ni contrato, la potencia no hace falta)
+    if (!destino && !destinos.some((d) => activos.includes(d))) continue;
     // Sin contrato (Documentos › Contrato: «No aplica») el IBAN vacío no es una falta
     if (campo === 'cliente.iban' && sinContrato(aviso) && !String(leer(aviso, campo) ?? '').trim()) continue;
     // Sin boletín no hacen falta el CUPS ni la referencia catastral (si están escritos y mal, se avisa igual)
@@ -238,7 +245,7 @@ export function datosPendientes(aviso, destino) {
   }
   // Coherencia potencia/tensión: en monofásico 230 V la potencia normalizada máxima es 14,49 kW.
   const p = Number(String(aviso.electrico?.potenciaKw ?? '').replace(',', '.'));
-  if (String(aviso.electrico?.tension) === '230' && p > 14.49 && (!destino || destino !== 'ficha')) {
+  if (String(aviso.electrico?.tension) === '230' && p > 14.49 && (!destino || destino !== 'ficha') && (activos.includes('contrato') || activos.includes('boletin'))) {
     out.push({ campo: 'electrico.potenciaKw', etiqueta: 'Potencia (kW)', problema: 'Más de 14,49 kW en 230 V: revisa si debe ser trifásico (400 V)' });
   }
   return out;

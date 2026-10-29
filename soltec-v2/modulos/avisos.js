@@ -6,7 +6,7 @@ import { clientesConocidos, suministrosConocidos, buscarClientes, buscarSuminist
 import {
   nuevoAviso, normalizarAviso, siguienteNumero, isExpediente, conPdfCondiciones, pdfCondicionesActual, datosPendientes,
   docsPendientes, direccionCompleta, FASES_TRAMITE, DOCUMENTOS, ESTADOS_DOC, ESTADOS_AVISO, EVENTOS, EVENTOS_MANUALES, DESTINOS,
-  separarNumero, estaCerrado, boletinActual, apartadosNoAplican,
+  separarNumero, estaCerrado, boletinActual, apartadosNoAplican, destinosAviso,
 } from '../core/model.js';
 import { buscar, duplicados } from '../core/search.js';
 import { provinciaDeCp, formatearIban, validarCups, formatearTelefono } from '../core/validate.js';
@@ -181,7 +181,7 @@ export async function vistaFicha(app, id) {
       w.classList.toggle('pend', !!p);
       w.querySelector('.msg-pend').textContent = p || '';
     }
-    const destinos = Object.entries(DESTINOS).map(([k, label]) => [label, datosPendientes(draft, k).length]);
+    const destinos = destinosAviso(draft).map((k) => [DESTINOS[k], datosPendientes(draft, k).length]);
     resumen.replaceChildren(pend.length
       ? h('div', { class: 'aviso err' },
         h('b', {}, `Faltan o hay que revisar ${pend.length} dato${pend.length > 1 ? 's' : ''}`),
@@ -461,7 +461,7 @@ export async function vistaFicha(app, id) {
     } }, ...[['', '—'], ['si', 'Sí'], ['no', 'No']].map(([v, t]) => h('option', { value: v, selected: (draft.lleva?.[k] || '') === v || null }, t)));
     return h('div', { class: 'campo', 'data-campo': 'lleva.' + k }, h('label', { for: 'lleva-' + k }, etiqueta), sel, h('div', { class: 'msg-pend' }));
   };
-  const llevaCtrl = h('div', { class: 'grid2', id: 'lleva' }, lleva('boletin', 'Boletín: ¿lo lleva?'), lleva('condiciones', 'Condiciones de suministro: ¿las lleva?'));
+  const llevaCtrl = h('div', { class: 'grid2', id: 'lleva' }, lleva('boletin', 'Boletín: ¿lo lleva?'), lleva('condiciones', 'Condiciones de suministro: ¿las lleva?'), lleva('contrato', 'Contrato de electricidad: ¿lo lleva?'));
 
   // --- boletín (PDF): se guardan todas las versiones; la última es la que se adjunta
   const listaBoletin = h('div', { id: 'lista-boletin' });

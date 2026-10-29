@@ -68,3 +68,17 @@ test('sin boletín: el CUPS y la referencia catastral no son pendientes; memoria
   assert.deepEqual(apartadosNoAplican({ ...base, lleva: { boletin: 'si', condiciones: 'no' } }), { condiciones: 'No lleva condiciones' });
   assert.deepEqual(apartadosNoAplican(base), {});
 });
+
+test('sin boletín ni contrato no quedan pendientes la potencia ni la tensión; «Contrato: ¿lo lleva?» = No', async () => {
+  const { datosPendientes, destinosAviso } = await import('../core/model.js');
+  const a = normalizarAviso({ cliente: { nombre: 'ANA', nif: '12345678Z', telefono: '600123456', email: 'a@b.es' }, suministro: { direccion: 'C', cp: '50001', poblacion: 'Z', provincia: 'Z' } });
+  const campos = (x, d) => datosPendientes(x, d).map((p) => p.campo);
+  assert.deepEqual(campos(a).sort(), ['electrico.potenciaKw', 'electrico.tension', 'suministro.cups', 'suministro.refCatastral'].sort());
+  const sinBol = { ...a, lleva: { boletin: 'no' } };
+  assert.deepEqual(destinosAviso(sinBol), ['ficha', 'contrato']);
+  assert.deepEqual(campos(sinBol, 'boletin'), []);
+  assert.deepEqual(campos(sinBol).sort(), ['electrico.potenciaKw', 'electrico.tension'], 'el contrato sigue pidiendo potencia y tensión');
+  const ninguno = { ...a, lleva: { boletin: 'no', contrato: 'no' } };
+  assert.deepEqual(destinosAviso(ninguno), ['ficha']);
+  assert.deepEqual(campos(ninguno), []);
+});
