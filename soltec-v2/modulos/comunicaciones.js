@@ -4,7 +4,7 @@
 import { h, ico, toast, abrirBlob, compartir, puedeCompartirArchivos, descargar, fecha, lienzoFirma } from '../ui.js';
 import { generarFicha, nombreFicha, resumenWhatsApp, enlaceWhatsApp, telefonoWhatsApp, correo, enlaceCorreo, TIPOS_CORREO } from '../core/documentos.js';
 import { faltaParaFormulario } from '../core/empresa.js';
-import { datosPendientes, normalizarAviso, hoyLocal, pdfCondicionesActual } from '../core/model.js';
+import { datosPendientes, normalizarAviso, hoyLocal, pdfCondicionesActual, boletinActual } from '../core/model.js';
 import { leerEmpresa } from './empresa.js';
 import { panelRecibir } from './recepcion.js';
 import { paqueteFicha, enlaceFormulario, correoFormulario, emlBorrador, URL_PUBLICA } from '../core/fichaCliente.js';
@@ -114,9 +114,11 @@ export async function bloqueComunicaciones(app, avisoId) {
     h('button', { class: 'btn peq', type: 'button', onclick: async (e) => { await app.storage.addEvent(avisoId, 'doc_enviada', `${que}: enviado`); e.target.closest('.aviso').replaceChildren('Anotado como enviado en el historial.'); } }, 'Sí, marcar como enviado')));
 
   // --- Correos a la distribuidora y a la comercializadora: se ven (y se pueden cambiar) antes de enviarlos
-  const ADJUNTOS_DE = { condiciones: ['memoria', 'plano_a5', 'plano', 'ficha_firmada', 'ficha_cliente'], contrato: ['condiciones', 'ficha_firmada', 'ficha_cliente', 'cert_tierra'] };
+  const ADJUNTOS_DE = { condiciones: ['memoria', 'plano_a5', 'plano', 'ficha_firmada', 'ficha_cliente'], contrato: ['condiciones', 'boletin', 'ficha_firmada', 'ficha_cliente', 'cert_tierra'] };
   const adjuntosAviso = (aviso) => {
-    const out = (aviso.archivos || []).map((x) => ({ ...x }));
+    // Del boletín, solo la última versión
+    const bol = boletinActual(aviso);
+    const out = (aviso.archivos || []).filter((x) => x.tipo !== 'boletin' || x === bol).map((x) => ({ ...x }));
     const cond = pdfCondicionesActual(aviso);
     if (cond) out.unshift({ ...cond, tipo: 'condiciones' });
     if (aviso.plano?.hash && !out.some((x) => x.hash === aviso.plano.hash)) out.push({ ...aviso.plano, tipo: 'plano', name: aviso.plano.name || 'PLANO_SITUACION' });
@@ -243,9 +245,9 @@ export async function bloqueComunicaciones(app, avisoId) {
       boton('btn-enlace-cliente', 'Pedir datos al cliente', enlaceCliente, true),
       boton('btn-leer-devuelta', 'Recibir ficha devuelta', leerDevuelta),
       h('a', { class: 'btn', href: `#/firma/${avisoId}` }, 'Firmar aquí (cliente delante)')),
-    paso(2, 'Condiciones de suministro', estadoDoc('condiciones') || (av.condiciones?.ref ? h('span', { class: 'insignia ok' }, 'Ref. ' + av.condiciones.ref) : null), 'Correo a la distribuidora con los datos del suministro y los documentos del aviso.',
+    paso(2, 'Condiciones de suministro', av.lleva?.condiciones === 'no' ? h('span', { class: 'insignia' }, 'No lleva') : estadoDoc('condiciones') || (av.condiciones?.ref ? h('span', { class: 'insignia ok' }, 'Ref. ' + av.condiciones.ref) : null), 'Correo a la distribuidora con los datos del suministro y los documentos del aviso.',
       boton('btn-correo-condiciones', 'Solicitar condiciones', vistaCorreo('condiciones'), true)),
-    paso(3, 'Contrato de electricidad', estadoDoc('contrato'), 'Correo a la comercializadora con el titular, el CUPS y la potencia.',
+    paso(3, 'Contrato de electricidad', estadoDoc('contrato'), 'Correo a la comercializadora con el titular, el CUPS y la potencia. Se adjuntan el boletín y las condiciones si están guardados en el aviso.',
       boton('btn-correo-contrato', 'Solicitar contrato', vistaCorreo('contrato'), true)),
     h('details', { class: 'paso-com otros' }, h('summary', {}, 'Otros mensajes'),
       h('div', { class: 'acciones' }, boton('btn-whatsapp', 'Resumen de lo pendiente por WhatsApp', whatsapp))),

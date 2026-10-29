@@ -88,6 +88,7 @@ export function nuevoAviso(extra = {}) {
     facturacion: { mismoCliente: true, nombre: '', nif: '', direccion: '', cp: '', poblacion: '', provincia: '' },
     suministro: { direccion: '', numero: '', piso: '', puerta: '', cp: '', poblacion: '', provincia: '', refCatastral: '', lat: '', lon: '', cups: '' },
     electrico: { potenciaKw: '', tension: '', fases: '', uso: '' },
+    lleva: { boletin: '', condiciones: '' }, // ¿el trabajo lleva boletín / condiciones de suministro? 'si' | 'no' | ''
     condiciones: { ref: '', pdfs: [] }, // pdfs: versiones {hash,name,mime,size,addedAt}, la última es la actual
     tramite: 'datos',
     docs: Object.fromEntries(DOCUMENTOS.map((d) => [d.id, 'revisar'])),
@@ -105,7 +106,7 @@ export function nuevoAviso(extra = {}) {
 export function normalizarAviso(d = {}) {
   const base = nuevoAviso();
   const out = { ...base, ...d, fecha: d.fecha ?? '' };
-  for (const k of ['presupuesto', 'cliente', 'facturacion', 'suministro', 'electrico', 'condiciones', 'docs']) {
+  for (const k of ['presupuesto', 'cliente', 'facturacion', 'suministro', 'electrico', 'lleva', 'condiciones', 'docs']) {
     out[k] = { ...base[k], ...(d[k] && typeof d[k] === 'object' ? d[k] : {}) };
   }
   out.condiciones.pdfs = Array.isArray(out.condiciones.pdfs) ? out.condiciones.pdfs : [];
@@ -150,6 +151,9 @@ export function conPdfCondiciones(aviso, ficha) {
   if (pdfs.some((p) => p.hash === ficha.hash)) return aviso; // mismo archivo: no se duplica
   return { ...aviso, condiciones: { ...aviso.condiciones, pdfs: [...pdfs, ficha] } };
 }
+
+/** Boletín guardado más reciente (archivos de tipo «boletin»), o null. */
+export const boletinActual = (aviso) => (aviso.archivos || []).filter((x) => x.tipo === 'boletin').at(-1) || null;
 
 /** «CALLE MAYOR 10» → { calle: 'CALLE MAYOR', numero: '10' } (si el final parece un número de portal). */
 export function separarNumero(texto) {

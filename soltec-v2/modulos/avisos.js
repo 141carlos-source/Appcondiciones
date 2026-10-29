@@ -6,7 +6,7 @@ import { clientesConocidos, suministrosConocidos, buscarClientes, buscarSuminist
 import {
   nuevoAviso, normalizarAviso, siguienteNumero, isExpediente, conPdfCondiciones, pdfCondicionesActual, datosPendientes,
   docsPendientes, direccionCompleta, FASES_TRAMITE, DOCUMENTOS, ESTADOS_DOC, ESTADOS_AVISO, EVENTOS, EVENTOS_MANUALES, DESTINOS,
-  separarNumero, estaCerrado,
+  separarNumero, estaCerrado, boletinActual,
 } from '../core/model.js';
 import { buscar, duplicados } from '../core/search.js';
 import { provinciaDeCp, formatearIban, validarCups, formatearTelefono } from '../core/validate.js';
@@ -420,11 +420,50 @@ export async function vistaFicha(app, id) {
     Object.assign(draft, conPdfCondiciones(draft, ficha));
     if (draft.condiciones.pdfs.length === antes) { toast('Ese PDF ya estaba guardado'); return; }
     pdfsNuevos.push(ficha);
+    draft.docs = { ...draft.docs, condiciones: 'recibido' };
+    const selC = cont.querySelector('#doc-condiciones'); if (selC) selC.value = 'recibido';
     pintarPdfs();
     alCambiar();
     toast('PDF añadido. Pulsa Guardar.');
   } });
   pintarPdfs();
+
+  // --- ¿Lleva boletín / condiciones? (en «Cliente y suministro»). «No» = documento «No aplica».
+  const lleva = (k, etiqueta) => {
+    const doc = k; // mismo id en DOCUMENTOS
+    const sel = h('select', { id: 'lleva-' + k, onchange: (e) => {
+      draft.lleva = { ...(draft.lleva || {}), [k]: e.target.value };
+      const actual = draft.docs?.[doc];
+      const nuevo = e.target.value === 'no' ? 'na' : e.target.value === 'si' && actual === 'na' ? 'pendiente' : actual;
+      if (nuevo !== actual) { draft.docs = { ...draft.docs, [doc]: nuevo }; const d = cont.querySelector('#doc-' + doc); if (d) d.value = nuevo; }
+      alCambiar();
+    } }, ...[['', '—'], ['si', 'Sí'], ['no', 'No']].map(([v, t]) => h('option', { value: v, selected: (draft.lleva?.[k] || '') === v || null }, t)));
+    return h('div', { class: 'campo', 'data-campo': 'lleva.' + k }, h('label', { for: 'lleva-' + k }, etiqueta), sel, h('div', { class: 'msg-pend' }));
+  };
+  const llevaCtrl = h('div', { class: 'grid2', id: 'lleva' }, lleva('boletin', 'Boletín: ¿lo lleva?'), lleva('condiciones', 'Condiciones de suministro: ¿las lleva?'));
+
+  // --- boletín (PDF): se guardan todas las versiones; la última es la que se adjunta
+  const listaBoletin = h('div', { id: 'lista-boletin' });
+  const pintarBoletin = () => {
+    const bs = (draft.archivos || []).filter((x) => x.tipo === 'boletin');
+    listaBoletin.replaceChildren(bs.length ? h('ul', { class: 'lista-chk' }, ...[...bs].reverse().map((p, i) => h('li', {},
+      h('span', { class: 'ico' }, i === 0 ? '●' : '○'),
+      h('span', { style: 'flex:1;min-width:0' }, h('div', { class: 'cortar' }, p.name), h('div', { class: 'muted' }, `${i === 0 ? 'Actual' : 'Versión anterior'} · ${fechaHora(p.addedAt)}`)),
+      h('button', { class: 'btn peq', type: 'button', onclick: async () => { const b = await app.storage.getFileBlob(p.hash); b ? abrirBlob(b) : toast('El PDF aún no está en este dispositivo: sincroniza.', true); } }, 'Ver'))))
+      : h('p', { class: 'muted' }, 'Sin boletín guardado.'));
+  };
+  const subirBoletin = h('input', { type: 'file', accept: 'application/pdf,.pdf', style: 'display:none', id: 'subir-boletin', onchange: async (e) => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    const ficha = await app.storage.putFile(f);
+    if ((draft.archivos || []).some((x) => x.hash === ficha.hash)) { toast('Ese PDF ya estaba guardado'); return; }
+    draft.archivos.push({ tipo: 'boletin', hash: ficha.hash, name: ficha.name, mime: 'application/pdf', size: ficha.size, addedAt: new Date().toISOString() });
+    draft.docs = { ...draft.docs, boletin: 'recibido' };
+    const sel = cont.querySelector('#doc-boletin'); if (sel) sel.value = 'recibido';
+    pintarBoletin(); alCambiar();
+    toast('Boletín añadido. Pulsa Guardar.');
+  } });
+  pintarBoletin();
 
   // --- documentación
   const docsCtrl = h('div', { class: 'grid2' }, ...DOCUMENTOS.map((d) => {
@@ -519,8 +558,9 @@ export async function vistaFicha(app, id) {
       h('button', { class: 'btn peq prim', type: 'button', id: 'btn-reabrir', onclick: () => cambiarCierre(false) }, 'Reabrir')) : null,
     registro?.deleted ? h('div', { class: 'aviso err' }, 'Este aviso está en la papelera. ', h('button', { class: 'btn peq', type: 'button', onclick: async () => { await app.storage.restore(registro.id); toast('Recuperado'); window.dispatchEvent(new HashChangeEvent('hashchange')); } }, 'Recuperar')) : null,
     resumen, recordatoriosEl, avisoDup,
+    seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.flatMap((c) => (c[0] === 'suministro.direccion' ? [sumCliente, campo(c)] : [campo(c)]))), bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar: () => planoEl.generar({ auto: true }) }), llevaCtrl),
     seccion('Plano de situación y fotografías', false, h('label', {}, 'Plano de situación'), planoEl, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
-    seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.flatMap((c) => (c[0] === 'suministro.direccion' ? [sumCliente, campo(c)] : [campo(c)]))), bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar: () => planoEl.generar({ auto: true }) })),
+    registro ? seccion('Solicitudes y comunicaciones', false, comunicaciones) : null,
     seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
     seccion('Memoria técnica CNMC', false, bloqueMemoria(app, draft, alCambiar, registro?.id, async (ficha) => {
       if (!draft.archivos.some((x) => x.hash === ficha.hash)) draft.archivos.push(ficha);
@@ -533,8 +573,12 @@ export async function vistaFicha(app, id) {
         campo(['tramite', 'Estado del trámite', 'select', { opciones: FASES_TRAMITE.map((f) => [f.id, f.label]) }])),
       h('label', {}, 'PDF de condiciones (se guardan todas las versiones)'), listaPdfs,
       h('div', { class: 'fila' }, h('button', { class: 'btn', type: 'button', onclick: () => subirPdf.click() }, 'Añadir PDF de condiciones'), subirPdf)),
-    seccion('Documentación', false, docsCtrl, h('p', { class: 'muted' }, 'Marcar «Recibido» registra la recepción; no adjunta ningún archivo.'), listaArchivos(app, draft)),
-    registro ? seccion('Solicitudes y comunicaciones', false, comunicaciones) : null,
+    seccion('Documentación', false, docsCtrl, h('p', { class: 'muted' }, 'Al guardar el PDF del boletín o de las condiciones se marca «Recibido».'),
+      h('label', {}, 'Boletín (PDF)'), listaBoletin,
+      h('div', { class: 'fila' },
+        h('button', { class: 'btn', type: 'button', id: 'btn-subir-boletin', onclick: () => subirBoletin.click() }, 'Guardar boletín (PDF)'), subirBoletin,
+        h('button', { class: 'btn', type: 'button', id: 'btn-subir-condiciones', onclick: () => subirPdf.click() }, 'Guardar condiciones (PDF)')),
+      listaArchivos(app, { ...draft, archivos: (draft.archivos || []).filter((x) => x.tipo !== 'boletin') })),
     seccion('Cuadros eléctricos', false, bloqueCuadros(app, draft, alCambiar, () => guardar())),
     seccion('Certificados', false, certificados),
     seccion('Obra, fecha y observaciones', false, h('div', { class: 'grid2' }, ...CAMPOS_OBRA.map(campo),

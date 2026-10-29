@@ -26,10 +26,11 @@ try {
 
   const orden = await page.$$eval('main details > summary', (s) => s.map((x) => x.textContent));
   const pos = (t) => orden.indexOf(t);
-  assert.equal(orden[0], 'Plano de situación y fotografías');
+  assert.equal(orden[0], 'Cliente y suministro');
+  assert.equal(orden[1], 'Plano de situación y fotografías');
   assert.ok(pos('Autorización de representatividad') < pos('Condiciones y trámite'));
   assert.equal(pos('Documentación'), pos('Condiciones y trámite') + 1);
-  ok('Orden: plano y fotografías lo primero; condiciones y trámite tras la autorización; documentación después');
+  ok('Orden: cliente y suministro, luego plano y fotografías; condiciones y trámite tras la autorización; documentación después');
 
   await page.click('summary:has-text("Datos eléctricos")');
   assert.deepEqual((await page.$$eval('#f-electrico-iga option', (o) => o.map((x) => x.textContent))).slice(1), ['25 A', '40 A', '63 A', '80 A', '100 A', '125 A', '250 A']);
