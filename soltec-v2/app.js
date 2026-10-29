@@ -6,7 +6,7 @@ import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.37.0';
+export const VERSION = 'V2-1.38.0';
 
 import { h, ico, toast, hace, descargar, activarMayusculas, vigilarFocoTeclado, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -687,6 +687,23 @@ async function vistaAjustes() {
 }
 
 /** Salida segura: sube lo pendiente, ofrece copia si hace falta y confirma que se puede cerrar. */
+/** Cierra la app. Si el sistema no deja cerrarla desde dentro, deja una pantalla de «sesión cerrada» con cómo cerrarla. */
+function cerrarApp() {
+  try { window.close(); } catch { /* no deja */ }
+  setTimeout(() => {
+    if (window.closed) return;
+    const movil = matchMedia('(pointer: coarse)').matches;
+    document.body.replaceChildren(h('main', { class: 'app-cerrada', id: 'app-cerrada' },
+      h('div', { class: 'card' },
+        h('h1', {}, 'SOLTEC cerrada'),
+        h('p', {}, 'Todo está guardado.'),
+        h('p', { class: 'muted' }, movil
+          ? 'Este móvil no deja que la app se cierre sola: toca el botón de aplicaciones recientes (el cuadrado o desliza desde abajo) y desliza SOLTEC hacia arriba.'
+          : 'Este navegador no deja que la app se cierre sola: ciérrala con la X de la ventana (o Ctrl+W).'),
+        h('button', { class: 'btn', type: 'button', onclick: () => { location.hash = '#/inicio'; location.reload(); } }, 'Volver a abrir SOLTEC'))));
+  }, 300);
+}
+
 async function vistaSalir() {
   const lista = h('ul', { class: 'lista-chk' });
   const final = h('div');
@@ -716,8 +733,11 @@ async function vistaSalir() {
         const { blob, nombre } = await exportarBlob(app.storage); descargar(blob, nombre); toast('Copia descargada');
       } }, 'Descargar copia antes de salir'));
     }
-    final.append(h('div', { class: 'aviso ok' }, 'Ya puedes cerrar la aplicación.'),
-      h('div', { class: 'fila' }, h('a', { class: 'btn', href: '#/inicio', style: 'text-decoration:none' }, 'Seguir trabajando')));
+    final.append(h('div', { class: 'aviso ok' }, 'Todo listo: ya puedes cerrar la aplicación.'),
+      h('div', { class: 'fila' },
+        h('button', { class: 'btn prim ancho btn-cerrar-app', type: 'button', id: 'cerrar-app', onclick: cerrarApp }, 'Cerrar la aplicación'),
+        h('a', { class: 'btn', href: '#/inicio', style: 'text-decoration:none' }, 'Seguir trabajando')));
+    final.querySelector('#cerrar-app').focus();
   })();
   return cont;
 }

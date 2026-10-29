@@ -485,3 +485,7 @@ html[data-demo] .toast, html[data-demo] .banda { bottom: calc(var(--nav-h) + 56p
 details.inhabil > summary { color: var(--acero, #8a929b); cursor: not-allowed; opacity: .6; }
 details.inhabil > summary::after { opacity: .3; }
 details > summary .no-aplica { font-weight: 500; font-size: 13px; }
+/* Salida: botón de cerrar y pantalla de «SOLTEC cerrada» */
+.btn-cerrar-app { min-height: 52px; font-size: 17px; }
+.app-cerrada { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.app-cerrada .card { max-width: 420px; text-align: center; }
