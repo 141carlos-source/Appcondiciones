@@ -52,7 +52,7 @@ try {
   assert.equal((await page.$$eval('#potencias-normalizadas .chip', (b) => b.map((x) => x.textContent))).at(-1), '27,713');
   await page.selectOption('#f-electrico-tension', '230');
   await page.click('#potencias-normalizadas .chip[data-kw="5,75"]');
-  await page.click('#btn-guardar, button:has-text("Guardar")');
+  await page.click('#guardar');
   let a;
   for (let i = 0; i < 30; i++) { a = await page.evaluate(async (aid) => (await window.soltec.storage.get(aid)).data, id); if (a.electrico.potenciaContratar) break; await page.waitForTimeout(200); }
   assert.equal(a.electrico.potenciaContratar, '5,75');

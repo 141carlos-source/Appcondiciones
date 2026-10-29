@@ -49,7 +49,7 @@ try {
   await page.waitForFunction(() => document.querySelector('#doc-condiciones').value === 'recibido');
   await page.click('#guardar');
   let a;
-  for (let i = 0; i < 30; i++) { a = await page.evaluate(async (aid) => (await window.soltec.storage.get(aid)).data, id); if (a.archivos.some((x) => x.tipo === 'boletin') && a.condiciones.pdfs.length) break; await page.waitForTimeout(200); }
+  for (let i = 0; i < 30; i++) { a = await page.evaluate(async (aid) => (await window.soltec.storage.get(aid)).data, id); if (a.archivos?.some((x) => x.tipo === 'boletin') && a.condiciones?.pdfs?.length) break; await page.waitForTimeout(200); }
   assert.equal(a.lleva.boletin, 'si');
   assert.equal(a.lleva.condiciones, 'si');
   assert.equal(a.docs.boletin, 'recibido');
