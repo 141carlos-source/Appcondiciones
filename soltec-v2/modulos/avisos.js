@@ -450,7 +450,7 @@ export async function vistaFicha(app, id) {
       h('span', { class: 'ico' }, i === 0 ? '●' : '○'),
       h('span', { style: 'flex:1;min-width:0' }, h('div', { class: 'cortar' }, p.name), h('div', { class: 'muted' }, `${i === 0 ? 'Actual' : 'Versión anterior'} · ${fechaHora(p.addedAt)}`)),
       h('button', { class: 'btn peq', type: 'button', onclick: async () => { const b = await app.storage.getFileBlob(p.hash); b ? abrirBlob(b) : toast('El PDF aún no está en este dispositivo: sincroniza.', true); } }, 'Ver'))))
-      : h('p', { class: 'muted' }, 'Sin boletín guardado.'));
+      : h('p', { class: 'muted' }, 'Todavía no hay boletín.'));
   };
   const subirBoletin = h('input', { type: 'file', accept: 'application/pdf,.pdf', style: 'display:none', id: 'subir-boletin', onchange: async (e) => {
     const f = e.target.files[0]; e.target.value = '';

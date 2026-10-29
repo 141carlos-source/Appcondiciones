@@ -247,7 +247,7 @@ export async function bloqueComunicaciones(app, avisoId) {
       h('a', { class: 'btn', href: `#/firma/${avisoId}` }, 'Firmar aquí (cliente delante)')),
     paso(2, 'Condiciones de suministro', av.lleva?.condiciones === 'no' ? h('span', { class: 'insignia' }, 'No lleva') : estadoDoc('condiciones') || (av.condiciones?.ref ? h('span', { class: 'insignia ok' }, 'Ref. ' + av.condiciones.ref) : null), 'Correo a la distribuidora con los datos del suministro y los documentos del aviso.',
       boton('btn-correo-condiciones', 'Solicitar condiciones', vistaCorreo('condiciones'), true)),
-    paso(3, 'Contrato de electricidad', estadoDoc('contrato'), 'Correo a la comercializadora con el titular, el CUPS y la potencia. Se adjuntan el boletín y las condiciones si están guardados en el aviso.',
+    paso(3, 'Contrato de electricidad', estadoDoc('contrato'), 'Correo a la comercializadora con el titular, el CUPS y la potencia. Se adjuntan el boletín y las condiciones si los tiene el aviso.',
       boton('btn-correo-contrato', 'Solicitar contrato', vistaCorreo('contrato'), true)),
     h('details', { class: 'paso-com otros' }, h('summary', {}, 'Otros mensajes'),
       h('div', { class: 'acciones' }, boton('btn-whatsapp', 'Resumen de lo pendiente por WhatsApp', whatsapp))),
