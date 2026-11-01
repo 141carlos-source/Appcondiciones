@@ -58,7 +58,7 @@ try {
   const f = page.frameLocator('#iframe-cuadrolab-prueba');
   await f.locator('[data-pal="PIA:0"]').waitFor({ timeout: 20000 });
   await f.locator('[data-pal="PIA:0"]').selectOption('16');
-  assert.ok(await f.locator('svg[data-estilo="esquema"]').count());
+  assert.ok(await f.locator('svg[data-estilo="real"]').count());
   await page.click('#cerrar-cuadrolab-prueba');
   ok('CuadroLab de prueba (suelto, sin tocar avisos) con el dibujo nuevo');
 

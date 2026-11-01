@@ -29,7 +29,7 @@ export const PASOS = [
     espera: 'Llega «SOLTEC · Recordatorio» sin abrir la app.', nota: 'Solo Chrome en Android con la app instalada; el sistema decide cuándo (puede tardar horas). En iPad no llega con la app cerrada.' },
   { id: 'frontal', grupo: 'Cuadros', titulo: 'Frontal de CuadroLab con el dibujo nuevo',
     como: 'Pulsa «Abrir CuadroLab de prueba», pon un diferencial y dos magnetotérmicos desde los desplegables y mueve uno con el dedo varias veces: mantenlo pulsado un momento (se levanta) y arrástralo a otro hueco, también a la otra fila.',
-    espera: 'Los aparatos salen como en la caja (blancos, palancas azul oscuro abajo; el diferencial con el botón naranja) y se mueven con el dedo todas las veces que quieras; cerca del panel de abajo la pantalla se desplaza sola.',
+    espera: 'Los aparatos salen con aspecto real (bornes con tornillo, placa del calibre y palancas en azul CHINT; el diferencial con el botón de prueba «T» amarillo) y se mueven con el dedo todas las veces que quieras; cerca del panel de abajo la pantalla se desplaza sola.',
     accion: { probar: 'cuadrolab', texto: 'Abrir CuadroLab de prueba' }, nota: 'Es un CuadroLab suelto: no toca ningún aviso.' },
   { id: 'autorizacion', grupo: 'Autorización', titulo: 'Autorización: sugerencias y correo',
     como: 'Abre un aviso que ya tengas › «Autorización de representatividad» › Abrir. Borra el nombre del solicitante y escribe 3 letras de otro cliente.',
