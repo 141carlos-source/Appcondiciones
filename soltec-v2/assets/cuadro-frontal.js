@@ -178,6 +178,8 @@
     const rc = (x, y, w, h, f, o = {}) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${o.rx || 0}" fill="${f}"${o.s ? ` stroke="${o.s}" stroke-width="${o.sw || 1}"` : ''}${o.op ? ` opacity="${o.op}"` : ''}/>`;
     const tornillo = (cx, cy) => `<circle cx="${cx}" cy="${cy}" r="3.8" fill="#c9ced6" stroke="#7c838d" stroke-width=".8"/><path d="M${cx - 2.3} ${cy}h4.6M${cx} ${cy - 2.3}v4.6" stroke="#59606a" stroke-width="1"/>`;
     const marca = String(d.mk || 'CHINT').trim().split(/\s+/)[0].toUpperCase().slice(0, 7);
+    // Modelo (para el pedido): el escrito en el aparato o, en CHINT, la serie según la intensidad
+    const modelo = String(d.mk || '').trim().split(/\s+/).slice(1).join(' ') || (marca === 'CHINT' && (t === 'PIA' || t === 'ID' || t === 'IGA') ? ((t === 'ID' ? 'NXL-' : 'NXB-') + (+d.in > 63 ? '125' : '63')) : '');
     const gid = 'cr' + t + m + String(d.id || '').replace(/\W/g, '');
     let s = `<svg viewBox="0 0 ${W} ${H}" style="flex:none;width:100%;height:auto;pointer-events:none;text-transform:none" data-estilo="real">`
       + `<defs><linearGradient id="${gid}" x1="0" x2="1"><stop offset="0" stop-color="#f4f5f2"/><stop offset="1" stop-color="#e1e4e0"/></linearGradient></defs>`;
@@ -202,6 +204,7 @@
       for (let k = 0; k < m; k++) s += palanca(k * P);
       if (m > 1) s += rc(P / 2 - 5, 66, W - P + 10, 3.5, AZO, { rx: 1.5 }); // palancas unidas
       if (t === 'IGA') s += tx(W / 2, 90, 6, 'IGA', { c: AZ });
+      else if (modelo) s += tx(W / 2, 90, m > 1 ? 5.5 : 4.4, modelo, { w: 400, c: GR });
     } else if (t === 'ID') {
       s += cabecera() + placa(34, m > 2 ? `${d.in || 40}A ${d.sn || 30}mA` : `${d.in || 40}A`, m > 2 ? 7.5 : 7);
       if (m <= 2) s += tx(W / 2, 53, 6, `${d.sn || 30}mA`, { w: 400, c: GR });
@@ -209,7 +212,7 @@
       const bx = W - P / 2;
       s += `<circle cx="${bx}" cy="62" r="5.5" fill="#f5c400" stroke="#9a7b00" stroke-width=".8"/>` + tx(bx, 64.5, 6.5, 'T');
       s += `<rect x="${bx - 6.5}" y="73" width="13" height="9" rx="1.5" fill="none" stroke="${TXT}" stroke-width=".8"/><path d="M${bx - 4.5} 79.5c1.8-5 3.6 5 5.4 0s3.6 5 3.6 0" stroke="${TXT}" stroke-width=".8" fill="none"/>`;
-      s += tx(W / 2, 91, 5.2, 'CLASE ' + (d.cl || 'A'), { w: 400, c: GR });
+      s += tx(W / 2, 91, 5.2, 'CLASE ' + (d.cl || 'A') + (modelo && m > 2 ? ' · ' + modelo : ''), { w: 400, c: GR });
     } else if (t === 'SOB') {
       s += cabecera() + placa(34, 'SPD ' + (d.in || '') + 'A', m > 2 ? 7.5 : 6.5);
       for (let k = 0; k < m; k++) { const cx = k * P + P / 2; s += rc(k * P + 5, 49, P - 10, 40, '#eef0ee', { s: '#b7bcc3', sw: 0.8, rx: 2 }) + rc(cx - 4.5, 55, 9, 6, '#2fa84f', { rx: 1 }); }

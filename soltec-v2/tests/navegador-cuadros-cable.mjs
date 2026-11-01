@@ -96,7 +96,8 @@ try {
   const pos = Object.fromEntries(await f.locator('.dv').evaluateAll((a) => a.map((d) => [d.dataset.id, parseInt(d.style.left, 10)])));
   assert.ok(pos[cabR] < pos[idR], 'la cabecera queda a la izquierda del diferencial');
   assert.ok(Object.values(pos).filter((x) => x > pos[cabR] && x < pos[idR]).length === 0, 'pegada al diferencial');
-  const txt = await f.locator(`.dv[data-id="${cabR}"]`).innerText();
+  // Texto del aparato sin el dibujo (en el dibujo real la placa lleva la curva y el calibre, p. ej. «C40»)
+  const txt = await f.locator(`.dv[data-id="${cabR}"]`).evaluate((d) => [...d.children].filter((x) => x.tagName !== 'svg').map((x) => x.innerText).join('\n'));
   assert.match(txt, /CAB\. ID 1/);
   assert.doesNotMatch(txt, /KW/);
   assert.ok(!/(^|\s)C\d{1,2}(\s|$)/.test(txt.replace(/C\d+\n400V/, '')), 'sin número de circuito');
