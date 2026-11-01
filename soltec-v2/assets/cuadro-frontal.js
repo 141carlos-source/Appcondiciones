@@ -161,5 +161,74 @@
     return s + '</svg>';
   }
 
-  return { SOBM, SOBT, DIF, PIA1, PIA2, PAL, opcion, aplicarOpcion, libre, primerHueco, siguienteHueco, columnaSoltar, nuevoAparato, huecoCabecera, datosCabecera, mover, caben, svgAparato };
+  // ---------------------------------------------------------------- dibujo del aparato (aspecto real)
+  /** Azul de CHINT (palancas, placa del calibre y marca). */
+  const AZUL_CHINT = '#0b4ea2';
+  /**
+   * Frontal de un aparato con aspecto real: cuerpo claro, bornes con tornillo arriba y abajo, escudo frontal
+   * (lo que asoma por la tapa) con la marca, el calibre en una placa azul, la palanca azul con su testigo y,
+   * según el tipo, el botón de prueba del diferencial, los cartuchos del protector, el mando del contactor…
+   * Devuelve un <svg> de 32 × 118 por módulo que ocupa el ancho de su hueco.
+   */
+  function svgAparatoReal(d, nombres = {}) {
+    const P = 32, H = 118, m = Math.max(1, +d.m || 1), W = m * P, t = d.t;
+    const AZ = AZUL_CHINT, AZ2 = '#2f6fc4', AZO = '#083a78', TXT = '#1d2330', GR = '#6b7280';
+    const e = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const tx = (x, y, z, s, o = {}) => `<text x="${x}" y="${y}" font-size="${z}" font-weight="${o.w || 700}" fill="${o.c || TXT}" font-family="Arial, Helvetica, sans-serif" text-anchor="${o.a || 'middle'}">${e(s)}</text>`;
+    const rc = (x, y, w, h, f, o = {}) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${o.rx || 0}" fill="${f}"${o.s ? ` stroke="${o.s}" stroke-width="${o.sw || 1}"` : ''}${o.op ? ` opacity="${o.op}"` : ''}/>`;
+    const tornillo = (cx, cy) => `<circle cx="${cx}" cy="${cy}" r="3.8" fill="#c9ced6" stroke="#7c838d" stroke-width=".8"/><path d="M${cx - 2.3} ${cy}h4.6M${cx} ${cy - 2.3}v4.6" stroke="#59606a" stroke-width="1"/>`;
+    const marca = String(d.mk || 'CHINT').trim().split(/\s+/)[0].toUpperCase().slice(0, 7);
+    const gid = 'cr' + t + m + String(d.id || '').replace(/\W/g, '');
+    let s = `<svg viewBox="0 0 ${W} ${H}" style="flex:none;width:100%;height:auto;pointer-events:none;text-transform:none" data-estilo="real">`
+      + `<defs><linearGradient id="${gid}" x1="0" x2="1"><stop offset="0" stop-color="#f4f5f2"/><stop offset="1" stop-color="#e1e4e0"/></linearGradient></defs>`;
+    s += rc(0.6, 0.6, W - 1.2, H - 1.2, `url(#${gid})`, { s: '#8f969f', sw: 1.2, rx: 3 });
+    for (let k = 0; k < m; k++) {
+      const cx = k * P + P / 2;
+      s += rc(k * P + 3.5, 3.5, P - 7, 14, '#dcdfe3', { rx: 2 }) + tornillo(cx, 10.5);
+      s += rc(k * P + 3.5, H - 17.5, P - 7, 14, '#dcdfe3', { rx: 2 }) + tornillo(cx, H - 10.5);
+      if (k) s += `<line x1="${k * P}" y1="2" x2="${k * P}" y2="${H - 2}" stroke="#b9bec6" stroke-width=".8"/>`;
+    }
+    // Escudo frontal (lo que asoma por la tapa del cuadro)
+    s += rc(2.5, 22, W - 5, H - 44, '#fbfbf9', { s: '#c4c9d0', sw: 0.8, rx: 2 }) + rc(2.5, H - 24, W - 5, 2, '#000', { op: 0.06 });
+    // Palanca: hueco, mando azul en «conectado» y testigo verde
+    const palanca = (x, y0 = 54) => {
+      const cx = x + P / 2;
+      return rc(cx - 6.5, y0, 13, 28, '#3a4049', { rx: 2.5 }) + rc(cx - 5, y0 + 1.5, 10, 13, AZ, { rx: 2 }) + rc(cx - 3.5, y0 + 3, 7, 2, AZ2, { rx: 1 }) + rc(cx - 2, y0 + 19, 4, 3, '#2fa84f', { rx: 1 });
+    };
+    const placa = (y, texto, z = 7.5) => rc(4, y, W - 8, 10.5, AZ, { rx: 1.5 }) + tx(W / 2, y + 8, z, texto, { c: '#fff' });
+    const cabecera = () => tx(W / 2, 31, m > 1 ? 6.5 : 5.6, marca, { c: AZ });
+    if (t === 'PIA' || t === 'IGA') {
+      s += cabecera() + placa(34, (d.cu || 'C') + (d.in || ''), m > 1 ? 8 : 7.5);
+      for (let k = 0; k < m; k++) s += palanca(k * P);
+      if (m > 1) s += rc(P / 2 - 5, 66, W - P + 10, 3.5, AZO, { rx: 1.5 }); // palancas unidas
+      if (t === 'IGA') s += tx(W / 2, 90, 6, 'IGA', { c: AZ });
+    } else if (t === 'ID') {
+      s += cabecera() + placa(34, m > 2 ? `${d.in || 40}A ${d.sn || 30}mA` : `${d.in || 40}A`, m > 2 ? 7.5 : 7);
+      if (m <= 2) s += tx(W / 2, 53, 6, `${d.sn || 30}mA`, { w: 400, c: GR });
+      s += palanca(0, 56);
+      const bx = W - P / 2;
+      s += `<circle cx="${bx}" cy="62" r="5.5" fill="#f5c400" stroke="#9a7b00" stroke-width=".8"/>` + tx(bx, 64.5, 6.5, 'T');
+      s += `<rect x="${bx - 6.5}" y="73" width="13" height="9" rx="1.5" fill="none" stroke="${TXT}" stroke-width=".8"/><path d="M${bx - 4.5} 79.5c1.8-5 3.6 5 5.4 0s3.6 5 3.6 0" stroke="${TXT}" stroke-width=".8" fill="none"/>`;
+      s += tx(W / 2, 91, 5.2, 'CLASE ' + (d.cl || 'A'), { w: 400, c: GR });
+    } else if (t === 'SOB') {
+      s += cabecera() + placa(34, 'SPD ' + (d.in || '') + 'A', m > 2 ? 7.5 : 6.5);
+      for (let k = 0; k < m; k++) { const cx = k * P + P / 2; s += rc(k * P + 5, 49, P - 10, 40, '#eef0ee', { s: '#b7bcc3', sw: 0.8, rx: 2 }) + rc(cx - 4.5, 55, 9, 6, '#2fa84f', { rx: 1 }); }
+    } else if (t === 'CON') {
+      s += cabecera() + placa(34, (d.in || '') + 'A', 7) + rc(W / 2 - 8.5, 50, 17, 22, '#3a4049', { rx: 2 }) + rc(W / 2 - 6.5, 52, 13, 8, AZ, { rx: 1.5 }) + tx(W / 2, 69, 5, 'AUTO', { c: '#fff' }) + tx(W / 2, 88, 5.6, 'A1  A2');
+    } else if (t === 'REL') {
+      s += tx(W / 2, 31, 6, 'RELOJ', { c: AZ }) + rc(5, 36, W - 10, 17, '#9db3a0', { s: '#4d5a50', sw: 0.8, rx: 1.5 }) + tx(W / 2, 48.5, m > 1 ? 8.5 : 6.5, '12:00', { c: '#1f2a22' });
+      const nb = Math.max(2, m * 2), bw = (W - 12) / nb;
+      for (let k = 0; k < nb; k++) s += rc(6 + k * bw, 60, bw - 2.5, 7, AZ, { rx: 1.5 });
+    } else if (t === 'BOR') {
+      s += tx(W / 2, 31, 6, 'BORNERO', { c: AZ });
+      const n = Math.max(2, m * 2);
+      for (let k = 0; k < n; k++) { const cx = 4 + (k + 0.5) * ((W - 8) / n); s += `<circle cx="${cx}" cy="44" r="3.2" fill="#fff" stroke="#59606a"/><circle cx="${cx}" cy="80" r="3.2" fill="#fff" stroke="#59606a"/>`; }
+      s += rc(4, 56, W - 8, 11, d.fs == '3' ? '#6b4a2b' : '#2f6fd6', { rx: 1.5 }) + tx(W / 2, 64, 5.6, d.fs == '3' ? 'L1 L2 L3 N' : 'N', { c: '#fff' });
+    } else {
+      s += tx(W / 2, 58, 6.5, (t === 'OTR' ? 'OTRO' : (nombres[t] || 'APARATO')).slice(0, Math.max(5, m * 5)), { c: AZ });
+    }
+    return s + '</svg>';
+  }
+
+  return { AZUL_CHINT, svgAparatoReal, SOBM, SOBT, DIF, PIA1, PIA2, PAL, opcion, aplicarOpcion, libre, primerHueco, siguienteHueco, columnaSoltar, nuevoAparato, huecoCabecera, datosCabecera, mover, caben, svgAparato };
 });

@@ -118,3 +118,18 @@ test('dibujo esquema del aparato: palancas por polo, diferencial con prueba nara
   assert.ok(F0.svgAparato({ t: 'U1', m: 2 }, { U1: 'MI <APARATO>' }).includes('MI &lt;APAR'), 'textos escapados (y recortados al ancho)');
   for (const t of ['REL', 'CON', 'BOR', 'OTR']) assert.match(F0.svgAparato({ t, m: 2, in: 25 }), /<\/svg>$/);
 });
+
+test('dibujo real: azul CHINT, bornes con tornillo, calibre en la placa y una palanca por polo', () => {
+  const p1 = F0.svgAparatoReal({ t: 'PIA', m: 1, in: 16, cu: 'C' });
+  assert.match(p1, /data-estilo="real"/);
+  assert.ok(p1.includes(F0.AZUL_CHINT));
+  assert.ok(p1.includes('>C16<'));
+  assert.equal((p1.match(/<circle/g) || []).length, 2, 'un tornillo arriba y otro abajo');
+  const p4 = F0.svgAparatoReal({ t: 'PIA', m: 4, in: 32, cu: 'C' });
+  assert.equal((p4.match(/fill="#2fa84f"/g) || []).length, 4, 'cuatro palancas con testigo');
+  const id = F0.svgAparatoReal({ t: 'ID', m: 4, in: 40, sn: 30, cl: 'A' });
+  assert.ok(id.includes('>40A 30mA<') && id.includes('>T<') && id.includes('CLASE A'));
+  assert.ok(F0.svgAparatoReal({ t: 'PIA', m: 1, in: 10, mk: 'Hager <x>' }).includes('>HAGER<'));
+  assert.ok(F0.svgAparatoReal({ t: 'U1', m: 2 }, { U1: 'MI <APARATO>' }).includes('MI &lt;APAR'));
+  for (const t of ['SOB', 'REL', 'CON', 'BOR', 'OTR', 'IGA']) assert.match(F0.svgAparatoReal({ t, m: 2, in: 25 }), /<\/svg>$/);
+});
