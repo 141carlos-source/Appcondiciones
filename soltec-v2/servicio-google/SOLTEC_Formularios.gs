@@ -10,6 +10,8 @@
  * INSTALACIÓN (una vez):
  *   1. Entra en https://script.google.com con tu cuenta de Google › «Nuevo proyecto».
  *   2. Borra lo que haya y pega TODO este archivo. Ponle de nombre «SOLTEC Formularios».
+ *      Configuración del proyecto (ruedecita) › marca «Mostrar el archivo de manifiesto appsscript.json»,
+ *      y en appsscript.json pega el archivo appsscript.json que va junto a este (permisos de enviar correo).
  *   3. En la línea CLAVE de abajo, pega la clave que te da la app (Empresa › Envío automático).
  *   4. Guarda (icono del disquete). Pulsa «Implementar» › «Nueva implementación» › tipo «Aplicación web».
  *        Ejecutar como: Yo   ·   Quién tiene acceso: Cualquier usuario

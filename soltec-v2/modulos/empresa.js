@@ -184,6 +184,7 @@ export async function vistaEmpresa(app) {
         h('ol', { class: 'pasos-envio' },
           h('li', {}, 'Descarga el código del servicio: ', h('a', { href: './servicio-google/SOLTEC_Formularios.gs', download: 'SOLTEC_Formularios.gs', id: 'descargar-servicio' }, 'SOLTEC_Formularios.gs'), '.'),
           h('li', {}, 'Entra en ', h('a', { href: 'https://script.google.com/home/projects/create', target: '_blank', rel: 'noopener' }, 'script.google.com'), ' con tu cuenta de Google › Nuevo proyecto. Pega todo el código.'),
+          h('li', {}, 'Configuración del proyecto (ruedecita) › marca «Mostrar el archivo de manifiesto appsscript.json». En el editor, abre appsscript.json, borra lo que tiene y pega ', h('a', { href: './servicio-google/appsscript.json', download: 'appsscript.json', id: 'descargar-manifiesto' }, 'este archivo de permisos'), '.'),
           h('li', {}, 'En la línea ', h('code', {}, 'const CLAVE'), ' pega esta clave (entre las comillas):', clave,
             h('button', { class: 'btn peq', type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(d.envio.clave); toast('Clave copiada'); } catch { clave.select(); } } }, 'Copiar clave')),
           h('li', {}, 'Implementar › Nueva implementación › Aplicación web. Ejecutar como: Yo. Quién tiene acceso: Cualquier usuario. Autoriza el acceso (Configuración avanzada › Ir a SOLTEC Formularios).'),
