@@ -8,6 +8,9 @@ import { datosPendientes, normalizarAviso, hoyLocal, pdfCondicionesActual, bolet
 import { leerEmpresa } from './empresa.js';
 import { panelRecibir } from './recepcion.js';
 import { paqueteFicha, enlaceFormulario, correoFormulario, emlBorrador, URL_PUBLICA } from '../core/fichaCliente.js';
+import { servicioListo, crearEnlaceCorto, llamar } from '../core/servicioGoogle.js';
+
+let logoSubido = false; // el logo se manda al servicio de Google una vez por sesión
 
 let cargaPdfLib = null;
 /** Carga pdf-lib solo cuando hace falta (pesa ~500 KB). */
@@ -175,55 +178,98 @@ export async function bloqueComunicaciones(app, avisoId) {
     if (sinGuardar()) return;
     const aviso = { ...(await leer()), id: avisoId };
     const base = /github\.io$/.test(location.hostname) ? location.href.split('#')[0].replace(/[^/]*$/, '') : URL_PUBLICA;
-    // Por correo el enlace va dentro de un botón: puede llevar el logo. Por WhatsApp se ve entero: sin logo, más corto.
-    const url = enlaceFormulario(paqueteFicha(aviso, empresa, { logo: await logoParaEnlace(app, empresa.logo) }), base);
-    const urlCorta = enlaceFormulario(paqueteFicha(aviso, empresa), base);
     const cl = aviso.cliente || {};
     const nombre = cl.contacto || cl.nombre ? (cl.contacto || cl.nombre).split(' ')[0] : '';
-    const saludo = `Hola${nombre ? ' ' + nombre : ''}, le escribimos de ${nombreEmpresaCorta(empresa)}.`;
-    const mensaje = `${saludo}\n\nPara tramitar su suministro${aviso.numero ? ' (aviso ' + aviso.numero + ')' : ''} necesitamos que revise y complete sus datos y firme aquí, desde el móvil:\n${urlCorta}\n\nAl terminar, pulse «Reenviar aquí» para devolvernos la ficha firmada. Gracias.`;
-    const correoCli = correoFormulario({ url, empresa, nombre, numero: aviso.numero });
-    const tel = telefonoWhatsApp(cl.telefono);
-    const anotar = (por) => app.storage.addEvent(avisoId, 'doc_preparada', `Enlace del formulario de datos ${por} (el envío se confirma en ${por === 'por correo' ? 'el correo' : 'WhatsApp'})`);
-    /** Copia el correo con el botón (formato) para pegarlo en Gmail, Outlook… Devuelve false si el navegador no deja. */
-    const copiarCorreo = async () => {
-      try {
-        await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([correoCli.html], { type: 'text/html' }), 'text/plain': new Blob([correoCli.texto], { type: 'text/plain' }) })]);
-        return true;
-      } catch { return false; }
+    const auto = servicioListo(empresa);
+    const logo = await logoParaEnlace(app, empresa.logo, auto ? 8500 : 12000);
+    // Enlace: corto con el servicio de Google (datos cifrados); si no, con los datos dentro (largo)
+    const urlLargo = enlaceFormulario(paqueteFicha(aviso, empresa, { logo }), base);
+    let enlace = null;
+    const prepararEnlace = async () => {
+      if (enlace) return enlace;
+      if (auto) {
+        try {
+          if (logo && !logoSubido) { await llamar(empresa.envio.url, { accion: 'logo', clave: empresa.envio.clave, logo }); logoSubido = true; }
+          enlace = await crearEnlaceCorto(empresa, base, paqueteFicha(aviso, empresa, { logoServicio: !!logo }));
+        } catch (e) { toast(e.message + '. Se usa el enlace largo.', true); }
+      }
+      enlace ||= urlLargo;
+      const v = panel.querySelector('#enlace-cliente'); if (v) v.value = enlace;
+      return enlace;
     };
-    const pasos = h('div', { id: 'pasos-correo' });
+    const correoDe = (url, logoSrc) => correoFormulario({ url, empresa, nombre, numero: aviso.numero, logoSrc });
+    const tel = telefonoWhatsApp(cl.telefono);
     const paraCli = h('input', { type: 'email', id: 'para-cliente', value: cl.email || '', 'data-minusculas': '', placeholder: 'Correo del cliente' });
-    const vistaPrevia = h('iframe', { id: 'vista-correo-cliente', class: 'vista-correo', title: 'Así le llega el correo al cliente', sandbox: '', srcdoc: `<!doctype html><meta charset="utf-8"><body style="margin:12px;background:#fff">${correoCli.html}</body>` });
-    const enviarCorreo = async () => {
-      if (!paraCli.value.trim()) toast('Falta el correo del cliente', true);
-      const copiado = await copiarCorreo();
-      // Con el correo copiado, el cuerpo va vacío para pegarlo; si no se pudo copiar, va en texto
-      window.location.href = enlaceCorreo({ para: paraCli.value.trim(), asunto: correoCli.asunto, cuerpo: copiado ? '' : correoCli.texto });
-      pasos.replaceChildren(h('div', { class: 'aviso ' + (copiado ? 'ok' : 'info') },
-        copiado ? [h('b', {}, 'Correo copiado con el botón «ABRIR FORMULARIO AQUÍ». '), 'En el correo que se ha abierto, pega en el texto (Ctrl+V, o mantener pulsado › Pegar) y envía.']
-          : [h('b', {}, 'Este navegador no deja copiar el correo con formato: '), 'se ha puesto en texto con el enlace. En el PC puedes usar «Correo para Outlook».']));
-      await anotar('por correo'); marcarEnviado('Formulario de datos por correo');
+    const vistaPrevia = h('iframe', { id: 'vista-correo-cliente', class: 'vista-correo', title: 'Así le llega el correo al cliente', sandbox: '', srcdoc: `<!doctype html><meta charset="utf-8"><body style="margin:12px;background:#fff">${correoDe('#', auto ? logo : '').html}</body>` });
+    const pasos = h('div', { id: 'pasos-correo' });
+    const enviado = (que) => app.storage.addEvent(avisoId, 'doc_enviada', que);
+    const preparado = (por) => app.storage.addEvent(avisoId, 'doc_preparada', `Formulario de datos ${por} (el envío se confirma en ${por === 'por correo' ? 'el correo' : 'WhatsApp'})`);
+    /** Copia el correo con el botón (formato) para pegarlo en Gmail, Outlook… */
+    const copiarCorreo = async (c) => {
+      try { await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([c.html], { type: 'text/html' }), 'text/plain': new Blob([c.texto], { type: 'text/plain' }) })]); return true; } catch { return false; }
+    };
+    const porCorreo = async (e) => {
+      const para = paraCli.value.trim();
+      if (!para) { toast('Falta el correo del cliente', true); paraCli.focus(); return; }
+      const boton = e.currentTarget; boton.disabled = true;
+      try {
+        const url = await prepararEnlace();
+        if (auto && url !== urlLargo) {
+          // Correo automático desde el Gmail de la empresa, con el botón y el logo
+          const c = correoDe(url, logo ? 'cid:logo' : '');
+          pasos.replaceChildren(h('div', { class: 'aviso info' }, 'Enviando el correo…'));
+          await llamar(empresa.envio.url, { accion: 'correo', clave: empresa.envio.clave, para, asunto: c.asunto, html: c.html, texto: c.texto, nombre: nombreEmpresaCorta(empresa), responder: empresa.empresa?.email || '' });
+          await enviado(`Formulario de datos enviado por correo a ${para}`);
+          pasos.replaceChildren(h('div', { class: 'aviso ok', id: 'correo-enviado' }, h('b', {}, 'Correo enviado '), `a ${para}, con el botón «ABRIR FORMULARIO AQUÍ». Queda anotado en el historial.`));
+          return;
+        }
+        // Sin servicio: se copia el correo con el botón y se abre la aplicación de correo para pegarlo
+        const c = correoDe(url, '');
+        const copiado = await copiarCorreo(c);
+        window.location.href = enlaceCorreo({ para, asunto: c.asunto, cuerpo: copiado ? '' : c.texto });
+        pasos.replaceChildren(h('div', { class: 'aviso ' + (copiado ? 'ok' : 'info') },
+          copiado ? [h('b', {}, 'Correo copiado con el botón. '), 'En el correo que se ha abierto, pega en el texto (mantener pulsado › Pegar, o Ctrl+V) y envía.']
+            : [h('b', {}, 'No se ha podido copiar con formato: '), 'va en texto con el enlace.'],
+          h('div', { class: 'muted' }, 'Para que salga solo, sin pegar, activa el envío automático en Empresa.')));
+        await preparado('por correo'); marcarEnviado('Formulario de datos por correo');
+      } catch (err) {
+        pasos.replaceChildren(h('div', { class: 'aviso err' }, err.message));
+      } finally { boton.disabled = false; }
+    };
+    const porWhatsApp = async (e) => {
+      const boton = e.currentTarget; boton.disabled = true;
+      // Se abre la ventana antes de esperar al enlace (si no, el navegador la bloquea)
+      const ventana = window.open('about:blank', '_blank');
+      try {
+        const url = await prepararEnlace();
+        const saludo = `Hola${nombre ? ' ' + nombre : ''}, le escribimos de ${nombreEmpresaCorta(empresa)}.`;
+        const mensaje = `${saludo}\n\nPara tramitar su suministro${aviso.numero ? ' (aviso ' + aviso.numero + ')' : ''} necesitamos que revise sus datos y firme. Ábralo aquí:\n${url}\n\nAl terminar, pulse «Reenviar aquí». Gracias.`;
+        const wa = enlaceWhatsApp(cl.telefono, mensaje);
+        if (ventana) ventana.location.href = wa; else window.open(wa, '_blank', 'noopener');
+        await preparado('por WhatsApp'); marcarEnviado('Formulario de datos por WhatsApp');
+      } catch (err) { ventana?.close(); toast(err.message, true); } finally { boton.disabled = false; }
     };
     panel.replaceChildren(h('div', { class: 'card', id: 'panel-enlace-cliente' },
       h('b', {}, 'Pedir los datos al cliente'),
-      h('p', { class: 'muted' }, 'Le llega un botón «ABRIR FORMULARIO AQUÍ»: ve sus datos ya puestos, completa lo que falta, firma con el dedo y le devuelve la ficha firmada, que rellena el aviso sola. Los datos van dentro del enlace: no pasan por ningún servidor.'),
+      h('p', { class: 'muted' }, 'Le llega un botón «ABRIR FORMULARIO AQUÍ»: ve sus datos ya puestos, completa lo que falta, firma con el dedo y la ficha firmada vuelve y rellena el aviso.'),
+      auto ? null : h('div', { class: 'aviso info', id: 'sin-envio-auto' }, 'Para que el correo salga solo y el enlace sea corto, activa el ', h('a', { href: '#/empresa' }, 'envío automático en Empresa'), '.'),
       h('label', {}, 'Así le llega el correo'), vistaPrevia,
       h('label', { for: 'para-cliente' }, 'Para'), paraCli,
       tel ? null : h('div', { class: 'aviso info' }, 'El teléfono del cliente no es un móvil español: WhatsApp se abrirá sin destinatario.'),
-      h('div', { class: 'acciones' },
-        h('button', { class: 'btn prim', type: 'button', id: 'enlace-correo', onclick: enviarCorreo }, 'Enviar por correo (con botón)'),
-        h('button', { class: 'btn', type: 'button', id: 'enlace-whatsapp', onclick: async () => { window.open(enlaceWhatsApp(cl.telefono, mensaje), '_blank', 'noopener'); await anotar('por WhatsApp'); marcarEnviado('Formulario de datos por WhatsApp'); } }, 'Enviar por WhatsApp'),
-        h('button', { class: 'btn', type: 'button', id: 'enlace-copiar-correo', onclick: async () => { const ok = await copiarCorreo(); toast(ok ? 'Correo copiado: pégalo en el texto del correo' : 'Este navegador no deja copiar con formato', !ok); } }, 'Copiar correo con botón'),
-        h('button', { class: 'btn', type: 'button', id: 'enlace-eml', onclick: async () => {
-          descargar(new Blob([emlBorrador({ para: paraCli.value.trim(), ...correoCli })], { type: 'message/rfc822' }), `Formulario datos ${aviso.numero || 'cliente'}.eml`);
-          toast('Ábrelo: Outlook lo abre listo para enviar'); await anotar('por correo'); marcarEnviado('Formulario de datos por correo');
-        } }, 'Correo para Outlook (PC)'),
-        h('a', { class: 'btn', href: url, target: '_blank', rel: 'noopener', id: 'enlace-ver' }, 'Ver como el cliente')),
+      h('div', { class: 'acciones dos' },
+        h('button', { class: 'btn prim', type: 'button', id: 'enlace-correo', onclick: porCorreo }, auto ? 'Enviar correo' : 'Enviar por correo'),
+        h('button', { class: 'btn prim', type: 'button', id: 'enlace-whatsapp', onclick: porWhatsApp }, 'Enviar por WhatsApp')),
       pasos,
-      h('details', {}, h('summary', { class: 'muted' }, 'Ver el enlace'),
-        h('input', { type: 'text', readonly: true, id: 'enlace-cliente', value: url, 'data-minusculas': '', onclick: (e) => e.target.select() }),
-        h('button', { class: 'btn peq', type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(url); toast('Enlace copiado'); } catch { toast('Selecciona y copia el enlace', true); } } }, 'Copiar enlace'))));
+      h('details', { id: 'mas-opciones' }, h('summary', { class: 'muted' }, 'Más opciones'),
+        h('div', { class: 'acciones' },
+          h('button', { class: 'btn', type: 'button', id: 'enlace-copiar', onclick: async () => { const u = await prepararEnlace(); try { await navigator.clipboard.writeText(u); toast('Enlace copiado'); } catch { toast('Selecciona y copia el enlace', true); } } }, 'Copiar enlace'),
+          h('button', { class: 'btn', type: 'button', id: 'enlace-ver', onclick: async () => { const w = window.open('about:blank', '_blank'); const u = await prepararEnlace(); if (w) w.location.href = u; } }, 'Ver como el cliente'),
+          h('button', { class: 'btn', type: 'button', id: 'enlace-copiar-correo', onclick: async () => { const ok = await copiarCorreo(correoDe(await prepararEnlace(), '')); toast(ok ? 'Correo copiado: pégalo en el texto del correo' : 'Este navegador no deja copiar con formato', !ok); } }, 'Copiar correo con botón'),
+          h('button', { class: 'btn', type: 'button', id: 'enlace-eml', onclick: async () => {
+            descargar(new Blob([emlBorrador({ para: paraCli.value.trim(), ...correoDe(await prepararEnlace(), '') })], { type: 'message/rfc822' }), `Formulario datos ${aviso.numero || 'cliente'}.eml`);
+            toast('Ábrelo: Outlook lo abre listo para enviar'); await preparado('por correo'); marcarEnviado('Formulario de datos por correo');
+          } }, 'Correo para Outlook (PC)')),
+        h('input', { type: 'text', readonly: true, id: 'enlace-cliente', value: auto ? '(se crea al enviar)' : urlLargo, 'data-minusculas': '', onclick: (e) => e.target.select() }))));
   };
 
   // --- Leer lo que devuelve el cliente: se aplica solo al aviso (PDF o mensaje); se puede deshacer

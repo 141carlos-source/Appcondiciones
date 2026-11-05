@@ -7,6 +7,7 @@ import { CAMPOS_FICHA, GRUPOS_FICHA, leerEnlace, problemaCampo, lineaDatos, empr
 import { potenciasNormalizadas, problemaPotencia, TENSIONES, USOS } from './core/potencias.js';
 import { generarFicha, telefonoWhatsApp } from './core/documentos.js';
 import { provinciaDeCp } from './core/validate.js';
+import { leerEnlaceCorto, cargarEnlaceCorto } from './core/servicioGoogle.js';
 
 const leer = (o, ruta) => ruta.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
 const hoy = () => new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -41,10 +42,19 @@ export function textoVuelta(p, datos, firma) {
   return l.filter((x, i, a) => !(x === '' && a[i - 1] === '')).join('\n');
 }
 
-export function iniciarFormulario() {
+export async function iniciarFormulario() {
   activarMayusculas();
   const main = document.getElementById('contenido');
-  const p = leerEnlace(location.hash);
+  let p = leerEnlace(location.hash);
+  // Enlace corto: los datos están cifrados en el servicio de la empresa; la clave va en el enlace
+  const corto = p ? null : leerEnlaceCorto(location.hash);
+  if (corto) {
+    main.replaceChildren(h('div', { class: 'card', id: 'cargando' }, h('p', {}, 'Cargando sus datos…')));
+    try { p = await cargarEnlaceCorto(corto); } catch (err) {
+      main.replaceChildren(h('div', { class: 'card' }, h('h1', {}, 'No se han podido cargar sus datos'), h('p', {}, err.message || 'Revise la conexión e inténtelo de nuevo.')));
+      return;
+    }
+  }
   if (!p) {
     main.replaceChildren(h('div', { class: 'card' }, h('h1', {}, 'Enlace incompleto'),
       h('p', {}, 'Este enlace no contiene la ficha. Pida a la empresa que se lo vuelva a enviar (a veces WhatsApp o el correo lo cortan).')));

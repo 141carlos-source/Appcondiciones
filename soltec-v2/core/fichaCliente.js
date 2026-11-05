@@ -93,6 +93,7 @@ export function empresaDePaquete(p) {
  * @param {string} [o.logo]  logo pequeño como data:URL (PNG o JPG); se omite si no se da
  */
 export function paqueteFicha(aviso, empresa, o = {}) {
+  // o.logoServicio: el logo no va dentro; el formulario lo pide al servicio de Google (enlace corto)
   const d = {};
   for (const [ruta] of CAMPOS_FICHA) { const v = limpio(leer(aviso, ruta)); if (v) d[ruta] = v; }
   const el = electricoFicha(aviso);
@@ -101,7 +102,7 @@ export function paqueteFicha(aviso, empresa, o = {}) {
     id: aviso.id || '',
     n: aviso.numero || '',
     ref: aviso.condiciones?.ref || '',
-    e: empresaFicha(empresa, o.logo),
+    e: { ...empresaFicha(empresa, o.logo), ...(o.logoServicio ? { lg: 1 } : {}) },
     ...(Object.keys(el).length ? { el } : {}),
     d,
   };
@@ -227,7 +228,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
  * @param {{url:string, empresa:object, nombre?:string, numero?:string}} o
  * @returns {{asunto:string, html:string, texto:string}}
  */
-export function correoFormulario({ url, empresa, nombre = '', numero = '' }) {
+export function correoFormulario({ url, empresa, nombre = '', numero = '', logoSrc = '' }) {
   const e = empresa?.empresa || {};
   const emp = e.nombreComercial || e.nombre || 'su instalador';
   const saludo = `Hola${nombre ? ' ' + nombre : ''}:`;
@@ -235,7 +236,7 @@ export function correoFormulario({ url, empresa, nombre = '', numero = '' }) {
   const p2 = 'Al terminar, pulse «Reenviar aquí» para devolvernos la ficha firmada.';
   const pie = [e.nombre || emp, e.nif && `NIF ${e.nif}`, [e.direccion, [e.cp, e.localidad].filter(Boolean).join(' '), e.provincia].filter(Boolean).join(', '), [e.telefono, e.email].filter(Boolean).join(' · '), e.web].filter(Boolean);
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1e2226;max-width:560px">
-<p style="margin:0 0 12px">${esc(saludo)}</p>
+${logoSrc ? `<p style="margin:0 0 14px"><img src="${esc(logoSrc)}" alt="${esc(emp)}" style="max-height:56px;max-width:200px"></p>` : ''}<p style="margin:0 0 12px">${esc(saludo)}</p>
 <p style="margin:0 0 18px">${esc(p1)}</p>
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 18px"><tr><td style="border-radius:10px;background:#c4161c">
 <a href="${esc(url)}" target="_blank" style="display:inline-block;padding:14px 26px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:10px;background:#c4161c">ABRIR FORMULARIO AQUÍ</a>

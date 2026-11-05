@@ -1,9 +1,12 @@
 // SOLTEC V2 · Configuración de empresa: identidad, técnico, solicitante, correos, logo, firma y sello.
+// También el envío automático del formulario (servicio en la cuenta de Google de la empresa).
 
 import { h, toast, ir, lienzoFirma } from '../ui.js';
 import { AZUL_BIC, dibujarSelloLogo } from '../core/tinta.js';
 import { ID_EMPRESA, empresaVacia, normalizarEmpresa, desdeV1, dataUrlAArchivo } from '../core/empresa.js';
 import { provinciaDeCp } from '../core/validate.js';
+import { idServicio, servicioListo, claveNueva, llamar } from '../core/servicioGoogle.js';
+import { logoParaEnlace } from './comunicaciones.js';
 
 export async function leerEmpresa(app) {
   const r = await app.storage.get(ID_EMPRESA);
@@ -148,6 +151,39 @@ export async function vistaEmpresa(app) {
     ir('ajustes');
   };
 
+  // --- Envío automático del formulario (servicio en la cuenta de Google de la empresa)
+  const bloqueEnvio = () => {
+    if (!d.envio.clave) d.envio.clave = claveNueva();
+    const res = h('div', { id: 'envio-resultado' });
+    const url = h('input', { type: 'url', id: 'envio-url', value: d.envio.url || '', 'data-minusculas': '', placeholder: 'https://script.google.com/macros/s/…/exec', autocomplete: 'off',
+      oninput: (e) => { d.envio.url = e.target.value.trim(); cambiado = true; } });
+    const clave = h('input', { type: 'text', id: 'envio-clave', value: d.envio.clave, readonly: true, 'data-minusculas': '', class: 'mono', onclick: (e) => e.target.select() });
+    const probar = async (e) => {
+      e.target.disabled = true;
+      res.replaceChildren(h('div', { class: 'aviso info' }, 'Probando…'));
+      try {
+        if (!idServicio(d.envio.url)) throw new Error('La URL debe ser la de la aplicación web de Google y terminar en /exec');
+        const j = await llamar(d.envio.url, { accion: 'prueba', clave: d.envio.clave });
+        const logo = await logoParaEnlace(app, d.logo, 8500);
+        if (logo) await llamar(d.envio.url, { accion: 'logo', clave: d.envio.clave, logo });
+        res.replaceChildren(h('div', { class: 'aviso ok' }, h('b', {}, 'Funciona. '), `Los correos saldrán de ${j.cuenta || 'tu cuenta de Google'}${j.correosHoy != null ? ` (te quedan ${j.correosHoy} correos hoy)` : ''}.${logo ? ' Logo enviado al servicio.' : ''} Pulsa «Guardar datos de empresa».`));
+      } catch (err) { res.replaceChildren(h('div', { class: 'aviso err' }, err.message)); } finally { e.target.disabled = false; }
+    };
+    return h('details', { class: 'card', id: 'bloque-envio', open: !servicioListo(d) || null }, h('summary', {}, 'Envío automático del formulario (Google)'),
+      h('div', { class: 'cuerpo' },
+        h('p', { class: 'muted' }, 'Con esto, el formulario del cliente se envía con un enlace corto (también por WhatsApp) y el correo sale solo desde tu Gmail, con el botón «ABRIR FORMULARIO AQUÍ» y tu logo. Los datos se guardan cifrados en tu cuenta de Google y se borran a los 90 días.'),
+        h('ol', { class: 'pasos-envio' },
+          h('li', {}, 'Descarga el código del servicio: ', h('a', { href: './servicio-google/SOLTEC_Formularios.gs', download: 'SOLTEC_Formularios.gs', id: 'descargar-servicio' }, 'SOLTEC_Formularios.gs'), '.'),
+          h('li', {}, 'Entra en ', h('a', { href: 'https://script.google.com/home/projects/create', target: '_blank', rel: 'noopener' }, 'script.google.com'), ' con tu cuenta de Google › Nuevo proyecto. Pega todo el código.'),
+          h('li', {}, 'En la línea ', h('code', {}, 'const CLAVE'), ' pega esta clave (entre las comillas):', clave,
+            h('button', { class: 'btn peq', type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(d.envio.clave); toast('Clave copiada'); } catch { clave.select(); } } }, 'Copiar clave')),
+          h('li', {}, 'Implementar › Nueva implementación › Aplicación web. Ejecutar como: Yo. Quién tiene acceso: Cualquier usuario. Autoriza el acceso (Configuración avanzada › Ir a SOLTEC Formularios).'),
+          h('li', {}, 'Copia la URL de la aplicación web (termina en /exec) y pégala aquí:')),
+        h('label', { for: 'envio-url' }, 'URL del servicio'), url,
+        h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', id: 'probar-envio', onclick: probar }, 'Probar')),
+        res));
+  };
+
   const construir = () => h('form', { class: 'ficha', onsubmit: (e) => { e.preventDefault(); guardar(); } },
     h('div', { class: 'titulo-fila' }, h('h1', {}, 'Empresa'), h('a', { class: 'btn', href: '#/ajustes' }, 'Volver')),
     h('div', { class: 'card' },
@@ -164,6 +200,7 @@ export async function vistaEmpresa(app) {
         imagen('logo', 'Logo', 'Sale en el formulario del cliente y en los documentos.'),
         imagen('firma', 'Firma del técnico', 'Sale en certificados y en la memoria.'), imagen('sello', 'Sello', 'Puedes crearlo aquí con aspecto de sello de caucho usado.')))),
     ...SECCIONES.map(([sec, titulo, lista], i) => h('details', { class: 'card', open: i === 0 || null }, h('summary', {}, titulo), h('div', { class: 'cuerpo' }, campos(sec, lista)))),
+    bloqueEnvio(),
     h('div', { class: 'barra-guardar' }, h('button', { class: 'btn prim ancho', type: 'submit', id: 'guardar-empresa' }, 'Guardar datos de empresa')));
 
   return construir();

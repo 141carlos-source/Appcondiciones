@@ -489,3 +489,11 @@ details > summary .no-aplica { font-weight: 500; font-size: 13px; }
 .btn-cerrar-app { min-height: 52px; font-size: 17px; }
 .app-cerrada { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .app-cerrada .card { max-width: 420px; text-align: center; }
+
+/* Pedir datos al cliente: dos botones grandes */
+.acciones.dos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.acciones.dos .btn { min-height: 52px; font-size: 16px; }
+@media (max-width: 420px) { .acciones.dos { grid-template-columns: 1fr; } }
+#mas-opciones summary { cursor: pointer; margin-top: 8px; }
+.pasos-envio li { margin: 6px 0; }
+.pasos-envio input { margin-top: 4px; }

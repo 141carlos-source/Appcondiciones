@@ -77,6 +77,7 @@ try {
   assert.ok(html.includes('href="' + enlace.replace(/&/g, '&amp;') + '"'), 'el botón lleva el enlace');
   assert.match(html, /NIF B99506651/);
   assert.match(await page.textContent('#pasos-correo'), /pega/);
+  await page.click('#mas-opciones summary');
   const [eml] = await Promise.all([page.waitForEvent('download'), page.click('#enlace-eml')]);
   const textoEml = (await import('node:fs')).readFileSync(await eml.path(), 'utf8');
   assert.match(textoEml, /X-Unsent: 1/);

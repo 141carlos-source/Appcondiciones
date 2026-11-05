@@ -9,6 +9,7 @@ export function empresaVacia() {
     tecnico: { nombre: '', nif: '', telefono: '', email: '', numero: '', colegiado: '' },
     solicitante: { nombre: '', nif: '', telefono: '', email: '', direccion: '', cp: '', localidad: '', provincia: '' },
     correos: { nuevosSuministros: '', solicitarCups: '', comercializadora: '', inspeccion: '' },
+    envio: { url: '', clave: '' }, // servicio de formularios en Google (enlace corto y correo automático)
     logo: null, firma: null, sello: null, // fichas de archivo {hash, name, mime, size}
   };
 }
@@ -16,7 +17,7 @@ export function empresaVacia() {
 export function normalizarEmpresa(d = {}) {
   const b = empresaVacia();
   const out = { ...b, ...d };
-  for (const k of ['empresa', 'tecnico', 'solicitante', 'correos']) out[k] = { ...b[k], ...(d[k] && typeof d[k] === 'object' ? d[k] : {}) };
+  for (const k of ['empresa', 'tecnico', 'solicitante', 'correos', 'envio']) out[k] = { ...b[k], ...(d[k] && typeof d[k] === 'object' ? d[k] : {}) };
   return out;
 }
 
