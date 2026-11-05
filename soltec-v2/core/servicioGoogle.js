@@ -55,7 +55,11 @@ export async function llamar(url, cuerpo, { fetchFn = fetch } = {}) {
   try { r = await fetchFn(url, { method: 'POST', body: JSON.stringify(cuerpo), redirect: 'follow' }); } catch { throw new Error('No hay conexión con el servicio de Google'); }
   let j;
   try { j = await r.json(); } catch { throw new Error('El servicio de Google no responde bien: revisa la URL (debe terminar en /exec y estar implementado para «Cualquier usuario»)'); }
-  if (!j.ok) throw new Error(j.error === 'clave' ? 'La clave no coincide con la del servicio de Google' : 'Servicio de Google: ' + (j.error || 'error'));
+  if (!j.ok) {
+    if (j.error === 'clave') throw new Error('La clave no coincide con la del servicio de Google');
+    if (/permiso|permission|authoriz/i.test(j.error || '')) throw new Error('Falta dar permiso para enviar correos: en script.google.com, arriba, elige la función «autorizar» (o «doGet») y pulsa «Ejecutar»; acepta los permisos y vuelve a pulsar «Probar».');
+    throw new Error('Servicio de Google: ' + (j.error || 'error'));
+  }
   return j;
 }
 

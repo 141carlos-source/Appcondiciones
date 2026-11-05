@@ -187,6 +187,7 @@ export async function vistaEmpresa(app) {
           h('li', {}, 'En la línea ', h('code', {}, 'const CLAVE'), ' pega esta clave (entre las comillas):', clave,
             h('button', { class: 'btn peq', type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(d.envio.clave); toast('Clave copiada'); } catch { clave.select(); } } }, 'Copiar clave')),
           h('li', {}, 'Implementar › Nueva implementación › Aplicación web. Ejecutar como: Yo. Quién tiene acceso: Cualquier usuario. Autoriza el acceso (Configuración avanzada › Ir a SOLTEC Formularios).'),
+          h('li', {}, 'Arriba, en la lista de funciones, elige «autorizar» y pulsa «Ejecutar». Acepta los permisos (enviar correos en tu nombre).'),
           h('li', {}, 'Copia la URL de la aplicación web (termina en /exec) y pégala aquí:')),
         h('label', { for: 'envio-url' }, 'URL del servicio'), url,
         h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', id: 'probar-envio', onclick: probar }, 'Probar')),

@@ -15,7 +15,9 @@
  *        Ejecutar como: Yo   ·   Quién tiene acceso: Cualquier usuario
  *      Pulsa «Implementar» y «Autorizar acceso» (Google avisa de que la app no está verificada:
  *      «Configuración avanzada» › «Ir a SOLTEC Formularios»; es tu propio código).
- *   5. Copia la «URL de la aplicación web» (termina en /exec) y pégala en la app. Pulsa «Probar».
+ *   5. Arriba, en la lista de funciones, elige «autorizar» y pulsa «Ejecutar»: acepta los permisos
+ *      (enviar correos en tu nombre). Si no lo haces, «Probar» dice «No tienes permiso…».
+ *   6. Copia la «URL de la aplicación web» (termina en /exec) y pégala en la app. Pulsa «Probar».
  *
  * Si cambias este código: «Implementar» › «Gestionar implementaciones» › editar › versión «Nueva».
  */
@@ -23,6 +25,11 @@
 const CLAVE = 'PEGA-AQUI-LA-CLAVE-DE-LA-APP';
 const DIAS = 90;            // los formularios se borran solos pasado este tiempo
 const MAX_DATOS = 8500;     // tamaño máximo de unos datos (límite de Google: 9 KB por valor)
+
+/** Ejecútala una vez desde el editor (botón «Ejecutar») para dar los permisos de enviar correos. */
+function autorizar() {
+  Logger.log('Permisos correctos. Correos que puedes enviar hoy: ' + MailApp.getRemainingDailyQuota());
+}
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
@@ -68,7 +75,7 @@ function doPost(e) {
         const m = /^data:(image\/(?:png|jpeg));base64,(.+)$/.exec(logo);
         if (m) op.inlineImages = { logo: Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], 'logo') };
       }
-      GmailApp.sendEmail(String(b.para), String(b.asunto || ''), String(b.texto || ''), op);
+      MailApp.sendEmail(String(b.para), String(b.asunto || ''), String(b.texto || ''), op);
       return json({ ok: true });
     }
     return json({ ok: false, error: 'accion' });
