@@ -183,7 +183,9 @@ export async function bloqueComunicaciones(app, avisoId) {
     const auto = servicioListo(empresa);
     const logo = await logoParaEnlace(app, empresa.logo, auto ? 8500 : 12000);
     // Enlace: corto con el servicio de Google (datos cifrados); si no, con los datos dentro (largo)
-    const urlLargo = enlaceFormulario(paqueteFicha(aviso, empresa, { logo }), base);
+    // Sin servicio, el enlace lleva los datos dentro y va sin logo: con logo puede pasar de 10.000 caracteres
+    // y la aplicación de correo o WhatsApp lo cortan (el cliente vería un correo vacío o un enlace roto)
+    const urlLargo = enlaceFormulario(paqueteFicha(aviso, empresa), base);
     let enlace = null;
     const prepararEnlace = async () => {
       if (enlace) return enlace;
@@ -223,14 +225,12 @@ export async function bloqueComunicaciones(app, avisoId) {
           pasos.replaceChildren(h('div', { class: 'aviso ok', id: 'correo-enviado' }, h('b', {}, 'Correo enviado '), `a ${para}, con el botón «ABRIR FORMULARIO AQUÍ». Queda anotado en el historial.`));
           return;
         }
-        // Sin servicio: se copia el correo con el botón y se abre la aplicación de correo para pegarlo
+        // Sin servicio: se abre la aplicación de correo con el texto y el enlace del formulario ya puestos
         const c = correoDe(url, '');
-        const copiado = await copiarCorreo(c);
-        window.location.href = enlaceCorreo({ para, asunto: c.asunto, cuerpo: copiado ? '' : c.texto });
-        pasos.replaceChildren(h('div', { class: 'aviso ' + (copiado ? 'ok' : 'info') },
-          copiado ? [h('b', {}, 'Correo copiado con el botón. '), 'En el correo que se ha abierto, pega en el texto (mantener pulsado › Pegar, o Ctrl+V) y envía.']
-            : [h('b', {}, 'No se ha podido copiar con formato: '), 'va en texto con el enlace.'],
-          h('div', { class: 'muted' }, 'Para que salga solo, sin pegar, activa el envío automático en Empresa.')));
+        window.location.href = enlaceCorreo({ para, asunto: c.asunto, cuerpo: c.texto });
+        pasos.replaceChildren(h('div', { class: 'aviso info', id: 'correo-abierto' },
+          h('b', {}, 'Correo preparado en tu aplicación de correo: '), 'lleva el saludo y el enlace para abrir el formulario. Revisa y pulsa Enviar.',
+          h('div', { class: 'muted' }, 'Para que salga solo y con el botón «ABRIR FORMULARIO AQUÍ», activa el envío automático en Empresa.')));
         await preparado('por correo'); marcarEnviado('Formulario de datos por correo');
       } catch (err) {
         pasos.replaceChildren(h('div', { class: 'aviso err' }, err.message));

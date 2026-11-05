@@ -70,14 +70,18 @@ try {
   assert.match(previa, /ABRIR FORMULARIO AQUÍ/);
   assert.equal(await page.inputValue('#para-cliente'), 'ana@correo.es');
   if (CAP) await page.locator('#comunicaciones').screenshot({ path: CAP + '/comunicaciones.png' });
+  // Sin servicio de Google: se abre el correo con el texto y el enlace ya puestos
   await page.click('#enlace-correo');
-  await page.waitForSelector('#pasos-correo .aviso');
+  await page.waitForSelector('#correo-abierto');
+  assert.match(await page.textContent('#correo-abierto'), /lleva el saludo y el enlace/);
+  assert.ok(enlace.length < 1500, `sin servicio el enlace va sin logo para que no se corte (${enlace.length})`);
+  await page.click('#mas-opciones summary');
+  await page.click('#enlace-copiar-correo');
+  await page.waitForSelector('.toast:has-text("Correo copiado")');
   const html = await page.evaluate(async () => { const [it] = await navigator.clipboard.read(); return (await it.getType('text/html')).text(); });
   assert.match(html, /ABRIR FORMULARIO AQU/);
   assert.ok(html.includes('href="' + enlace.replace(/&/g, '&amp;') + '"'), 'el botón lleva el enlace');
   assert.match(html, /NIF B99506651/);
-  assert.match(await page.textContent('#pasos-correo'), /pega/);
-  await page.click('#mas-opciones summary');
   const [eml] = await Promise.all([page.waitForEvent('download'), page.click('#enlace-eml')]);
   const textoEml = (await import('node:fs')).readFileSync(await eml.path(), 'utf8');
   assert.match(textoEml, /X-Unsent: 1/);
@@ -88,7 +92,7 @@ try {
   cli.on('pageerror', (e) => errores.push('cliente: ' + e.message));
   await cli.goto(base + 'cliente.html' + new URL(enlace).hash);
   await cli.waitForSelector('#empresa-cab');
-  assert.ok(await cli.$eval('#empresa-logo', (i) => i.complete && i.naturalWidth > 0), 'se ve el logo');
+  // Sin servicio de Google el enlace va sin logo (con servicio, el logo lo da el servicio: navegador-envio-google)
   const cab = await cli.textContent('#empresa-cab');
   for (const x of ['M. A. SOLTEC', 'M. A. SOLTEC SL', 'NIF B99506651', 'CALLE EJEMPLO 1, 50171 LA PUEBLA DE ALFINDÉN, ZARAGOZA', '607335058', 'info@soltec.es', 'www.soltec.es']) assert.ok(cab.includes(x), 'falta ' + x);
   ok('Formulario web: logo, nombre, razón social, NIF, dirección y contacto de la empresa');
