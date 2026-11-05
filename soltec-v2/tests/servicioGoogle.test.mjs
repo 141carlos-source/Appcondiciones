@@ -61,3 +61,12 @@ test('enlace corto: se guarda cifrado y el formulario lo recupera (con el logo d
   await assert.rejects(cargarEnlaceCorto({ ...leerEnlaceCorto(new URL(url).hash), codigo: 'NoExiste1' }, { fetchFn: s.fetchFn }), /caducado/);
   await assert.rejects(llamar(URL_S, { accion: 'prueba', clave: 'mala' }, { fetchFn: s.fetchFn }), /clave no coincide/);
 });
+
+test('WhatsApp enseña el enlace como tarjeta: título, texto e imagen del formulario', async () => {
+  const { readFileSync, existsSync } = await import('node:fs');
+  const html = readFileSync(new URL('../cliente.html', import.meta.url), 'utf8');
+  for (const p of ['og:title', 'og:description', 'og:image']) assert.match(html, new RegExp(`property="${p}" content="[^"]+"`));
+  const img = /property="og:image" content="([^"]+)"/.exec(html)[1];
+  assert.match(img, /^https:\/\/141carlos-source\.github\.io\/Appcondiciones\/soltec-v2\/assets\/formulario-whatsapp\.jpg$/);
+  assert.ok(existsSync(new URL('../assets/formulario-whatsapp.jpg', import.meta.url)));
+});
