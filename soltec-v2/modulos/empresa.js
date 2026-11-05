@@ -51,6 +51,12 @@ export async function vistaEmpresa(app) {
   let cambiado = false;
   app.guardia = () => cambiado;
   const v1 = leerV1Local();
+  // La clave del envío automático se crea una vez y se guarda ya: es la que se pega en Google y no debe cambiar
+  if (!d.envio.clave) {
+    d.envio.clave = claveNueva();
+    const actual = reg ? normalizarEmpresa(reg.data) : empresaVacia();
+    await app.storage.save('config', { ...actual, envio: { ...actual.envio, clave: d.envio.clave } }, { id: ID_EMPRESA });
+  }
 
   const imagen = (k, titulo, ayuda) => {
     const vista = h('div', { class: 'logo-caja' });
@@ -153,7 +159,6 @@ export async function vistaEmpresa(app) {
 
   // --- Envío automático del formulario (servicio en la cuenta de Google de la empresa)
   const bloqueEnvio = () => {
-    if (!d.envio.clave) d.envio.clave = claveNueva();
     const res = h('div', { id: 'envio-resultado' });
     const url = h('input', { type: 'url', id: 'envio-url', value: d.envio.url || '', 'data-minusculas': '', placeholder: 'https://script.google.com/macros/s/…/exec', autocomplete: 'off',
       oninput: (e) => { d.envio.url = e.target.value.trim(); cambiado = true; } });
@@ -166,7 +171,11 @@ export async function vistaEmpresa(app) {
         const j = await llamar(d.envio.url, { accion: 'prueba', clave: d.envio.clave });
         const logo = await logoParaEnlace(app, d.logo, 8500);
         if (logo) await llamar(d.envio.url, { accion: 'logo', clave: d.envio.clave, logo });
-        res.replaceChildren(h('div', { class: 'aviso ok' }, h('b', {}, 'Funciona. '), `Los correos saldrán de ${j.cuenta || 'tu cuenta de Google'}${j.correosHoy != null ? ` (te quedan ${j.correosHoy} correos hoy)` : ''}.${logo ? ' Logo enviado al servicio.' : ''} Pulsa «Guardar datos de empresa».`));
+        // Funciona: la URL se guarda ya (sin tocar el resto de cambios pendientes de la pantalla)
+        const r0 = await app.storage.get(ID_EMPRESA);
+        const actual = r0 ? normalizarEmpresa(r0.data) : empresaVacia();
+        await app.storage.save('config', { ...actual, envio: { url: d.envio.url, clave: d.envio.clave } }, { id: ID_EMPRESA });
+        res.replaceChildren(h('div', { class: 'aviso ok', id: 'envio-ok' }, h('b', {}, 'Funciona y queda guardado. '), `Los correos saldrán de ${j.cuenta || 'tu cuenta de Google'}${j.correosHoy != null ? ` (te quedan ${j.correosHoy} correos hoy)` : ''}.${logo ? ' Logo enviado al servicio.' : ''}`));
       } catch (err) { res.replaceChildren(h('div', { class: 'aviso err' }, err.message)); } finally { e.target.disabled = false; }
     };
     return h('details', { class: 'card', id: 'bloque-envio', open: !servicioListo(d) || null }, h('summary', {}, 'Envío automático del formulario (Google)'),
