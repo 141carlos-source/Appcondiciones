@@ -37,10 +37,13 @@ try {
   assert.equal(await page.inputValue('#doc-autorizacion'), 'na', 'sin condiciones, la autorización no aplica');
   for (const k of ['memoria', 'autorizacion', 'condiciones']) assert.match(await page.getAttribute(`details[data-apartado="${k}"]`, 'class'), /inhabil/, k);
   assert.match(await page.textContent('details[data-apartado="memoria"] > summary'), /No aplica \(no lleva condiciones\)/);
+  assert.ok(await page.isHidden('[data-apartado-interno="plano"] > :nth-child(3)'), 'sin plano de situación');
+  assert.match(await page.textContent('#plano-no-aplica'), /Plano de situación: no aplica \(no lleva condiciones\)/);
   await page.selectOption('#lleva-condiciones', 'si');
   assert.equal(await page.inputValue('#doc-condiciones'), 'pendiente');
   assert.equal(await page.inputValue('#doc-autorizacion'), 'pendiente');
   assert.doesNotMatch(await page.getAttribute('details[data-apartado="memoria"]', 'class'), /inhabil/);
+  assert.ok(await page.isHidden('#plano-no-aplica'), 'con condiciones vuelve el plano');
   // Sin boletín: CUPS y catastro fuera de pendientes; memoria, autorización y condiciones bloqueadas
   await page.fill('#f-suministro-cups', '');
   await page.selectOption('#lleva-boletin', 'no');
@@ -67,6 +70,7 @@ try {
   await page.selectOption('#lleva-boletin', 'si');
   assert.ok((await pendientes()).includes('suministro.cups'), 'con boletín vuelve a pedir el CUPS');
   assert.doesNotMatch(await page.getAttribute('details[data-apartado="memoria"]', 'class'), /inhabil/);
+  assert.ok(await page.isHidden('#plano-no-aplica'), 'con condiciones vuelve el plano');
   await page.fill('#f-suministro-cups', 'ES0031408137891001FE0F');
   ok('Sin boletín: CUPS y referencia catastral no salen en pendientes; memoria, autorización y condiciones bloqueadas');
   ok('Cliente: «Condiciones ¿las lleva?» = No bloquea condiciones, autorización y memoria CNMC (y la autorización no aplica)');

@@ -410,6 +410,9 @@ export async function vistaFicha(app, id) {
   };
   const pintarApartados = () => {
     const no = apartadosNoAplican(draft);
+    noAplicaPlano.hidden = !no.plano;
+    noAplicaPlano.textContent = no.plano ? `Plano de situación: no aplica (${no.plano.toLowerCase()}).` : '';
+    planoEl.hidden = !!no.plano;
     for (const d of cont.querySelectorAll('details[data-apartado]')) {
       const motivo = no[d.dataset.apartado];
       d.classList.toggle('inhabil', !!motivo);
@@ -562,6 +565,9 @@ export async function vistaFicha(app, id) {
   const partes = registro ? await bloquePartes(app, registro.id) : null;
   const titulo = registro ? `Aviso ${draft.numero}` : id === 'duplicar' ? 'Nuevo aviso (copia)' : 'Nuevo aviso';
   const planoEl = bloquePlano(app, draft, alCambiar);
+  // Plano de situación: no aplica sin boletín o sin condiciones (las fotografías sí)
+  const noAplicaPlano = h('div', { class: 'aviso info', id: 'plano-no-aplica', hidden: true });
+  const cajaPlano = h('div', { 'data-apartado-interno': 'plano' }, h('label', {}, 'Plano de situación'), noAplicaPlano, planoEl);
   const certificados = await bloqueCertificados(app, draft, alCambiar, planoEl, async (ficha) => {
     draft.archivos = (draft.archivos || []).filter((x) => x.tipo !== ficha.tipo); // la copia nueva sustituye a la anterior
     draft.archivos.push(ficha);
@@ -586,8 +592,8 @@ export async function vistaFicha(app, id) {
       h('button', { class: 'btn peq prim', type: 'button', id: 'btn-reabrir', onclick: () => cambiarCierre(false) }, 'Reabrir')) : null,
     registro?.deleted ? h('div', { class: 'aviso err' }, 'Este aviso está en la papelera. ', h('button', { class: 'btn peq', type: 'button', onclick: async () => { await app.storage.restore(registro.id); toast('Recuperado'); window.dispatchEvent(new HashChangeEvent('hashchange')); } }, 'Recuperar')) : null,
     resumen, recordatoriosEl, avisoDup,
-    seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.flatMap((c) => (c[0] === 'suministro.direccion' ? [sumCliente, campo(c)] : [campo(c)]))), bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar: () => planoEl.generar({ auto: true }) }), llevaCtrl),
-    seccion('Plano de situación y fotografías', false, h('label', {}, 'Plano de situación'), planoEl, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
+    seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.flatMap((c) => (c[0] === 'suministro.direccion' ? [sumCliente, campo(c)] : [campo(c)]))), bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar: () => { if (!apartadosNoAplican(draft).plano) planoEl.generar({ auto: true }); } }), llevaCtrl),
+    seccion('Plano de situación y fotografías', false, cajaPlano, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
     registro ? seccion('Solicitudes y comunicaciones', false, comunicaciones) : null,
     seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
     seccionBloqueable('memoria', 'Memoria técnica CNMC', bloqueMemoria(app, draft, alCambiar, registro?.id, async (ficha) => {
