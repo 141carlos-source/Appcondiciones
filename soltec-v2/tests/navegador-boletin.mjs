@@ -27,9 +27,9 @@ try {
   const buffer = Buffer.from(pdf);
   await page.goto(base + 'index.html#/aviso/' + id);
   await page.waitForSelector('#f-cliente-nombre', { state: 'attached' });
-  const orden = await page.$$eval('main details > summary', (s) => s.map((x) => x.textContent));
-  assert.deepEqual(orden.slice(0, 3), ['Cliente y suministro', 'Plano de situación y fotografías', 'Solicitudes y comunicaciones']);
-  ok('Orden: cliente y suministro, plano y fotografías, solicitudes y comunicaciones');
+  const orden = await page.$$eval('main details.card > summary', (s) => s.map((x) => x.textContent));
+  assert.deepEqual(orden.slice(0, 3), ['Cliente y suministro', 'Solicitudes y comunicaciones', 'Plano de situación y fotografías']);
+  ok('Orden: cliente y suministro, solicitudes y comunicaciones, plano y fotografías');
 
   await page.click('summary:has-text("Cliente y suministro")');
   await page.selectOption('#lleva-condiciones', 'no');

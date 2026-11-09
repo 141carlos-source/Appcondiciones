@@ -593,8 +593,8 @@ export async function vistaFicha(app, id) {
     registro?.deleted ? h('div', { class: 'aviso err' }, 'Este aviso está en la papelera. ', h('button', { class: 'btn peq', type: 'button', onclick: async () => { await app.storage.restore(registro.id); toast('Recuperado'); window.dispatchEvent(new HashChangeEvent('hashchange')); } }, 'Recuperar')) : null,
     resumen, recordatoriosEl, avisoDup,
     seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.flatMap((c) => (c[0] === 'suministro.direccion' ? [sumCliente, campo(c)] : [campo(c)]))), bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar: () => { if (!apartadosNoAplican(draft).plano) planoEl.generar({ auto: true }); } }), llevaCtrl),
-    seccion('Plano de situación y fotografías', false, cajaPlano, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
     registro ? seccion('Solicitudes y comunicaciones', false, comunicaciones) : null,
+    seccion('Plano de situación y fotografías', false, cajaPlano, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
     seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
     seccionBloqueable('memoria', 'Memoria técnica CNMC', bloqueMemoria(app, draft, alCambiar, registro?.id, async (ficha) => {
       if (!draft.archivos.some((x) => x.hash === ficha.hash)) draft.archivos.push(ficha);
