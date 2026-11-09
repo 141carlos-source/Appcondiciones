@@ -457,6 +457,12 @@ export async function vistaFicha(app, id) {
       const actual = draft.docs?.[doc];
       const nuevo = e.target.value === 'no' ? 'na' : e.target.value === 'si' && actual === 'na' ? 'pendiente' : actual;
       if (nuevo !== actual) { draft.docs = { ...draft.docs, [doc]: nuevo }; const d = cont.querySelector('#doc-' + doc); if (d) d.value = nuevo; }
+      // Sin condiciones tampoco hay autorización: el documento pasa a «No aplica» (y vuelve a pendiente con «Sí»)
+      if (k === 'condiciones') {
+        const a = draft.docs?.autorizacion;
+        const na = e.target.value === 'no' ? 'na' : e.target.value === 'si' && a === 'na' ? 'pendiente' : a;
+        if (na !== a) { draft.docs = { ...draft.docs, autorizacion: na }; const d = cont.querySelector('#doc-autorizacion'); if (d) d.value = na; }
+      }
       pintarApartados();
       alCambiar();
     } }, ...[['', '—'], ['si', 'Sí'], ['no', 'No']].map(([v, t]) => h('option', { value: v, selected: (draft.lleva?.[k] || '') === v || null }, t)));

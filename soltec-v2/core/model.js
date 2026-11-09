@@ -204,11 +204,12 @@ const CHECKS = [
 
 /** El trabajo no lleva boletín (Cliente y suministro › «Boletín: ¿lo lleva?» = No): sin CUPS ni referencia catastral. */
 export const sinBoletin = (aviso) => aviso?.lleva?.boletin === 'no';
-/** Apartados que no aplican y se bloquean: sin boletín, memoria, autorización y condiciones; sin condiciones, condiciones. */
+/** Apartados que no aplican y se bloquean: sin boletín o sin condiciones, memoria CNMC, autorización y condiciones. */
 export function apartadosNoAplican(aviso) {
   const out = {};
   if (sinBoletin(aviso)) for (const k of ['memoria', 'autorizacion', 'condiciones']) out[k] = 'No lleva boletín';
-  if (aviso?.lleva?.condiciones === 'no' && !out.condiciones) out.condiciones = 'No lleva condiciones';
+  // Sin condiciones tampoco hay autorización de representatividad ni memoria CNMC
+  if (aviso?.lleva?.condiciones === 'no') for (const k of ['memoria', 'autorizacion', 'condiciones']) out[k] ||= 'No lleva condiciones';
   return out;
 }
 

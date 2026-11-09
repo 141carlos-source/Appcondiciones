@@ -65,7 +65,7 @@ test('sin boletín: el CUPS y la referencia catastral no son pendientes; memoria
   assert.ok(!campos(sin).includes('suministro.cups') && !campos(sin).includes('suministro.refCatastral'));
   assert.ok(campos({ ...sin, suministro: { ...sin.suministro, cups: 'ES123' } }).includes('suministro.cups'), 'si está escrito y mal, se avisa');
   assert.deepEqual(Object.keys(apartadosNoAplican(sin)), ['memoria', 'autorizacion', 'condiciones']);
-  assert.deepEqual(apartadosNoAplican({ ...base, lleva: { boletin: 'si', condiciones: 'no' } }), { condiciones: 'No lleva condiciones' });
+  assert.deepEqual(apartadosNoAplican({ ...base, lleva: { boletin: 'si', condiciones: 'no' } }), { memoria: 'No lleva condiciones', autorizacion: 'No lleva condiciones', condiciones: 'No lleva condiciones' });
   assert.deepEqual(apartadosNoAplican(base), {});
 });
 

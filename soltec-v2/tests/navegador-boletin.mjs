@@ -34,8 +34,13 @@ try {
   await page.click('summary:has-text("Cliente y suministro")');
   await page.selectOption('#lleva-condiciones', 'no');
   assert.equal(await page.inputValue('#doc-condiciones'), 'na');
+  assert.equal(await page.inputValue('#doc-autorizacion'), 'na', 'sin condiciones, la autorización no aplica');
+  for (const k of ['memoria', 'autorizacion', 'condiciones']) assert.match(await page.getAttribute(`details[data-apartado="${k}"]`, 'class'), /inhabil/, k);
+  assert.match(await page.textContent('details[data-apartado="memoria"] > summary'), /No aplica \(no lleva condiciones\)/);
   await page.selectOption('#lleva-condiciones', 'si');
   assert.equal(await page.inputValue('#doc-condiciones'), 'pendiente');
+  assert.equal(await page.inputValue('#doc-autorizacion'), 'pendiente');
+  assert.doesNotMatch(await page.getAttribute('details[data-apartado="memoria"]', 'class'), /inhabil/);
   // Sin boletín: CUPS y catastro fuera de pendientes; memoria, autorización y condiciones bloqueadas
   await page.fill('#f-suministro-cups', '');
   await page.selectOption('#lleva-boletin', 'no');
@@ -64,7 +69,7 @@ try {
   assert.doesNotMatch(await page.getAttribute('details[data-apartado="memoria"]', 'class'), /inhabil/);
   await page.fill('#f-suministro-cups', 'ES0031408137891001FE0F');
   ok('Sin boletín: CUPS y referencia catastral no salen en pendientes; memoria, autorización y condiciones bloqueadas');
-  ok('Cliente: «Boletín ¿lo lleva?» y «Condiciones ¿las lleva?» (No = el documento no aplica)');
+  ok('Cliente: «Condiciones ¿las lleva?» = No bloquea condiciones, autorización y memoria CNMC (y la autorización no aplica)');
 
   await page.click('summary:has-text("Documentación")');
   await page.setInputFiles('#subir-boletin', { name: 'BOLETIN_CIE.pdf', mimeType: 'application/pdf', buffer });
