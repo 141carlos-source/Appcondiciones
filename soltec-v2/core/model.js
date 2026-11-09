@@ -86,7 +86,7 @@ export function nuevoAviso(extra = {}) {
     presupuesto: { es: false, numero: '' },
     cliente: { nombre: '', contacto: '', nif: '', telefono: '', email: '', iban: '' },
     facturacion: { mismoCliente: true, nombre: '', nif: '', direccion: '', cp: '', poblacion: '', provincia: '' },
-    suministro: { direccion: '', numero: '', piso: '', puerta: '', cp: '', poblacion: '', provincia: '', refCatastral: '', lat: '', lon: '', cups: '' },
+    suministro: { direccion: '', numero: '', piso: '', puerta: '', cp: '', poblacion: '', provincia: '', refCatastral: '', lat: '', lon: '', cups: '', direccionSips: '' },
     electrico: { potenciaKw: '', tension: '', fases: '', uso: '' },
     lleva: { boletin: '', condiciones: '' }, // ¿el trabajo lleva boletín / condiciones de suministro? 'si' | 'no' | ''
     condiciones: { ref: '', pdfs: [] }, // pdfs: versiones {hash,name,mime,size,addedAt}, la última es la actual

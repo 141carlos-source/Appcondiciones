@@ -20,6 +20,10 @@ export const urlNominatim = ({ calle, numero, poblacion, cp }) => {
   if (cp) p.set('postalcode', cp);
   return `${NOMINATIM}/search?${p}`;
 };
+/** Búsqueda libre en OpenStreetMap (dirección tal cual, p. ej. la del SIPS). */
+export const urlNominatimLibre = (q) => `${NOMINATIM}/search?${new URLSearchParams({ format: 'jsonv2', addressdetails: '1', countrycodes: 'es', limit: '6', 'accept-language': 'es', q })}`;
+/** Buscar en Google Maps (para copiar las coordenadas a mano). */
+export const urlGoogleMaps = (q) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 export const urlParcelaCercana = (lat, lon) => `${CATASTRO}/COVCCoordenadas.svc/json/Consulta_RCCOOR_Distancia?CoorX=${lon}&CoorY=${lat}&SRS=EPSG:4326`;
 export const urlInmuebles = (rc14) => `${CATASTRO}/COVCCallejero.svc/json/Consulta_DNPRC?RefCat=${encodeURIComponent(rc14)}`;
 export const urlSedeCatastro = (rc14) => `https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?refcat=${encodeURIComponent(rc14 || '')}`;
@@ -146,4 +150,23 @@ export function barraEscala(escala, anchoMapaPt = MAPA_A5.ancho) {
   const max = (anchoMapaPt / 3) * metrosPorPt;
   const metros = [10, 20, 25, 50, 100, 200, 250, 500, 1000].filter((m) => m <= max).pop() || 10;
   return { metros, pt: metros / metrosPorPt };
+}
+
+/**
+ * Coordenadas de un texto pegado: «41.6567, -0.8773», «41.6567 -0.8773», «41,6567, -0,8773»,
+ * enlaces de Google Maps («…/@41.65,-0.87,17z», «…?q=41.65,-0.87», «…!3d41.65!4d-0.87»).
+ * @returns {{lat:string, lon:string} | null}  solo si caen en España
+ */
+export function coordsDeTexto(texto) {
+  const t = String(texto || '').trim();
+  const prueba = (a, b) => (coordsValidas(a, b) ? { lat: redondear(a), lon: redondear(b) } : null);
+  let m = /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/.exec(t);
+  if (m) return prueba(m[1], m[2]);
+  m = /[@=](-?\d+\.\d+),\s*(-?\d+\.\d+)/.exec(t);
+  if (m) return prueba(m[1], m[2]);
+  m = /^(-?\d+\.\d+)\s*[,;\s]\s*(-?\d+\.\d+)$/.exec(t);
+  if (m) return prueba(m[1], m[2]);
+  m = /^(-?\d+,\d+)\s*[;\s]\s*,?\s*(-?\d+,\d+)$/.exec(t) || /^(-?\d+,\d+),\s+(-?\d+,\d+)$/.exec(t);
+  if (m) return prueba(m[1].replace(',', '.'), m[2].replace(',', '.'));
+  return null;
 }

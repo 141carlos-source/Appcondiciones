@@ -169,6 +169,25 @@ try {
   await page.waitForSelector('text=Abrir la Sede del Catastro');
   ok('Si el Catastro no responde, la app lo dice y ofrece la Sede del Catastro');
 
+  // Si no se encuentra: dirección del SIPS / CUPS y coordenadas pegadas (para el plano)
+  await page.click('#alternativas-ubicacion button:has-text("SIPS")');
+  await page.fill('.sd-fondo #dg', 'CL GLORIA 51 SANTA CRUZ DE MUDELA');
+  await page.click('.sd-fondo #dk');
+  await page.waitForSelector('text=dirección del SIPS en CartoCiudad');
+  await page.click('text=CALLE GLORIA 51, 13730');
+  await page.waitForSelector('text=Dirección aplicada con coordenadas 38.6448');
+  assert.equal(await page.inputValue('#f-suministro-direccionSips'), 'CL GLORIA 51 SANTA CRUZ DE MUDELA');
+  ok('Si el Catastro no la encuentra: se usa la dirección del SIPS / CUPS para la dirección y las coordenadas');
+
+  await page.click('#btn-coordenadas');
+  await page.fill('.sd-fondo #dg', 'https://www.google.com/maps/place/X/@41.6562,-0.8773,17z');
+  await page.click('.sd-fondo #dk');
+  await page.waitForSelector('text=Coordenadas 41.6562, -0.8773 (pegadas)');
+  assert.equal(await page.inputValue('#f-suministro-lat'), '41.6562');
+  assert.equal(await page.inputValue('#f-suministro-lon'), '-0.8773');
+  await page.waitForSelector('#estado-plano:has-text("Plano de situación listo")');
+  ok('Coordenadas pegadas (o enlace de Google Maps): se saca el plano con ellas');
+
   assert.deepEqual(errores.filter((e) => !/net::ERR_FAILED|Failed to fetch/.test(e)), []);
   ok('Sin errores en la consola');
 } catch (e) {

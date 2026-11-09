@@ -119,6 +119,7 @@ const CAMPOS_CLIENTE = [
   ['suministro.puerta', 'Puerta', 'text'],
   ['suministro.cups', 'CUPS', 'text', { ancho: 2, mayus: true, mono: true }],
   ['suministro.refCatastral', 'Referencia catastral', 'text', { ancho: 2, mayus: true, mono: true }],
+  ['suministro.direccionSips', 'Dirección según el SIPS / CUPS (si el Catastro no la encuentra)', 'text', { ancho: 2, mayus: true }],
   ['suministro.lat', 'Latitud', 'text', { inputmode: 'decimal' }],
   ['suministro.lon', 'Longitud', 'text', { inputmode: 'decimal' }],
 ];

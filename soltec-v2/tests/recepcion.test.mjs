@@ -82,3 +82,15 @@ test('sin boletín ni contrato no quedan pendientes la potencia ni la tensión; 
   assert.deepEqual(destinosAviso(ninguno), ['ficha']);
   assert.deepEqual(campos(ninguno), []);
 });
+
+test('coordenadas pegadas (texto o enlace de Google Maps) para sacar el plano', async () => {
+  const { coordsDeTexto, urlNominatimLibre } = await import('../core/geo.js');
+  assert.deepEqual(coordsDeTexto('41.6567, -0.8773'), { lat: '41.6567', lon: '-0.8773' });
+  assert.deepEqual(coordsDeTexto('41,6567, -0,8773'), { lat: '41.6567', lon: '-0.8773' });
+  assert.deepEqual(coordsDeTexto('https://www.google.com/maps/place/X/@41.65,-0.87,17z'), { lat: '41.65', lon: '-0.87' });
+  assert.deepEqual(coordsDeTexto('https://www.google.com/maps/place/X/data=!3d41.6512!4d-0.8812'), { lat: '41.6512', lon: '-0.8812' });
+  assert.equal(coordsDeTexto('10, 10'), null, 'fuera de España');
+  assert.equal(coordsDeTexto('CALLE MAYOR 3'), null);
+  assert.match(urlNominatimLibre('CL MAYOR 3, ZARAGOZA'), /q=CL\+MAYOR\+3%2C\+ZARAGOZA/);
+  assert.equal(normalizarAviso({}).suministro.direccionSips, '');
+});

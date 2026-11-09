@@ -1,7 +1,7 @@
 // SOLTEC V2 · Localización (CartoCiudad), referencia catastral (Catastro), plano (IGN) y fotografías.
 // Si un servicio público no responde, se puede seguir a mano: nada bloquea el aviso.
 
-import { h, toast, descargar } from '../ui.js';
+import { h, toast, descargar, preguntar } from '../ui.js';
 import { calleNumero, normalizarAviso } from '../core/model.js';
 import { generarPlanoA5, nombrePlanoA5 } from '../core/plano.js';
 import { leerEmpresa } from './empresa.js';
@@ -9,6 +9,7 @@ import { cargarPdfLib, imagenParaPdf } from './comunicaciones.js';
 import {
   urlCandidatos, urlBuscar, urlInversa, urlParcelaCercana, urlInmuebles, urlSedeCatastro, aJsonp, encuadreA5, urlNominatim,
   desdeCartoCiudad, desdeNominatim, parcelasCercanas, inmueblesParcela, inmuebleQueCoincide, coordsValidas, redondear,
+  urlNominatimLibre, urlGoogleMaps, coordsDeTexto,
 } from '../core/geo.js';
 
 /** Petición JSONP (CartoCiudad no siempre permite peticiones directas desde el navegador). */
@@ -85,6 +86,56 @@ export function bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar } = 
     } }, r.texto)));
   };
 
+  // --- Si no se encuentra: dirección del SIPS / CUPS (la de la distribuidora) o coordenadas pegadas
+  const alternativas = () => h('div', { class: 'acciones', id: 'alternativas-ubicacion' },
+    h('button', { class: 'btn', type: 'button', onclick: direccionSips }, 'Usar la dirección del SIPS / CUPS'),
+    h('button', { class: 'btn', type: 'button', onclick: pegarCoordenadas }, 'Pegar coordenadas'));
+  const sinEncontrar = (texto) => { di(texto, true); lista.replaceChildren(alternativas()); };
+
+  /** Coordenadas puestas: plano y, si faltan, dirección aproximada (solo en los campos vacíos). */
+  const ponerCoordenadas = async ({ lat, lon }, origen) => {
+    poner('suministro.lat', lat);
+    poner('suministro.lon', lon);
+    lista.replaceChildren();
+    di(`Coordenadas ${lat}, ${lon} (${origen}). Ya se puede sacar el plano.`);
+    if (alEncontrar) alEncontrar();
+    try {
+      const r = desdeCartoCiudad(await consultarGeo(app, urlInversa(lat, lon), { jsonpOk: true }));
+      aplicar({ ...r, lat: '', lon: '' }, { soloVacios: true });
+    } catch { /* sin dirección aproximada */ }
+  };
+
+  const pegarCoordenadas = async () => {
+    const t = await preguntar('Pega las coordenadas (por ejemplo «41.6567, -0.8773») o el enlace de Google Maps:', { valor: '' });
+    if (t == null) return;
+    const c = coordsDeTexto(t);
+    if (!c) { di('No se entienden esas coordenadas: deben ser de España, como «41.6567, -0.8773».', true); return; }
+    await ponerCoordenadas(c, 'pegadas');
+  };
+
+  /** La dirección que da el SIPS / la distribuidora para el CUPS: se busca tal cual para sacar las coordenadas. */
+  const direccionSips = async () => {
+    const su = draft.suministro;
+    const t = await preguntar('Pega la dirección del suministro según el SIPS / CUPS (la de la distribuidora), con la población:', { valor: su.direccionSips || '', mayusculas: true });
+    if (t == null || !t.trim()) return;
+    const q = t.trim().toUpperCase();
+    poner('suministro.direccionSips', q);
+    di('Buscando la dirección del SIPS…');
+    lista.replaceChildren();
+    try {
+      const cands = [].concat(await consultarGeo(app, urlCandidatos(q), { jsonpOk: true }) || []);
+      if (cands.length) { pintarResultados(cands.map((c) => ({ r: desdeCartoCiudad(c), completar: async () => desdeCartoCiudad(await consultarGeo(app, urlBuscar(c), { jsonpOk: true })) })), 'dirección del SIPS en CartoCiudad'); return; }
+    } catch { /* se prueba con OpenStreetMap */ }
+    try {
+      const rs = [].concat(await consultarGeo(app, urlNominatimLibre(q)) || []);
+      if (rs.length) { pintarResultados(rs.map((n) => ({ r: desdeNominatim(n) })), 'dirección del SIPS en OpenStreetMap'); return; }
+    } catch { /* nada */ }
+    di('Tampoco se encuentra la dirección del SIPS. Ábrela en Google Maps, mantén pulsado el sitio exacto, copia las coordenadas y pégalas.', true);
+    lista.replaceChildren(h('div', { class: 'acciones' },
+      h('a', { class: 'btn', href: urlGoogleMaps(q), target: '_blank', rel: 'noopener', id: 'abrir-google-maps' }, 'Abrir en Google Maps'),
+      h('button', { class: 'btn prim', type: 'button', onclick: pegarCoordenadas }, 'Pegar coordenadas')));
+  };
+
   const buscarDireccion = async () => {
     const su = draft.suministro;
     if (!su.direccion) { di('Escribe primero la calle (y mejor también el número y la población).', true); return; }
@@ -103,9 +154,9 @@ export function bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar } = 
     try {
       const rs = [].concat(await consultarGeo(app, urlNominatim({ calle: su.direccion, numero: su.numero, poblacion: su.poblacion, cp: su.cp })) || []);
       if (rs.length) { pintarResultados(rs.map((n) => ({ r: desdeNominatim(n) })), fallo ? 'CartoCiudad no responde; resultados de OpenStreetMap' : 'OpenStreetMap'); return; }
-      di('No se encuentra esa dirección. Revisa la calle, el número y la población, o sigue a mano.', true);
+      sinEncontrar('No se encuentra esa dirección. Usa la del SIPS / CUPS, pega las coordenadas o sigue a mano.');
     } catch (e) {
-      di(`No se ha podido buscar la dirección (${fallo || e.message}). Puedes seguir rellenando a mano o usar «Mi ubicación» en el sitio.`, true);
+      sinEncontrar(`No se ha podido buscar la dirección (${fallo || e.message}). Usa la del SIPS / CUPS, pega las coordenadas o «Mi ubicación» en el sitio.`);
     }
   };
 
@@ -127,12 +178,12 @@ export function bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar } = 
 
   const buscarCatastro = async () => {
     const { lat, lon, piso, puerta } = draft.suministro;
-    if (!coordsValidas(lat, lon)) { di('Faltan las coordenadas: usa «Buscar dirección» o «Mi ubicación» primero.', true); return; }
+    if (!coordsValidas(lat, lon)) { sinEncontrar('Faltan las coordenadas: usa «Buscar dirección», la dirección del SIPS / CUPS, pega las coordenadas o «Mi ubicación».'); return; }
     di('Consultando el Catastro…');
     lista.replaceChildren();
     try {
       const parcelas = parcelasCercanas(await consultarGeo(app, urlParcelaCercana(lat, lon)));
-      if (!parcelas.length) { di('El Catastro no tiene parcelas en esas coordenadas.', true); return; }
+      if (!parcelas.length) { sinEncontrar('El Catastro no tiene parcelas en esas coordenadas. Puedes usar la dirección del SIPS / CUPS o pegar las coordenadas del sitio exacto.'); return; }
       const parcela = parcelas[0];
       const inm = inmueblesParcela(await consultarGeo(app, urlInmuebles(parcela.rc14)));
       const elegir = (x) => { poner('suministro.refCatastral', x.rc); lista.replaceChildren(); di(`Referencia catastral aplicada: ${x.rc}`); };
@@ -142,8 +193,8 @@ export function bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar } = 
       lista.replaceChildren(...inm.slice(0, 60).map((x) => h('button', { class: 'tarjeta', type: 'button', style: 'text-align:left;width:100%', onclick: () => elegir(x) },
         h('span', { class: 'mono' }, x.rc), ' · ', [x.escalera && `Esc. ${x.escalera}`, x.planta && `Planta ${x.planta}`, x.puerta && `Puerta ${x.puerta}`, x.uso].filter(Boolean).join(' · ') || x.direccion)));
     } catch (e) {
-      di('No se ha podido consultar el Catastro desde el navegador. ', true);
-      estado.append(h('a', { href: urlSedeCatastro(''), target: '_blank', rel: 'noopener' }, 'Abrir la Sede del Catastro'), ' y copia la referencia en su campo.');
+      sinEncontrar('No se ha podido consultar el Catastro desde el navegador. ');
+      estado.append(h('a', { href: urlSedeCatastro(''), target: '_blank', rel: 'noopener' }, 'Abrir la Sede del Catastro'), ' y copia la referencia en su campo. Para el plano basta con las coordenadas.');
     }
   };
 
@@ -151,7 +202,9 @@ export function bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar } = 
     h('div', { class: 'acciones' },
       h('button', { class: 'btn', type: 'button', id: 'btn-buscar-direccion', onclick: buscarDireccion }, 'Buscar dirección'),
       h('button', { class: 'btn', type: 'button', onclick: miUbicacion }, 'Mi ubicación (en el sitio)'),
-      h('button', { class: 'btn', type: 'button', id: 'btn-catastro', onclick: buscarCatastro }, 'Buscar referencia catastral')),
+      h('button', { class: 'btn', type: 'button', id: 'btn-catastro', onclick: buscarCatastro }, 'Buscar referencia catastral'),
+      h('button', { class: 'btn', type: 'button', id: 'btn-sips', onclick: direccionSips }, 'Dirección del SIPS / CUPS'),
+      h('button', { class: 'btn', type: 'button', id: 'btn-coordenadas', onclick: pegarCoordenadas }, 'Pegar coordenadas')),
     estado, lista);
 }
 
