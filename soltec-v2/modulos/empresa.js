@@ -1,7 +1,7 @@
 // SOLTEC V2 · Configuración de empresa: identidad, técnico, solicitante, correos, logo, firma y sello.
 // También el envío automático del formulario (servicio en la cuenta de Google de la empresa).
 
-import { h, toast, ir, lienzoFirma } from '../ui.js';
+import { h, toast, ir, lienzoFirma, confirmar } from '../ui.js';
 import { AZUL_BIC, dibujarSelloLogo } from '../core/tinta.js';
 import { ID_EMPRESA, empresaVacia, normalizarEmpresa, desdeV1, dataUrlAArchivo } from '../core/empresa.js';
 import { provinciaDeCp } from '../core/validate.js';
@@ -51,12 +51,6 @@ export async function vistaEmpresa(app) {
   let cambiado = false;
   app.guardia = () => cambiado;
   const v1 = leerV1Local();
-  // La clave del envío automático se crea una vez y se guarda ya: es la que se pega en Google y no debe cambiar
-  if (!d.envio.clave) {
-    d.envio.clave = claveNueva();
-    const actual = reg ? normalizarEmpresa(reg.data) : empresaVacia();
-    await app.storage.save('config', { ...actual, envio: { ...actual.envio, clave: d.envio.clave } }, { id: ID_EMPRESA });
-  }
 
   const imagen = (k, titulo, ayuda) => {
     const vista = h('div', { class: 'logo-caja' });
@@ -162,12 +156,20 @@ export async function vistaEmpresa(app) {
     const res = h('div', { id: 'envio-resultado' });
     const url = h('input', { type: 'url', id: 'envio-url', value: d.envio.url || '', 'data-minusculas': '', placeholder: 'https://script.google.com/macros/s/…/exec', autocomplete: 'off',
       oninput: (e) => { d.envio.url = e.target.value.trim(); cambiado = true; } });
-    const clave = h('input', { type: 'text', id: 'envio-clave', value: d.envio.clave, readonly: true, 'data-minusculas': '', class: 'mono', onclick: (e) => e.target.select() });
+    // La clave NO se crea sola al abrir esta pantalla (en otro dispositivo pisaría la buena): se escribe o pega
+    // la misma que hay en el código de Google, o se crea una nueva a propósito
+    const clave = h('input', { type: 'text', id: 'envio-clave', value: d.envio.clave || '', 'data-minusculas': '', class: 'mono', autocomplete: 'off', placeholder: 'La misma que en «const CLAVE» del código de Google',
+      oninput: (e) => { d.envio.clave = e.target.value.trim(); cambiado = true; } });
+    const crearClave = h('button', { class: 'btn peq', type: 'button', id: 'crear-clave', onclick: async () => {
+      if (d.envio.clave && !(await confirmar('Ya hay una clave. Si creas otra, tendrás que pegarla también en el código de Google. ¿Crear una nueva?', { si: 'Crear nueva' }))) return;
+      d.envio.clave = claveNueva(); clave.value = d.envio.clave; cambiado = true;
+    } }, 'Crear clave nueva');
     const probar = async (e) => {
       e.target.disabled = true;
       res.replaceChildren(h('div', { class: 'aviso info' }, 'Probando…'));
       try {
         if (!idServicio(d.envio.url)) throw new Error('La URL debe ser la de la aplicación web de Google y terminar en /exec');
+        if ((d.envio.clave || '').length < 12) throw new Error('Falta la clave: pega la misma que pusiste en «const CLAVE» del código de Google');
         const j = await llamar(d.envio.url, { accion: 'prueba', clave: d.envio.clave });
         const logo = await logoParaEnlace(app, d.logo, 8500);
         if (logo) await llamar(d.envio.url, { accion: 'logo', clave: d.envio.clave, logo });
@@ -185,11 +187,13 @@ export async function vistaEmpresa(app) {
           h('li', {}, 'Descarga el código del servicio: ', h('a', { href: './servicio-google/SOLTEC_Formularios.gs', download: 'SOLTEC_Formularios.gs', id: 'descargar-servicio' }, 'SOLTEC_Formularios.gs'), '.'),
           h('li', {}, 'Entra en ', h('a', { href: 'https://script.google.com/home/projects/create', target: '_blank', rel: 'noopener' }, 'script.google.com'), ' con tu cuenta de Google › Nuevo proyecto. Pega todo el código.'),
           h('li', {}, 'Configuración del proyecto (ruedecita) › marca «Mostrar el archivo de manifiesto appsscript.json». En el editor, abre appsscript.json, borra lo que tiene y pega ', h('a', { href: './servicio-google/appsscript.json', download: 'appsscript.json', id: 'descargar-manifiesto' }, 'este archivo de permisos'), '.'),
-          h('li', {}, 'En la línea ', h('code', {}, 'const CLAVE'), ' pega esta clave (entre las comillas):', clave,
-            h('button', { class: 'btn peq', type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(d.envio.clave); toast('Clave copiada'); } catch { clave.select(); } } }, 'Copiar clave')),
+          h('li', {}, 'En la línea ', h('code', {}, 'const CLAVE'), ' del código va la clave (entre las comillas). Es la misma que debe estar aquí: si ya la tienes en Google, pégala aquí; si empiezas de cero, crea una y cópiala a Google.', clave,
+            h('div', { class: 'fila' },
+              h('button', { class: 'btn peq', type: 'button', onclick: async () => { try { await navigator.clipboard.writeText(d.envio.clave || ''); toast('Clave copiada'); } catch { clave.select(); } } }, 'Copiar clave'), crearClave)),
           h('li', {}, 'Implementar › Nueva implementación › Aplicación web. Ejecutar como: Yo. Quién tiene acceso: Cualquier usuario. Autoriza el acceso (Configuración avanzada › Ir a SOLTEC Formularios).'),
           h('li', {}, 'Arriba, en la lista de funciones, elige «autorizar» y pulsa «Ejecutar». Acepta los permisos (enviar correos en tu nombre).'),
           h('li', {}, 'Copia la URL de la aplicación web (termina en /exec) y pégala aquí:')),
+        servicioListo(d) ? h('div', { class: 'aviso ok' }, 'Activado. Si lo cambias, pulsa «Probar».') : null,
         h('label', { for: 'envio-url' }, 'URL del servicio'), url,
         h('div', { class: 'fila' }, h('button', { class: 'btn prim', type: 'button', id: 'probar-envio', onclick: probar }, 'Probar')),
         res));

@@ -55,18 +55,17 @@ try {
     return (await window.soltec.storage.save('aviso', { numero: '2026-0077', cliente: { nombre: 'ANA GIL', telefono: '600123456', email: 'ana@correo.es' }, suministro: { direccion: 'CALLE MAYOR', numero: '3', cp: '50001', poblacion: 'ZARAGOZA', provincia: 'ZARAGOZA' }, electrico: {}, docs: {} })).id;
   });
 
-  // Empresa › Envío automático: clave, URL y «Probar»
+  // Empresa › Envío automático: la clave no se crea sola (pisaría la buena de otro dispositivo)
   await page.goto(base + 'index.html#/empresa');
   await page.waitForSelector('#bloque-envio');
-  assert.ok((await page.inputValue('#envio-clave')).length >= 20, 'la app da una clave');
-  await page.evaluate((c) => { document.getElementById('envio-clave').value = c; }, CLAVE);
-  await page.evaluate((c) => window.__clave = c, CLAVE);
-  // La clave que se pega en Google es la de la app: aquí se pone la del servicio simulado
-  await page.evaluate(async (c) => { const r = await window.soltec.storage.get('empresa'); await window.soltec.storage.save('config', { ...r.data, envio: { url: '', clave: c } }, { id: 'empresa' }); }, CLAVE);
-  await page.goto(base + 'index.html#/inicio');
-  await page.goto(base + 'index.html#/empresa');
-  await page.waitForSelector('#envio-url');
-  assert.equal(await page.inputValue('#envio-clave'), CLAVE);
+  assert.equal(await page.inputValue('#envio-clave'), '', 'sin clave inventada al abrir');
+  assert.equal((await page.evaluate(async () => (await window.soltec.storage.get('empresa')).data.envio?.clave)) || '', '', 'y no se guarda nada');
+  await page.click('#probar-envio');
+  await page.waitForSelector('#envio-resultado .aviso.err');
+  await page.click('#crear-clave');
+  assert.ok((await page.inputValue('#envio-clave')).length >= 20, 'clave nueva a propósito');
+  // La clave que ya está en Google se pega aquí
+  await page.fill('#envio-clave', CLAVE);
   await page.fill('#envio-url', `https://script.google.com/macros/s/${DEP}/exec`);
   await page.click('#probar-envio');
   await page.waitForSelector('#envio-resultado .aviso.ok');
