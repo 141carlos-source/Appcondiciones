@@ -127,7 +127,10 @@ export async function bloqueComunicaciones(app, avisoId) {
     if (aviso.plano?.hash && !out.some((x) => x.hash === aviso.plano.hash)) out.push({ ...aviso.plano, tipo: 'plano', name: aviso.plano.name || 'PLANO_SITUACION' });
     return out;
   };
+  // Lo que hay abierto en el panel (correo o formulario): al guardar el aviso se vuelve a abrir con los datos nuevos
+  let abierto = null;
   const vistaCorreo = (tipo) => async () => {
+    abierto = vistaCorreo(tipo);
     if (sinGuardar()) return;
     const aviso = await leer();
     const t = TIPOS_CORREO[tipo];
@@ -175,6 +178,7 @@ export async function bloqueComunicaciones(app, avisoId) {
 
   // --- El cliente rellena la ficha él mismo (formulario web con sus datos dentro del enlace)
   const enlaceCliente = async () => {
+    abierto = enlaceCliente;
     if (sinGuardar()) return;
     const aviso = { ...(await leer()), id: avisoId };
     const base = /github\.io$/.test(location.hostname) ? location.href.split('#')[0].replace(/[^/]*$/, '') : URL_PUBLICA;
@@ -285,7 +289,7 @@ export async function bloqueComunicaciones(app, avisoId) {
     return caja;
   };
   const boton = (id, texto, onclick, prim) => h('button', { class: 'btn' + (prim ? ' prim' : ''), type: 'button', id, 'data-accion': '', onclick }, texto);
-  return h('div', { id: 'comunicaciones' },
+  const raiz = h('div', { id: 'comunicaciones' },
     faltaEmpresa.length ? h('div', { class: 'aviso info' }, `Configura ${faltaEmpresa.join(' y ')} de la empresa (sale en el formulario y en los PDF). `, h('a', { href: '#/empresa' }, 'Ir a Empresa')) : null,
     paso(1, 'Datos del cliente', estadoDoc('firmado'), 'Formulario web: el cliente completa y firma desde el móvil, y al devolverlo el aviso se rellena solo.',
       boton('btn-enlace-cliente', 'Pedir datos al cliente', enlaceCliente, true),
@@ -298,6 +302,9 @@ export async function bloqueComunicaciones(app, avisoId) {
     h('details', { class: 'paso-com otros' }, h('summary', {}, 'Otros mensajes'),
       h('div', { class: 'acciones' }, boton('btn-whatsapp', 'Resumen de lo pendiente por WhatsApp', whatsapp))),
     panel);
+  /** Al guardar el aviso: el correo o formulario abierto se rehace con los datos guardados (correo del cliente, etc.). */
+  raiz.actualizar = () => { if (abierto && panel.childElementCount) abierto(); };
+  return raiz;
 }
 
 // ---------------------------------------------------------------- firma con el dedo

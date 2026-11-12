@@ -557,7 +557,7 @@ export async function vistaFicha(app, id) {
     cambiado = false;
     toast(nuevoReg ? `Aviso ${draft.numero} creado` : 'Guardado');
     if (nuevoReg) ir('aviso/' + r.id);
-    else { registro = r; Object.assign(original, clonar(draft)); pdfsNuevos.length = 0; pintarHistorial(); pintarRecordatorios(); }
+    else { registro = r; Object.assign(original, clonar(draft)); pdfsNuevos.length = 0; pintarHistorial(); pintarRecordatorios(); comunicaciones?.actualizar?.(); }
   };
 
   const seguimiento = registro ? await bloqueSeguimiento(app, registro.id) : null;
