@@ -35,9 +35,10 @@ try {
   const viejo = await page.evaluate(async () => (await window.soltec.storage.save('aviso', { numero: '2025-0900', cliente: { nombre: 'VIEJO' }, condiciones: { ref: '0000412345', pdfs: [] }, electrico: { tension: '230', iga: '40' } })).id);
   await page.goto(base + 'index.html#/aviso/' + viejo);
   await page.waitForSelector('#f-cliente-nombre', { state: 'attached' });
-  for (const k of ['condiciones', 'electrico']) assert.ok(await page.isVisible(`details[data-apartado="${k}"]`), 'con datos, visible: ' + k);
-  for (const k of ['memoria', 'cuadros', 'plano']) assert.ok(await page.isHidden(`details[data-apartado="${k}"]`), 'vacío, oculto: ' + k);
-  ok('Avisos antiguos sin marcar: se ven los apartados que ya tienen datos');
+  await page.waitForSelector('details[data-apartado="condiciones"]:not([hidden])', { timeout: 5000 });
+  for (const k of ['electrico', 'memoria', 'cuadros', 'plano', 'autorizacion']) assert.ok(await page.isHidden(`details[data-apartado="${k}"]`), 'oculto: ' + k);
+  assert.ok(await page.isHidden('[data-apartado="ubicacion"]'));
+  ok('Avisos antiguos sin marcar: se ocultan; solo se ven los apartados con documentos (condiciones, cuadro, memoria, autorización)');
   await page.goto(base + 'index.html#/aviso/' + id);
   await page.waitForSelector('#f-cliente-nombre', { state: 'attached' });
 

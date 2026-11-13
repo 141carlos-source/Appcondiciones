@@ -8,7 +8,6 @@ import {
   docsPendientes, direccionCompleta, FASES_TRAMITE, DOCUMENTOS, ESTADOS_DOC, ESTADOS_AVISO, EVENTOS, EVENTOS_MANUALES, DESTINOS,
   separarNumero, estaCerrado, boletinActual, apartadosNoAplican, destinosAviso,
 } from '../core/model.js';
-import { normalizarMemoria } from '../core/memoria.js';
 import { resumenCuadro } from '../core/cuadros.js';
 import { buscar, duplicados } from '../core/search.js';
 import { provinciaDeCp, formatearIban, validarCups, formatearTelefono } from '../core/validate.js';
@@ -409,15 +408,14 @@ export async function vistaFicha(app, id) {
     d.dataset.apartado = clave;
     return d;
   };
-  // Apartados que ya tienen datos al abrir el aviso: se ven siempre (los avisos antiguos no tienen marcado qué lleva)
+  // Avisos antiguos (sin marcar qué lleva): solo se ven los apartados con documentos de verdad
+  // (PDF o referencia de condiciones, cuadro con aparatos, memoria CNMC hecha, autorización rellenada).
+  // Datos sueltos (tensión, coordenadas, fotos…) no cuentan: se ocultan hasta marcar condiciones o boletín.
   const conDatos = (() => {
-    const a = registro?.data || {}, su = a.suministro || {}, el = a.electrico || {}, set = new Set();
-    if (su.lat || su.lon || su.refCatastral) set.add('ubicacion');
-    if (a.plano?.hash || (a.fotos || []).length) set.add('plano');
-    if (['tension', 'iga', 'potenciaKw', 'potenciaContratar', 'contador', 'uso'].some((k) => String(el[k] ?? '').trim())) set.add('electrico');
-    if ((a.archivos || []).some((x) => x.tipo === 'memoria') || (a.memoria && JSON.stringify(normalizarMemoria(a.memoria)) !== JSON.stringify(normalizarMemoria({})))) set.add('memoria');
-    if (a.autorizacion?.datos || a.docs?.autorizacion === 'recibido') set.add('autorizacion');
-    if (a.condiciones?.ref || (a.condiciones?.pdfs || []).length || (a.tramite && a.tramite !== 'datos')) set.add('condiciones');
+    const a = registro?.data || {}, set = new Set();
+    if ((a.archivos || []).some((x) => x.tipo === 'memoria')) set.add('memoria');
+    if (a.autorizacion?.datos) set.add('autorizacion');
+    if (a.condiciones?.ref || (a.condiciones?.pdfs || []).length) set.add('condiciones');
     if (resumenCuadro(a.cuadro).hay) set.add('cuadros');
     return set;
   })();
