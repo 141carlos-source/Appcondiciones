@@ -17,20 +17,31 @@ const AVISOS = [
   reg({ cliente: cli({ nombre: 'ANA LÓPEZ' }), concepto: 'Aumento de potencia', suministro: sum({ direccion: 'CALLE MAYOR', numero: '1', cp: '50171', poblacion: 'La Puebla de Alfindén', provincia: 'ZARAGOZA', cups: 'ES0031405000000001AA', refCatastral: '1234567XM1213S0001AB' }) }),
 ];
 
-test('clientes: se juntan los avisos con el mismo NIF o teléfono, con los datos más recientes', () => {
+test('clientes: se juntan por NIF/CIF (o por nombre si no hay); los datos son los del último aviso, tal cual', () => {
   const cs = clientesConocidos(AVISOS);
   assert.equal(cs.length, 3);
   const ebro = cs.find((c) => c.cliente.nif.replace(/\W/g, '') === 'B12345674');
   assert.equal(ebro.avisos, 2);
   assert.equal(ebro.cliente.nombre, 'Talleres Ebro, S.L.', 'el nombre del aviso más reciente');
-  assert.equal(ebro.cliente.telefono, '976 111 222', 'el teléfono del aviso antiguo se conserva');
+  assert.equal(ebro.cliente.telefono, undefined, 'el teléfono del aviso antiguo NO vuelve: manda el último aviso');
   assert.equal(ebro.cliente.email, 'admin@ebro.es');
   assert.equal(ebro.suministros.length, 2);
   assert.equal(ebro.suministros[0].suministro.direccion, 'POLÍGONO MALPICA', 'el suministro más reciente primero');
   assert.equal(ebro.suministros[1].electrico.iga, '63');
   const jose = cs.find((c) => /jos/i.test(c.cliente.nombre));
-  assert.equal(jose.avisos, 2, '+34 600 123 123 y 600123123 son el mismo teléfono');
+  assert.equal(jose.avisos, 2, '«JOSÉ PÉREZ» y «Jose Perez» sin NIF: mismo nombre');
+  assert.equal(jose.cliente.email, 'jose@correo.es');
   assert.equal(clientesConocidos(AVISOS, { excluir: AVISOS[4].id }).length, 2, 'el aviso abierto no se propone a sí mismo');
+  // Un dato cambiado o borrado en el último aviso no vuelve a salir; dos empresas con el mismo teléfono no se mezclan
+  const cs2 = clientesConocidos([
+    reg({ cliente: cli({ nombre: 'ALFA SL', nif: 'B11111111', telefono: '976000000', email: 'viejo@alfa.es' }) }),
+    reg({ cliente: cli({ nombre: 'ALFA SL', nif: 'B11111111', telefono: '976999999', email: '' }) }),
+    reg({ cliente: cli({ nombre: 'BETA SL', nif: 'B22222222', telefono: '976999999' }) }),
+  ]);
+  const alfa = cs2.find((c) => c.cliente.nombre === 'ALFA SL');
+  assert.equal(alfa.cliente.telefono, '976999999', 'el último teléfono');
+  assert.equal(alfa.cliente.email, undefined, 'el correo borrado no vuelve');
+  assert.equal(cs2.length, 2, 'ALFA y BETA comparten teléfono pero son empresas distintas');
 });
 
 test('buscar clientes por nombre (sin acentos), NIF, teléfono y correo', () => {
@@ -75,7 +86,7 @@ test('suministros: por calle, CUPS o catastro; rellena la dirección y los datos
   const mayor = ss.find((s) => s.suministro.cups);
   assert.equal(mayor.avisos, 2, 'mismo CUPS = mismo suministro');
   assert.equal(mayor.cliente, 'ANA LÓPEZ');
-  assert.equal(mayor.electrico.iga, '63', 'datos eléctricos del aviso anterior');
+  assert.equal(mayor.electrico.iga, undefined, 'los datos eléctricos son los del último aviso de ese suministro (no se mezclan con antiguos)');
   assert.equal(buscarSuministros(ss, 'direccion', 'mayo')[0], mayor);
   assert.equal(buscarSuministros(ss, 'direccion', 'alfon').length, 1);
   assert.equal(buscarSuministros(ss, 'cups', 'es0031').length, 1);
@@ -84,8 +95,7 @@ test('suministros: por calle, CUPS o catastro; rellena la dirección y los datos
   assert.equal(r['suministro.direccion'], 'CALLE MAYOR');
   assert.equal(r['suministro.numero'], '1');
   assert.equal(r['suministro.cups'], 'ES0031405000000001AA');
-  assert.equal(r['electrico.iga'], '63');
-  assert.equal(r['electrico.uso'], 'nave');
+  assert.equal(r['electrico.iga'], undefined);
   const r2 = rellenoSuministro(nuevoAviso({ suministro: sum({ direccion: 'MAYO', piso: '3' }), electrico: { iga: '25' } }), mayor, 'direccion');
   assert.equal('suministro.piso' in r2, false, 'no pisa el piso escrito');
   assert.equal('electrico.iga' in r2, false, 'ni el IGA escrito');
@@ -151,4 +161,13 @@ test('autorización: solicitantes, terceros y DIR3 de autorizaciones anteriores;
   assert.deepEqual(k.dir3.map((x) => x.dir3_oc), ['L01500124']);
   const maria = k.sol.find((x) => x.sol_nombre === 'MARÍA RUIZ');
   assert.equal(maria.sol_tel, '+34 611 222 333');
+});
+
+test('autorización: si el cliente se cambió en un aviso más reciente, mandan sus datos nuevos', async () => {
+  const { conocidosAutorizacion } = await import('../core/autorrelleno.js');
+  const viejo = reg({ cliente: cli({ nombre: 'GAMMA SL', nif: 'B33333333', telefono: '976111111' }), autorizacion: { datos: { sol_nombre: 'GAMMA SL', sol_nif: 'B33333333', sol_tel: '976111111', sol_email: 'viejo@gamma.es' } } });
+  const nuevo = reg({ cliente: cli({ nombre: 'GAMMA SL', nif: 'B33333333', telefono: '976222222', email: '' }) });
+  const s = conocidosAutorizacion([viejo, nuevo]).sol.find((x) => x.sol_nif === 'B33333333');
+  assert.equal(s.sol_tel, '976222222');
+  assert.equal(s.sol_email, undefined, 'el correo borrado no vuelve');
 });

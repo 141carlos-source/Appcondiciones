@@ -6,6 +6,8 @@
 //   · Resto de campos: valores ya usados, los más frecuentes primero (población, provincia, CP, concepto…),
 //     y población ⇄ CP ⇄ provincia según lo ya escrito otras veces.
 // Nunca se pisa un dato ya escrito, salvo el campo en el que se está tecleando.
+// Siempre manda el ÚLTIMO dato puesto: de cada cliente y de cada suministro se toma tal cual el aviso más reciente
+// (no se mezclan datos de avisos antiguos: un dato borrado o cambiado no vuelve a salir).
 // Funciones puras: reciben la lista de avisos (registros) y no tocan la base de datos.
 
 const sinAcentos = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -24,57 +26,40 @@ export const CAMPOS_ELECTRICO_AUTO = ['tension', 'iga', 'potenciaCalculada', 'po
 const ordenar = (avisos) => [...avisos].filter((r) => r && r.data && !r.deleted)
   .sort((a, b) => String(a.updatedAt || a.data.fecha || '').localeCompare(String(b.updatedAt || b.data.fecha || '')));
 
-/** Copia los campos con valor de «de» sobre «a» (el más reciente gana). */
-const mezclar = (a, de, campos) => { for (const k of campos) if (lleno(de?.[k]) || typeof de?.[k] === 'boolean') a[k] = de[k]; return a; };
+/** Los campos de «de» tal cual (los del aviso más reciente; los vacíos quedan vacíos). */
+const copiar = (de, campos) => { const a = {}; for (const k of campos) if (lleno(de?.[k]) || typeof de?.[k] === 'boolean') a[k] = de[k]; return a; };
 
 const claveSuministro = (s) => (soloNif(s.cups).slice(0, 20) || [normal(s.direccion), normal(s.numero), normal(s.piso), normal(s.puerta), normal(s.cp || s.poblacion)].join('|'));
 
 /**
- * Clientes ya trabajados, uno por persona/empresa (se juntan los avisos que comparten NIF, teléfono o correo;
- * sin ninguno de los tres, por el nombre).
+ * Clientes ya trabajados, uno por empresa o persona: se juntan los avisos con el mismo NIF/CIF
+ * (sin NIF, por el nombre). Los datos del cliente son los del aviso MÁS RECIENTE, tal cual.
  * @returns {Array<{id, cliente, facturacion, suministros, avisos, ultimo, numeros}>}
  */
 export function clientesConocidos(avisos, { excluir = null } = {}) {
   const lista = ordenar(avisos).filter((r) => r.id !== excluir && lleno(r.data.cliente?.nombre));
-  // Unión de avisos que comparten algún identificador
-  const padre = lista.map((_, i) => i);
-  const raiz = (i) => (padre[i] === i ? i : (padre[i] = raiz(padre[i])));
-  const visto = new Map(), porNombre = new Map(), sinIds = [];
-  const unir = (i, j) => { padre[raiz(i)] = raiz(j); };
-  lista.forEach((r, i) => {
-    const c = r.data.cliente || {};
-    const ids = [soloNif(c.nif) && 'N' + soloNif(c.nif), soloTel(c.telefono).length >= 9 && 'T' + soloTel(c.telefono), soloMail(c.email).includes('@') && 'E' + soloMail(c.email)].filter(Boolean);
-    if (!ids.length) { sinIds.push(i); return; }
-    for (const id of ids) {
-      if (visto.has(id)) unir(i, visto.get(id));
-      else visto.set(id, i);
-    }
-    if (!porNombre.has(normal(c.nombre))) porNombre.set(normal(c.nombre), i);
-  });
-  // Sin NIF, teléfono ni correo: con el cliente del mismo nombre (si lo hay) o con los demás del mismo nombre
-  for (const i of sinIds) {
-    const n = normal(lista[i].data.cliente?.nombre);
-    if (porNombre.has(n)) unir(i, porNombre.get(n)); else porNombre.set(n, i);
-  }
   const grupos = new Map();
-  lista.forEach((r, i) => { const g = raiz(i); if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(r); });
+  for (const r of lista) { // del más antiguo al más reciente
+    const c = r.data.cliente || {};
+    const k = soloNif(c.nif) ? 'N' + soloNif(c.nif) : 'M' + normal(c.nombre).replace(/[^A-Z0-9 ]/g, '');
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(r);
+  }
   const out = [];
   for (const rs of grupos.values()) {
-    const cliente = {}, facturacion = {}, sums = new Map();
-    for (const r of rs) { // del más antiguo al más reciente
-      mezclar(cliente, r.data.cliente, CAMPOS_CLIENTE_AUTO);
-      if (r.data.facturacion && r.data.facturacion.mismoCliente === false) mezclar(facturacion, r.data.facturacion, CAMPOS_FACTURACION_AUTO);
-      const s = r.data.suministro || {};
-      if (lleno(s.direccion) || lleno(s.cups)) {
-        const k = claveSuministro(s);
-        const prev = sums.get(k) || { suministro: {}, electrico: {}, numero: '' };
-        sums.delete(k); // al final: el más reciente
-        sums.set(k, { suministro: mezclar(prev.suministro, s, CAMPOS_SUMINISTRO_AUTO), electrico: mezclar(prev.electrico, r.data.electrico, CAMPOS_ELECTRICO_AUTO), numero: r.data.numero || '' });
-      }
-    }
     const ult = rs[rs.length - 1];
+    const sums = new Map();
+    for (const r of rs) {
+      const s = r.data.suministro || {};
+      if (!lleno(s.direccion) && !lleno(s.cups)) continue;
+      const k = claveSuministro(s);
+      sums.delete(k); // al final: el más reciente, con sus datos tal cual
+      sums.set(k, { suministro: copiar(s, CAMPOS_SUMINISTRO_AUTO), electrico: copiar(r.data.electrico, CAMPOS_ELECTRICO_AUTO), numero: r.data.numero || '' });
+    }
+    const f = ult.data.facturacion;
     out.push({
-      id: 'cli:' + ult.id, cliente, facturacion: Object.keys(facturacion).length ? facturacion : null,
+      id: 'cli:' + ult.id, cliente: copiar(ult.data.cliente, CAMPOS_CLIENTE_AUTO),
+      facturacion: f && f.mismoCliente === false ? copiar(f, CAMPOS_FACTURACION_AUTO) : null,
       suministros: [...sums.values()].reverse(), avisos: rs.length, ultimo: ult.updatedAt || ult.data.fecha || '', numeros: rs.map((r) => r.data.numero).filter(Boolean).reverse(),
     });
   }
@@ -89,9 +74,9 @@ export function suministrosConocidos(avisos, { excluir = null } = {}) {
     const s = r.data.suministro || {};
     if (!lleno(s.direccion) && !lleno(s.cups)) continue;
     const k = claveSuministro(s);
-    const prev = sums.get(k) || { suministro: {}, electrico: {}, cliente: '', numero: '', avisos: 0 };
-    sums.delete(k);
-    sums.set(k, { suministro: mezclar(prev.suministro, s, CAMPOS_SUMINISTRO_AUTO), electrico: mezclar(prev.electrico, r.data.electrico, CAMPOS_ELECTRICO_AUTO), cliente: r.data.cliente?.nombre || prev.cliente, numero: r.data.numero || '', avisos: prev.avisos + 1 });
+    const prev = sums.get(k);
+    sums.delete(k); // el más reciente manda: sus datos tal cual
+    sums.set(k, { suministro: copiar(s, CAMPOS_SUMINISTRO_AUTO), electrico: copiar(r.data.electrico, CAMPOS_ELECTRICO_AUTO), cliente: r.data.cliente?.nombre || '', numero: r.data.numero || '', avisos: (prev?.avisos || 0) + 1 });
   }
   return [...sums.values()].reverse();
 }
@@ -266,14 +251,14 @@ export const CLAVES_DIR3 = ['dir3_oc', 'dir3_oc_d', 'dir3_og', 'dir3_og_d', 'dir
  *   tf: destinatarios de facturación «tercero»;  dir3: códigos DIR3 de administraciones;  municipios: los más usados
  */
 export function conocidosAutorizacion(avisos, { excluir = null } = {}) {
-  const sol = new Map(), tf = new Map(), dir3 = new Map();
+  const sol = new Map(), tf = new Map(), dir3 = new Map(), fechaSol = new Map();
   const tomar = (d, claves) => Object.fromEntries(claves.filter((k) => lleno(d[k])).map((k) => [k, String(d[k])]));
   for (const r of ordenar(avisos).reverse()) { // el más reciente primero
     if (r.id === excluir) continue;
     const d = r.data.autorizacion?.datos;
     if (!d) continue;
     const ks = normal(soloNif(d.sol_nif) || d.sol_nombre);
-    if (ks && !sol.has(ks)) sol.set(ks, tomar(d, CLAVES_SOLICITANTE));
+    if (ks && !sol.has(ks)) { sol.set(ks, tomar(d, CLAVES_SOLICITANTE)); fechaSol.set(ks, String(r.updatedAt || '')); }
     const kt = normal(soloNif(d.tf_nif) || d.tf_nombre);
     if (d.fact_opcion === 'ter' && kt && !tf.has(kt)) tf.set(kt, tomar(d, CLAVES_TERCERO));
     const kd = normal(d.dir3_oc);
@@ -283,6 +268,12 @@ export function conocidosAutorizacion(avisos, { excluir = null } = {}) {
   const nombres = new Set([...sol.values()].map((x) => normal(x.sol_nombre)));
   for (const c of clientesConocidos(avisos, { excluir })) {
     const k = normal(soloNif(c.cliente.nif) || c.cliente.nombre);
+    // Si el cliente se ha cambiado en un aviso después de su última autorización, mandan los datos nuevos
+    if (k && sol.has(k) && String(c.ultimo) > (fechaSol.get(k) || '')) {
+      const x = sol.get(k);
+      for (const [clave, v] of [['sol_nombre', c.cliente.nombre], ['sol_tel', c.cliente.telefono], ['sol_email', c.cliente.email]]) { if (lleno(v)) x[clave] = String(v); else delete x[clave]; }
+      continue;
+    }
     if (!k || sol.has(k) || nombres.has(normal(c.cliente.nombre))) continue;
     sol.set(k, tomar({ sol_nombre: c.cliente.nombre, sol_nif: String(c.cliente.nif || '').toUpperCase(), sol_tel: c.cliente.telefono, sol_email: c.cliente.email, sol_municipio: c.suministros[0]?.suministro.poblacion || '' }, CLAVES_SOLICITANTE));
   }
