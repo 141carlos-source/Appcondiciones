@@ -15,7 +15,7 @@ const pWeb = await libre();
 const web = spawn('python3', ['-m', 'http.server', String(pWeb), '--bind', '127.0.0.1'], { cwd: raiz, stdio: 'ignore' });
 let browser;
 try {
-  for (let i = 0; i < 50; i++) { try { await fetch(`http://127.0.0.1:${pWeb}/assets/cuadrolab.html`); break; } catch { await new Promise((r) => setTimeout(r, 100)); } }
+  for (let i = 0; i < 50; i++) { try { await (await fetch(`http://127.0.0.1:${pWeb}/assets/cuadrolab.html`)).arrayBuffer(); break; } catch { await new Promise((r) => setTimeout(r, 100)); } }
   browser = await chromium.launch();
   const page = await (await browser.newContext({ viewport: { width: 1300, height: 1000 } })).newPage();
   const errores = [];
