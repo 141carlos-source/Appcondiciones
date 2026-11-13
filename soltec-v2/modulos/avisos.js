@@ -152,7 +152,8 @@ export async function vistaFicha(app, id) {
     const origen = await app.storage.get(new URLSearchParams(location.hash.split('?')[1] || '').get('de'));
     if (!origen) { ir('avisos'); return h('div'); }
     const o = origen.data;
-    draft = nuevoAviso({ cliente: clonar(o.cliente), facturacion: clonar(o.facturacion), suministro: clonar(o.suministro), electrico: clonar(o.electrico), obra: o.obra });
+    // Otro trabajo para el mismo cliente: solo sus datos (empresa, CIF, teléfono, correo…); la dirección y lo demás cambian
+    draft = nuevoAviso({ cliente: clonar(o.cliente), facturacion: clonar(o.facturacion) });
   } else if (esNuevo) {
     draft = nuevoAviso();
   } else {
@@ -575,7 +576,7 @@ export async function vistaFicha(app, id) {
   const seguimiento = registro ? await bloqueSeguimiento(app, registro.id) : null;
   const comunicaciones = registro ? await bloqueComunicaciones(app, registro.id) : null;
   const partes = registro ? await bloquePartes(app, registro.id) : null;
-  const titulo = registro ? `Aviso ${draft.numero}` : id === 'duplicar' ? 'Nuevo aviso (copia)' : 'Nuevo aviso';
+  const titulo = registro ? `Aviso ${draft.numero}` : id === 'duplicar' ? 'Nuevo aviso (mismo cliente)' : 'Nuevo aviso';
   const planoEl = bloquePlano(app, draft, alCambiar);
   const cajaPlano = h('div', {}, h('label', {}, 'Plano de situación'), planoEl);
   // Búsqueda de dirección, catastro, SIPS y coordenadas (para el plano): solo si lleva condiciones o boletín
@@ -645,7 +646,7 @@ export async function vistaFicha(app, id) {
     registro && !registro.deleted ? h('div', { class: 'fila' },
       estaCerrado(registro.data) ? h('button', { class: 'btn', type: 'button', id: 'btn-reabrir-pie', onclick: () => cambiarCierre(false) }, 'Reabrir')
         : h('button', { class: 'btn', type: 'button', id: 'btn-cerrar-aviso', onclick: () => cambiarCierre(true) }, `Cerrar ${isExpediente(draft) ? 'expediente' : 'aviso'}`),
-      h('a', { class: 'btn', href: `#/aviso/duplicar?de=${registro.id}` }, 'Duplicar con los mismos datos'),
+      h('a', { class: 'btn', href: `#/aviso/duplicar?de=${registro.id}` }, 'Nuevo aviso para este cliente'),
       h('button', { class: 'btn', type: 'button', onclick: async () => {
         if (!(await confirmar('¿Enviar este aviso a la papelera? Podrás recuperarlo.', { si: 'Enviar a la papelera', peligro: true }))) return;
         await app.storage.trash(registro.id);

@@ -47,6 +47,16 @@ try {
   await page.waitForFunction(() => document.querySelector('#correo-cuerpo')?.value.includes('ANA GIL PEREZ'), null, { timeout: 10000 });
   ok('Correo de solicitud abierto: al guardar, el texto se rehace con los datos nuevos');
 
+  // Otro trabajo para el mismo cliente: copia solo los datos del cliente, no la dirección
+  await page.evaluate(() => { window.soltec.guardia = () => false; });
+  await page.goto(base + 'index.html#/aviso/duplicar?de=' + id);
+  await page.waitForSelector('h1:has-text("Nuevo aviso (mismo cliente)")');
+  assert.equal(await page.inputValue('#f-cliente-nombre'), 'ANA GIL PEREZ');
+  assert.ok((await page.inputValue('#f-cliente-telefono')).includes('600'));
+  assert.equal(await page.inputValue('#f-cliente-email'), 'nuevo@correo.es');
+  for (const c of ['direccion', 'numero', 'cp', 'poblacion', 'provincia']) assert.equal(await page.inputValue('#f-suministro-' + c), '', 'sin ' + c);
+  ok('«Nuevo aviso para este cliente»: copia empresa, CIF, teléfono y correo; no la dirección ni el código postal');
+
   assert.deepEqual(errores, []);
   ok('Sin errores en la consola');
 } catch (e) {
