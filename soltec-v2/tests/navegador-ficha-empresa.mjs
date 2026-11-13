@@ -32,7 +32,7 @@ try {
     const blob = await new Promise((r) => cv.toBlob(r, 'image/png'));
     const logo = await window.soltec.storage.putFile(new File([blob], 'logo.png', { type: 'image/png' }));
     await window.soltec.storage.save('config', { empresa: { nombre: 'M. A. SOLTEC SL', nombreComercial: 'M. A. SOLTEC', nif: 'B99506651', telefono: '607335058', email: 'info@soltec.es', web: 'www.soltec.es', direccion: 'CALLE EJEMPLO 1', cp: '50171', localidad: 'LA PUEBLA DE ALFINDÉN', provincia: 'ZARAGOZA' }, logo }, { id: 'empresa' });
-    return (await window.soltec.storage.save('aviso', { numero: '2026-0031', cliente: { nombre: 'ANA GIL', telefono: '600123456', nif: '12345678Z', email: 'ana@correo.es' }, suministro: { direccion: 'CALLE MAYOR', numero: '10', cp: '50001', poblacion: 'ZARAGOZA', provincia: 'ZARAGOZA' }, electrico: { tension: '230', iga: '40', uso: 'vivienda', potenciaKw: '9,2' }, docs: {} })).id;
+    return (await window.soltec.storage.save('aviso', { lleva: { condiciones: 'si', boletin: 'si' }, numero: '2026-0031', cliente: { nombre: 'ANA GIL', telefono: '600123456', nif: '12345678Z', email: 'ana@correo.es' }, suministro: { direccion: 'CALLE MAYOR', numero: '10', cp: '50001', poblacion: 'ZARAGOZA', provincia: 'ZARAGOZA' }, electrico: { tension: '230', iga: '40', uso: 'vivienda', potenciaKw: '9,2' }, docs: {} })).id;
   });
 
   // --- en la app: potencia a contratar

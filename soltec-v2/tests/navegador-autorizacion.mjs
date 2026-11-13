@@ -42,7 +42,7 @@ try {
   await page.click('#guardar-empresa');
   await page.waitForSelector('h1:has-text("Ajustes")');
 
-  const id = await page.evaluate(async () => (await window.soltec.storage.save('aviso', {
+  const id = await page.evaluate(async () => (await window.soltec.storage.save('aviso', { lleva: { condiciones: 'si', boletin: 'si' },
     numero: '2026-0042', tramite: 'datos',
     cliente: { nombre: 'Luis Pérez', nif: '12345678Z', telefono: '600123456', email: 'luis@ejemplo.es' },
     suministro: { direccion: 'Calle Mayor', numero: '12', piso: '', puerta: '', cp: '50001', poblacion: 'Zaragoza', provincia: 'Zaragoza', refCatastral: '', cups: '' },
