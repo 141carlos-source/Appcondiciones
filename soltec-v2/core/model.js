@@ -204,13 +204,29 @@ const CHECKS = [
 
 /** El trabajo no lleva boletín (Cliente y suministro › «Boletín: ¿lo lleva?» = No): sin CUPS ni referencia catastral. */
 export const sinBoletin = (aviso) => aviso?.lleva?.boletin === 'no';
-/** Apartados que no aplican y se bloquean: sin boletín o sin condiciones, memoria CNMC, autorización, condiciones y plano de situación
- *  (las fotografías siguen disponibles). */
-export function apartadosNoAplican(aviso) {
+/** Apartados de la ficha que dependen de lo que lleva el trabajo (se ocultan si no hacen falta). */
+export const APARTADOS_LLEVA = ['ubicacion', 'plano', 'electrico', 'memoria', 'autorizacion', 'condiciones', 'cuadros'];
+/** Con condiciones de suministro: búsqueda de dirección, plano y fotos, datos eléctricos, memoria, autorización, condiciones y cuadros. */
+export const APARTADOS_CONDICIONES = ['ubicacion', 'plano', 'electrico', 'memoria', 'autorizacion', 'condiciones', 'cuadros'];
+/** Con boletín: búsqueda de dirección (el plano necesita coordenadas), plano y fotos, datos eléctricos y cuadros. */
+export const APARTADOS_BOLETIN = ['ubicacion', 'plano', 'electrico', 'cuadros'];
+
+/**
+ * Apartados ocultos para una pantalla más limpia: solo se ven los que pide lo confirmado
+ * («¿Lleva condiciones?» / «¿Lleva boletín?» = Sí). Los que ya tienen datos se ven siempre.
+ * @param {Set<string>} [conDatos]  apartados que ya tienen algo (cuadro, memoria, PDF de condiciones…)
+ * @returns {Object<string,string>}  apartado → motivo
+ */
+export function apartadosNoAplican(aviso, conDatos = new Set()) {
+  const lv = aviso?.lleva || {};
+  const vis = new Set([...(lv.condiciones === 'si' ? APARTADOS_CONDICIONES : []), ...(lv.boletin === 'si' ? APARTADOS_BOLETIN : [])]);
+  const motivo = lv.condiciones === 'no' && lv.boletin === 'no' ? 'No lleva condiciones ni boletín'
+    : lv.condiciones === 'no' && lv.boletin !== 'si' ? 'No lleva condiciones'
+      : lv.boletin === 'no' && lv.condiciones !== 'si' ? 'No lleva boletín'
+        : lv.condiciones === 'no' ? 'No lleva condiciones'
+          : lv.boletin === 'si' ? 'Falta confirmar si lleva condiciones' : 'Falta confirmar si lleva condiciones o boletín';
   const out = {};
-  if (sinBoletin(aviso)) for (const k of ['memoria', 'autorizacion', 'condiciones', 'plano']) out[k] = 'No lleva boletín';
-  // Sin condiciones tampoco hay autorización de representatividad ni memoria CNMC
-  if (aviso?.lleva?.condiciones === 'no') for (const k of ['memoria', 'autorizacion', 'condiciones', 'plano']) out[k] ||= 'No lleva condiciones';
+  for (const k of APARTADOS_LLEVA) if (!vis.has(k) && !conDatos.has(k)) out[k] = motivo;
   return out;
 }
 

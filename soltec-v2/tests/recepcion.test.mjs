@@ -64,9 +64,12 @@ test('sin boletín: el CUPS y la referencia catastral no son pendientes; memoria
   const sin = { ...base, lleva: { boletin: 'no', condiciones: '' } };
   assert.ok(!campos(sin).includes('suministro.cups') && !campos(sin).includes('suministro.refCatastral'));
   assert.ok(campos({ ...sin, suministro: { ...sin.suministro, cups: 'ES123' } }).includes('suministro.cups'), 'si está escrito y mal, se avisa');
-  assert.deepEqual(Object.keys(apartadosNoAplican(sin)), ['memoria', 'autorizacion', 'condiciones', 'plano']);
-  assert.deepEqual(apartadosNoAplican({ ...base, lleva: { boletin: 'si', condiciones: 'no' } }), { memoria: 'No lleva condiciones', autorizacion: 'No lleva condiciones', condiciones: 'No lleva condiciones', plano: 'No lleva condiciones' });
-  assert.deepEqual(apartadosNoAplican(base), {});
+  assert.deepEqual(Object.keys(apartadosNoAplican(sin)), ['ubicacion', 'plano', 'electrico', 'memoria', 'autorizacion', 'condiciones', 'cuadros']);
+  assert.deepEqual(apartadosNoAplican({ ...base, lleva: { boletin: 'si', condiciones: 'no' } }), { memoria: 'No lleva condiciones', autorizacion: 'No lleva condiciones', condiciones: 'No lleva condiciones' });
+  assert.deepEqual(Object.keys(apartadosNoAplican(base)), ['ubicacion', 'plano', 'electrico', 'memoria', 'autorizacion', 'condiciones', 'cuadros'], 'sin confirmar, ocultos');
+  assert.deepEqual(apartadosNoAplican({ ...base, lleva: { condiciones: 'si' } }), {}, 'con condiciones, todo');
+  assert.deepEqual(Object.keys(apartadosNoAplican({ ...base, lleva: { boletin: 'si' } })), ['memoria', 'autorizacion', 'condiciones'], 'con boletín: dirección, plano, eléctricos y cuadros');
+  assert.deepEqual(Object.keys(apartadosNoAplican(base, new Set(['cuadros', 'memoria']))), ['ubicacion', 'plano', 'electrico', 'autorizacion', 'condiciones'], 'los que tienen datos se ven');
 });
 
 test('sin boletín ni contrato no quedan pendientes la potencia ni la tensión; «Contrato: ¿lo lleva?» = No', async () => {

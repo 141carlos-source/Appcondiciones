@@ -31,7 +31,7 @@ try {
   const base = `http://localhost:${pWeb}/index.html`;
   await page.goto(base);
   await page.waitForFunction(() => window.soltec?.storage);
-  const id = await page.evaluate(async () => (await window.soltec.storage.save('aviso', { numero: '2026-0088', cliente: { nombre: 'Luis Pérez', nif: '12345678Z', email: 'luis@ejemplo.es' }, suministro: { direccion: 'Calle Mayor', numero: '1', poblacion: 'Zaragoza', provincia: 'Zaragoza' } })).id);
+  const id = await page.evaluate(async () => (await window.soltec.storage.save('aviso', { lleva: { condiciones: 'si', boletin: 'si' }, numero: '2026-0088', cliente: { nombre: 'Luis Pérez', nif: '12345678Z', email: 'luis@ejemplo.es' }, suministro: { direccion: 'Calle Mayor', numero: '1', poblacion: 'Zaragoza', provincia: 'Zaragoza' } })).id);
   await page.goto(base + '#/aviso/' + id);
   await page.click('summary:has-text("Autorización de representatividad")');
   await page.click('#abrir-autorizacion');

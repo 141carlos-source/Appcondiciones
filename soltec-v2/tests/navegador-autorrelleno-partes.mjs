@@ -28,7 +28,7 @@ try {
   await page.waitForSelector('#buscador-unico');
   await page.evaluate(async () => {
     const s = window.soltec.storage, { nuevoAviso } = await import('./core/model.js'), { normalizarParte } = await import('./core/partes.js');
-    await s.save('aviso', nuevoAviso({ numero: '2026-0101', cliente: { nombre: 'COMUNIDAD SOL', nif: 'H50000000', telefono: '976 333 444', contacto: 'PEDRO', email: '', iban: '' },
+    await s.save('aviso', nuevoAviso({ lleva: { condiciones: 'si', boletin: 'si' }, numero: '2026-0101', cliente: { nombre: 'COMUNIDAD SOL', nif: 'H50000000', telefono: '976 333 444', contacto: 'PEDRO', email: '', iban: '' },
       suministro: { direccion: 'CALLE SOL', numero: '2', piso: '', puerta: '', cp: '50171', poblacion: 'LA PUEBLA DE ALFINDÉN', provincia: 'ZARAGOZA', refCatastral: '', lat: '', lon: '', cups: '' },
       autorizacion: { v: 1, actualizado: new Date().toISOString(), datos: { sol_nombre: 'COMUNIDAD SOL', sol_nif: 'H50000000', sol_via: 'C/ SOL 2', sol_municipio: 'LA PUEBLA DE ALFINDÉN', sol_opcion: 'B', ent_nombre: 'PEDRO GIL', ent_cargo: 'PRESIDENTE', ent_nif: '12345678Z', ent_tel: '600111222' } } }));
     await s.save('parte', normalizarParte({ numero: 'P-2026-0001', fecha: '2026-10-01', tecnico: 'JAVIER', cliente: { nombre: 'BAR EL CRUCE', telefono: '+34 976 555 666', direccion: 'AVENIDA ZARAGOZA', numero: '10', cp: '50171', localidad: 'LA PUEBLA DE ALFINDÉN' },
@@ -37,6 +37,7 @@ try {
 
   // Ficha del aviso: teléfono con +34 al salir del campo
   await page.goto(base + '#/aviso/nuevo');
+  await page.waitForSelector('#lleva-condiciones', { state: 'attached' }); await page.selectOption('#lleva-condiciones', 'si'); // apartados visibles
   await page.waitForSelector('#f-cliente-telefono');
   await page.fill('#f-cliente-telefono', '600123123');
   await page.click('#f-cliente-email');
@@ -86,7 +87,7 @@ try {
   await page.evaluate(() => { window.soltec.guardia = null; });
 
   // Autorización de otro aviso: el solicitante (y quien firma por la comunidad) de una autorización anterior
-  const id2 = await page.evaluate(async () => (await window.soltec.storage.save('aviso', (await import('./core/model.js')).nuevoAviso({ numero: '2026-0102' }))).id);
+  const id2 = await page.evaluate(async () => (await window.soltec.storage.save('aviso', (await import('./core/model.js')).nuevoAviso({ lleva: { condiciones: 'si', boletin: 'si' }, numero: '2026-0102' }))).id);
   await page.goto(base + '#/aviso/' + id2);
   await page.click('summary:has-text("Autorización de representatividad")');
   await page.click('#abrir-autorizacion');

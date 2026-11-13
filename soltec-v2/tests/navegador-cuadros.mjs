@@ -31,6 +31,7 @@ try {
 
   // --- aviso nuevo con un cuadro
   await page.goto(base + '#/aviso/nuevo');
+  await page.waitForSelector('#lleva-condiciones', { state: 'attached' }); await page.selectOption('#lleva-condiciones', 'si'); // apartados visibles
   await page.waitForSelector('#f-cliente-nombre');
   await page.fill('#f-cliente-nombre', 'Clínica de Teruel');
   await page.fill('#f-suministro-direccion', 'Calle Mayor 1');
@@ -134,6 +135,7 @@ try {
 
   // Los avisos sin cuadro no se ven afectados
   await page.goto(base + '#/aviso/nuevo');
+  await page.waitForSelector('#lleva-condiciones', { state: 'attached' }); await page.selectOption('#lleva-condiciones', 'si'); // apartados visibles
   await page.waitForSelector('#f-cliente-nombre');
   await page.fill('#f-cliente-nombre', 'Sin cuadro');
   await page.click('#guardar');

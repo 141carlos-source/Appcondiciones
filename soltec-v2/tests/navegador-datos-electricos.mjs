@@ -22,6 +22,7 @@ try {
   page.on('pageerror', (e) => errores.push(e.message));
   page.on('dialog', (d) => d.accept());
   await page.goto(`http://localhost:${pWeb}/index.html#/aviso/nuevo`);
+  await page.waitForSelector('#lleva-condiciones', { state: 'attached' }); await page.selectOption('#lleva-condiciones', 'si'); // apartados visibles
   await page.waitForSelector('#f-cliente-nombre');
 
   const orden = await page.$$eval('main details > summary', (s) => s.map((x) => x.textContent));

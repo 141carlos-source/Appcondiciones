@@ -23,6 +23,7 @@ try {
   page.on('pageerror', (e) => errores.push(e.message));
   page.on('dialog', (d) => d.accept());
   await page.goto(`http://localhost:${pWeb}/index.html#/aviso/nuevo`);
+  await page.waitForSelector('#lleva-condiciones', { state: 'attached' }); await page.selectOption('#lleva-condiciones', 'si'); // apartados visibles
   await page.waitForSelector('#f-cliente-nombre');
   await page.fill('#f-cliente-nombre', 'PRUEBA CABLE');
   await page.click('summary:has-text("Cuadros eléctricos")');

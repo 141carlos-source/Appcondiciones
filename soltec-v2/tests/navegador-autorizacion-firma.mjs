@@ -37,7 +37,7 @@ try {
       tecnico: { nombre: 'CARLOS GARCÍA', nif: '12345678Z', telefono: '600111222', email: 'carlos@soltec.es' },
       firma, sello,
     }, { id: 'empresa' });
-    return (await st.save('aviso', { numero: '2026-0077', cliente: { nombre: 'Luis Pérez', nif: '12345678Z' }, suministro: { direccion: 'Calle Mayor', numero: '1', poblacion: 'Zaragoza', provincia: 'Zaragoza' } })).id;
+    return (await st.save('aviso', { lleva: { condiciones: 'si', boletin: 'si' }, numero: '2026-0077', cliente: { nombre: 'Luis Pérez', nif: '12345678Z' }, suministro: { direccion: 'Calle Mayor', numero: '1', poblacion: 'Zaragoza', provincia: 'Zaragoza' } })).id;
   });
 
   await page.goto(base + '#/aviso/' + id);

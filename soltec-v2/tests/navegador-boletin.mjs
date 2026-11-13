@@ -31,31 +31,36 @@ try {
   assert.deepEqual(orden.slice(0, 3), ['Cliente y suministro', 'Solicitudes y comunicaciones', 'Plano de situación y fotografías']);
   ok('Orden: cliente y suministro, solicitudes y comunicaciones, plano y fotografías');
 
+  // Aviso antiguo sin marcar qué lleva: los apartados con datos se ven; los vacíos, ocultos
+  const viejo = await page.evaluate(async () => (await window.soltec.storage.save('aviso', { numero: '2025-0900', cliente: { nombre: 'VIEJO' }, condiciones: { ref: '0000412345', pdfs: [] }, electrico: { tension: '230', iga: '40' } })).id);
+  await page.goto(base + 'index.html#/aviso/' + viejo);
+  await page.waitForSelector('#f-cliente-nombre', { state: 'attached' });
+  for (const k of ['condiciones', 'electrico']) assert.ok(await page.isVisible(`details[data-apartado="${k}"]`), 'con datos, visible: ' + k);
+  for (const k of ['memoria', 'cuadros', 'plano']) assert.ok(await page.isHidden(`details[data-apartado="${k}"]`), 'vacío, oculto: ' + k);
+  ok('Avisos antiguos sin marcar: se ven los apartados que ya tienen datos');
+  await page.goto(base + 'index.html#/aviso/' + id);
+  await page.waitForSelector('#f-cliente-nombre', { state: 'attached' });
+
   await page.click('summary:has-text("Cliente y suministro")');
   await page.selectOption('#lleva-condiciones', 'no');
   assert.equal(await page.inputValue('#doc-condiciones'), 'na');
   assert.equal(await page.inputValue('#doc-autorizacion'), 'na', 'sin condiciones, la autorización no aplica');
-  for (const k of ['memoria', 'autorizacion', 'condiciones']) assert.match(await page.getAttribute(`details[data-apartado="${k}"]`, 'class'), /inhabil/, k);
-  assert.match(await page.textContent('details[data-apartado="memoria"] > summary'), /No aplica \(no lleva condiciones\)/);
-  assert.ok(await page.isHidden('[data-apartado-interno="plano"] > :nth-child(3)'), 'sin plano de situación');
-  assert.match(await page.textContent('#plano-no-aplica'), /Plano de situación: no aplica \(no lleva condiciones\)/);
+  for (const k of ['ubicacion', 'plano', 'electrico', 'memoria', 'autorizacion', 'condiciones', 'cuadros']) assert.ok(await page.isHidden(`[data-apartado="${k}"]`), 'oculto: ' + k);
+  assert.match(await page.textContent('#apartados-ocultos'), /No lleva condiciones: se ocultan/);
   await page.selectOption('#lleva-condiciones', 'si');
   assert.equal(await page.inputValue('#doc-condiciones'), 'pendiente');
   assert.equal(await page.inputValue('#doc-autorizacion'), 'pendiente');
-  assert.doesNotMatch(await page.getAttribute('details[data-apartado="memoria"]', 'class'), /inhabil/);
-  assert.ok(await page.isHidden('#plano-no-aplica'), 'con condiciones vuelve el plano');
+  for (const k of ['plano', 'memoria', 'cuadros']) assert.ok(await page.isVisible(`details[data-apartado="${k}"]`), 'visible: ' + k);
   // Sin boletín: CUPS y catastro fuera de pendientes; memoria, autorización y condiciones bloqueadas
   await page.fill('#f-suministro-cups', '');
   await page.selectOption('#lleva-boletin', 'no');
   const pendientes = async () => page.$$eval('.campo.pend[data-campo]', (c) => c.map((x) => x.dataset.campo));
   assert.ok(!(await pendientes()).includes('suministro.cups') && !(await pendientes()).includes('suministro.refCatastral'));
-  for (const k of ['memoria', 'autorizacion', 'condiciones']) {
-    const d = page.locator(`details[data-apartado="${k}"]`);
-    assert.match(await d.getAttribute('class'), /inhabil/);
-    await d.locator(':scope > summary').click();
-    assert.equal(await d.evaluate((x) => x.open), false, k + ' no se abre');
-  }
-  assert.match(await page.textContent('details[data-apartado="memoria"] > summary'), /No aplica \(no lleva boletín\)/);
+  assert.ok(await page.isVisible('details[data-apartado="memoria"]'), 'con condiciones = Sí se ve todo aunque no lleve boletín');
+  await page.selectOption('#lleva-condiciones', '');
+  for (const k of ['plano', 'electrico', 'memoria', 'condiciones', 'cuadros']) assert.ok(await page.isHidden(`details[data-apartado="${k}"]`), 'sin boletín ni condiciones, oculto: ' + k);
+  assert.match(await page.textContent('#apartados-ocultos'), /No lleva boletín/);
+  await page.selectOption('#lleva-condiciones', 'si');
   // Sin boletín y sin contrato: potencia y tensión no pendientes; solo cuenta la ficha
   await page.selectOption('#lleva-contrato', 'no');
   assert.equal(await page.inputValue('#doc-contrato'), 'na');
@@ -69,11 +74,10 @@ try {
   ok('Sin boletín y sin contrato: potencia y tensión no quedan pendientes; «Contrato: ¿lo lleva?» = No lo marca «No aplica»');
   await page.selectOption('#lleva-boletin', 'si');
   assert.ok((await pendientes()).includes('suministro.cups'), 'con boletín vuelve a pedir el CUPS');
-  assert.doesNotMatch(await page.getAttribute('details[data-apartado="memoria"]', 'class'), /inhabil/);
-  assert.ok(await page.isHidden('#plano-no-aplica'), 'con condiciones vuelve el plano');
+  assert.ok(await page.isVisible('details[data-apartado="memoria"]'));
   await page.fill('#f-suministro-cups', 'ES0031408137891001FE0F');
-  ok('Sin boletín: CUPS y referencia catastral no salen en pendientes; memoria, autorización y condiciones bloqueadas');
-  ok('Cliente: «Condiciones ¿las lleva?» = No bloquea condiciones, autorización y memoria CNMC (y la autorización no aplica)');
+  ok('Sin boletín: CUPS y referencia catastral no salen en pendientes; sin boletín ni condiciones, los apartados se ocultan');
+  ok('Cliente: «Condiciones ¿las lleva?» = No oculta sus apartados (y la autorización no aplica)');
 
   await page.click('summary:has-text("Documentación")');
   await page.setInputFiles('#subir-boletin', { name: 'BOLETIN_CIE.pdf', mimeType: 'application/pdf', buffer });

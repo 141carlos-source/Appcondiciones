@@ -61,7 +61,7 @@ try {
 
   await page.goto(base + '#/inicio');
   await page.waitForFunction(() => window.soltec?.storage);
-  const id = await page.evaluate(async () => (await window.soltec.storage.save('aviso', {
+  const id = await page.evaluate(async () => (await window.soltec.storage.save('aviso', { lleva: { condiciones: 'si', boletin: 'si' },
     numero: '2026-0001', concepto: 'Nuevo suministro vivienda', cliente: { nombre: 'Luis Gómez' },
     suministro: { direccion: 'CALLE GLORIA', numero: '51', poblacion: 'SANTA CRUZ DE MUDELA' }, electrico: {}, docs: {},
   })).id);

@@ -8,6 +8,8 @@ import {
   docsPendientes, direccionCompleta, FASES_TRAMITE, DOCUMENTOS, ESTADOS_DOC, ESTADOS_AVISO, EVENTOS, EVENTOS_MANUALES, DESTINOS,
   separarNumero, estaCerrado, boletinActual, apartadosNoAplican, destinosAviso,
 } from '../core/model.js';
+import { normalizarMemoria } from '../core/memoria.js';
+import { resumenCuadro } from '../core/cuadros.js';
 import { buscar, duplicados } from '../core/search.js';
 import { provinciaDeCp, formatearIban, validarCups, formatearTelefono } from '../core/validate.js';
 import { bloqueSeguimiento } from './agenda.js';
@@ -400,28 +402,38 @@ export async function vistaFicha(app, id) {
   pintarPotencias();
   const seccion = (titulo, abierta, ...hijos) => h('details', { class: 'card', open: abierta || null }, h('summary', {}, titulo), h('div', { class: 'cuerpo' }, ...hijos));
   /** Apartado que se bloquea (no se puede abrir) si no aplica: sin boletín o sin condiciones. */
+  /** Apartado que se oculta si no hace falta (según lo que lleva el trabajo), para una pantalla más limpia. */
   const seccionBloqueable = (clave, titulo, ...hijos) => {
     const d = seccion(titulo, false, ...hijos);
     d.dataset.apartado = clave;
-    d.querySelector('summary').append(h('span', { class: 'no-aplica' }));
-    d.addEventListener('toggle', () => { if (d.open && d.classList.contains('inhabil')) d.open = false; });
-    d.querySelector('summary').addEventListener('click', (e) => { if (d.classList.contains('inhabil')) { e.preventDefault(); toast(d.dataset.motivo + ': este apartado no aplica'); } });
     return d;
   };
+  // Apartados que ya tienen datos al abrir el aviso: se ven siempre (los avisos antiguos no tienen marcado qué lleva)
+  const conDatos = (() => {
+    const a = registro?.data || {}, su = a.suministro || {}, el = a.electrico || {}, set = new Set();
+    if (su.lat || su.lon || su.refCatastral) set.add('ubicacion');
+    if (a.plano?.hash || (a.fotos || []).length) set.add('plano');
+    if (['tension', 'iga', 'potenciaKw', 'potenciaContratar', 'contador', 'uso'].some((k) => String(el[k] ?? '').trim())) set.add('electrico');
+    if ((a.archivos || []).some((x) => x.tipo === 'memoria') || (a.memoria && JSON.stringify(normalizarMemoria(a.memoria)) !== JSON.stringify(normalizarMemoria({})))) set.add('memoria');
+    if (a.autorizacion?.datos || a.docs?.autorizacion === 'recibido') set.add('autorizacion');
+    if (a.condiciones?.ref || (a.condiciones?.pdfs || []).length || (a.tramite && a.tramite !== 'datos')) set.add('condiciones');
+    if (resumenCuadro(a.cuadro).hay) set.add('cuadros');
+    return set;
+  })();
+  const avisoOcultos = h('div', { class: 'aviso info', id: 'apartados-ocultos', hidden: true });
+  const NOMBRES_APARTADO = { ubicacion: 'buscar dirección', plano: 'plano y fotos', electrico: 'datos eléctricos', memoria: 'memoria CNMC', autorizacion: 'autorización', condiciones: 'condiciones', cuadros: 'cuadros eléctricos' };
   const pintarApartados = () => {
-    const no = apartadosNoAplican(draft);
-    noAplicaPlano.hidden = !no.plano;
-    noAplicaPlano.textContent = no.plano ? `Plano de situación: no aplica (${no.plano.toLowerCase()}).` : '';
-    planoEl.hidden = !!no.plano;
-    for (const d of cont.querySelectorAll('details[data-apartado]')) {
-      const motivo = no[d.dataset.apartado];
-      d.classList.toggle('inhabil', !!motivo);
-      d.setAttribute('aria-disabled', motivo ? 'true' : 'false');
-      d.dataset.motivo = motivo || '';
-      if (motivo) d.open = false;
-      d.querySelector('.no-aplica').textContent = motivo ? ` · No aplica (${motivo.toLowerCase()})` : '';
+    const no = apartadosNoAplican(draft, conDatos);
+    for (const el of cont.querySelectorAll('[data-apartado]')) {
+      const oculto = !!no[el.dataset.apartado];
+      el.hidden = oculto;
+      if (oculto && el.tagName === 'DETAILS') el.open = false;
     }
+    const ks = Object.keys(no);
+    avisoOcultos.hidden = !ks.length;
+    avisoOcultos.textContent = ks.length ? `${no[ks[0]]}: se ocultan ${ks.map((k) => NOMBRES_APARTADO[k]).join(', ')}. Al marcar «Sí» aparecen.` : '';
   };
+
 
   // --- condiciones y trámite
   const listaPdfs = h('div');
@@ -565,9 +577,10 @@ export async function vistaFicha(app, id) {
   const partes = registro ? await bloquePartes(app, registro.id) : null;
   const titulo = registro ? `Aviso ${draft.numero}` : id === 'duplicar' ? 'Nuevo aviso (copia)' : 'Nuevo aviso';
   const planoEl = bloquePlano(app, draft, alCambiar);
-  // Plano de situación: no aplica sin boletín o sin condiciones (las fotografías sí)
-  const noAplicaPlano = h('div', { class: 'aviso info', id: 'plano-no-aplica', hidden: true });
-  const cajaPlano = h('div', { 'data-apartado-interno': 'plano' }, h('label', {}, 'Plano de situación'), noAplicaPlano, planoEl);
+  const cajaPlano = h('div', {}, h('label', {}, 'Plano de situación'), planoEl);
+  // Búsqueda de dirección, catastro, SIPS y coordenadas (para el plano): solo si lleva condiciones o boletín
+  const ubicacionEl = bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar: () => { if (!apartadosNoAplican(draft, conDatos).plano) planoEl.generar({ auto: true }); } });
+  ubicacionEl.dataset.apartado = 'ubicacion';
   const certificados = await bloqueCertificados(app, draft, alCambiar, planoEl, async (ficha) => {
     draft.archivos = (draft.archivos || []).filter((x) => x.tipo !== ficha.tipo); // la copia nueva sustituye a la anterior
     draft.archivos.push(ficha);
@@ -592,10 +605,10 @@ export async function vistaFicha(app, id) {
       h('button', { class: 'btn peq prim', type: 'button', id: 'btn-reabrir', onclick: () => cambiarCierre(false) }, 'Reabrir')) : null,
     registro?.deleted ? h('div', { class: 'aviso err' }, 'Este aviso está en la papelera. ', h('button', { class: 'btn peq', type: 'button', onclick: async () => { await app.storage.restore(registro.id); toast('Recuperado'); window.dispatchEvent(new HashChangeEvent('hashchange')); } }, 'Recuperar')) : null,
     resumen, recordatoriosEl, avisoDup,
-    seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.flatMap((c) => (c[0] === 'suministro.direccion' ? [sumCliente, campo(c)] : [campo(c)]))), bloqueUbicacion(app, draft, poner, alCambiar, { alEncontrar: () => { if (!apartadosNoAplican(draft).plano) planoEl.generar({ auto: true }); } }), llevaCtrl),
+    seccion('Cliente y suministro', esNuevo, h('div', { class: 'grid2' }, ...CAMPOS_CLIENTE.flatMap((c) => (c[0] === 'suministro.direccion' ? [sumCliente, campo(c)] : [campo(c)]))), ubicacionEl, llevaCtrl, avisoOcultos),
     registro ? seccion('Solicitudes y comunicaciones', false, comunicaciones) : null,
-    seccion('Plano de situación y fotografías', false, cajaPlano, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
-    seccion('Datos eléctricos', false, h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
+    seccionBloqueable('plano', 'Plano de situación y fotografías', cajaPlano, h('label', {}, 'Fotografías'), bloqueFotos(app, draft, alCambiar)),
+    seccionBloqueable('electrico', 'Datos eléctricos', h('div', { class: 'grid2' }, ...CAMPOS_ELEC.map(campo))),
     seccionBloqueable('memoria', 'Memoria técnica CNMC', bloqueMemoria(app, draft, alCambiar, registro?.id, async (ficha) => {
       if (!draft.archivos.some((x) => x.hash === ficha.hash)) draft.archivos.push(ficha);
       await guardar();
@@ -613,7 +626,7 @@ export async function vistaFicha(app, id) {
         h('button', { class: 'btn', type: 'button', id: 'btn-subir-boletin', onclick: () => subirBoletin.click() }, 'Subir boletín (PDF)'), subirBoletin,
         h('button', { class: 'btn', type: 'button', id: 'btn-subir-condiciones', onclick: () => subirPdf.click() }, 'Subir condiciones (PDF)')),
       listaArchivos(app, { ...draft, archivos: (draft.archivos || []).filter((x) => x.tipo !== 'boletin') })),
-    seccion('Cuadros eléctricos', false, bloqueCuadros(app, draft, alCambiar, () => guardar())),
+    seccionBloqueable('cuadros', 'Cuadros eléctricos', bloqueCuadros(app, draft, alCambiar, () => guardar())),
     seccion('Certificados', false, certificados),
     seccion('Obra, fecha y observaciones', false, h('div', { class: 'grid2' }, ...CAMPOS_OBRA.map(campo),
       campo(['presupuesto.numero', 'Nº de presupuesto (si corresponde)', 'text']))),

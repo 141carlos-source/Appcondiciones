@@ -37,6 +37,23 @@ try {
   assert.ok(await page.$eval('.campo[data-campo="cliente.nombre"]', (e) => e.classList.contains('pend')));
   ok('Nuevo aviso: los datos que faltan salen en rojo claro');
 
+  // Pantalla limpia: hasta confirmar condiciones o boletín, se ocultan los apartados que dependen de ello
+  const visibles = () => page.$$eval('main details.card:not([hidden]) > summary', (s) => s.map((x) => x.textContent));
+  let v = await visibles();
+  for (const t of ['Plano de situación y fotografías', 'Datos eléctricos', 'Memoria técnica CNMC', 'Autorización de representatividad', 'Condiciones y trámite', 'Cuadros eléctricos']) assert.ok(!v.includes(t), 'oculto: ' + t);
+  assert.ok(await page.isHidden('[data-apartado="ubicacion"]'), 'sin «Buscar dirección»');
+  assert.match(await page.textContent('#apartados-ocultos'), /Falta confirmar si lleva condiciones o boletín/);
+  await page.selectOption('#lleva-boletin', 'si');
+  v = await visibles();
+  for (const t of ['Plano de situación y fotografías', 'Datos eléctricos', 'Cuadros eléctricos']) assert.ok(v.includes(t), 'con boletín: ' + t);
+  for (const t of ['Memoria técnica CNMC', 'Autorización de representatividad', 'Condiciones y trámite']) assert.ok(!v.includes(t), 'con boletín, oculto: ' + t);
+  assert.ok(await page.isVisible('[data-apartado="ubicacion"]'), 'con boletín, «Buscar dirección»');
+  await page.selectOption('#lleva-condiciones', 'si');
+  v = await visibles();
+  for (const t of ['Memoria técnica CNMC', 'Autorización de representatividad', 'Condiciones y trámite']) assert.ok(v.includes(t), 'con condiciones: ' + t);
+  assert.ok(await page.isHidden('#apartados-ocultos'));
+  ok('Pantalla limpia: sin confirmar se ocultan dirección, plano, eléctricos, memoria, autorización, condiciones y cuadros; con boletín o condiciones aparecen los suyos');
+
   await page.fill('#f-cliente-nombre', 'María Pérez Gómez');
   await page.fill('#f-cliente-nif', '12345678z');
   assert.equal(await page.inputValue('#f-cliente-nif'), '12345678Z');
@@ -70,6 +87,7 @@ try {
 
   // Duplicado por dirección
   await page.goto(base + '#/aviso/nuevo');
+  await page.waitForSelector('#lleva-condiciones', { state: 'attached' }); await page.selectOption('#lleva-condiciones', 'si'); // apartados visibles
   await page.waitForSelector('#f-suministro-direccion');
   await page.fill('#f-cliente-nombre', 'Otro cliente');
   await page.fill('#f-suministro-direccion', 'C/ Mayor, 1');

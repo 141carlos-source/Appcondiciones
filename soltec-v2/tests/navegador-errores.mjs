@@ -27,6 +27,7 @@ try {
 
   // Error dentro de CuadroLab (iframe)
   await page.goto(base + '#/aviso/nuevo');
+  await page.waitForSelector('#lleva-condiciones', { state: 'attached' }); await page.selectOption('#lleva-condiciones', 'si'); // apartados visibles
   await page.waitForSelector('#f-cliente-nombre');
   await page.click('summary:has-text("Cuadros eléctricos")');
   await page.click('#abrir-cuadro');
@@ -36,6 +37,7 @@ try {
   await fr.evaluate(() => setTimeout(() => { throw new Error('Fallo de prueba en CuadroLab'); }));
   await page.waitForTimeout(400);
   await page.click('#volver-cuadro');
+  await page.evaluate(() => { window.soltec.guardia = () => false; }); // aviso de prueba sin guardar: salir sin preguntar
 
   await page.goto(base + '#/ajustes');
   await page.click('summary:has-text("Registro de errores")');
