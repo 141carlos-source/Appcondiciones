@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700;800&display=swap">
+<title>SOLTEC · Conteo de obra</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Conteo obra">
+<meta name="application-name" content="Conteo obra">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{--p:#de0023;--p2:#b0001c;--ac:#1d1d1f;--acink:#fff;--hd:#fff;--bg:#f4f4f5;--card:#fff;--ink:#18181b;--mut:#62626b;--line:#e4e4e7;--ok:#12a150;--bad:#b0001c;--soft:#fde8eb}
+@media(prefers-color-scheme:dark){:root{--bg:#0f0f11;--card:#1a1a1d;--ink:#f2f2f3;--mut:#a1a1aa;--line:#2e2e33;--hd:#161618;--ac:#f2f2f3;--acink:#18181b;--soft:#3a0f16}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+button,input,select,textarea{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:20;background:var(--hd);color:var(--ink);padding:calc(8px + env(safe-area-inset-top)) 14px 8px;display:flex;align-items:center;gap:10px;border-bottom:3px solid var(--p);box-shadow:0 2px 10px #0000001a}
+header h1{font-family:"Exo 2",system-ui,sans-serif;font-weight:700;font-size:18px;margin:0;flex:1;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+header small{display:block;font-family:system-ui,sans-serif;font-weight:400;color:var(--mut);font-size:12px}
+.hb{background:var(--bg);border:1px solid var(--line);color:var(--ink);min-width:44px;height:44px;border-radius:12px;font-size:20px;cursor:pointer}
+.logo{height:44px;max-width:140px;object-fit:contain;background:#fff;border-radius:8px;padding:3px 6px}
+.hb+.logo{height:36px;max-width:100px}
+main{padding:14px;max-width:760px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.job{display:flex;gap:12px;align-items:center;cursor:pointer}
+.job b{display:block}.job span{color:var(--mut);font-size:14px}
+.job .n{margin-left:auto;text-align:right;font-weight:700;font-size:20px;color:var(--p)}
+.job .n small{display:block;font-size:11px;color:var(--mut);font-weight:400}
+.empty{text-align:center;color:var(--mut);padding:40px 10px}
+.btn{border:0;border-radius:12px;min-height:48px;padding:0 16px;background:var(--p);color:#fff;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.sec{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.btn.ac{background:var(--ac);color:var(--acink)}
+.btn.bad{background:var(--bad)}
+.btn.w{width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}
+.tabs{display:flex;position:sticky;top:64px;z-index:15;background:var(--bg);padding:8px 14px 0;gap:6px;max-width:760px;margin:0 auto;overflow-x:auto}
+.tabs button{flex:1;border:0;background:var(--card);border:1px solid var(--line);border-radius:10px;min-height:42px;font-weight:600;font-size:14px;color:var(--mut);white-space:nowrap;padding:0 10px}
+.tabs button.on{background:var(--p);color:#fff;border-color:var(--p)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px}
+.chip{flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.add{border-style:dashed;color:var(--p)}
+.cap{font-family:"Exo 2",system-ui,sans-serif;font-size:13px;font-weight:700;color:var(--p);margin:16px 2px 6px;text-transform:uppercase;letter-spacing:.04em;display:flex;justify-content:space-between}
+.cap span{color:var(--mut);font-weight:600}
+.it{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 8px 8px 12px;margin-bottom:6px}
+.it.z{opacity:.72}
+.it .nm{flex:1;min-width:0}
+.it .nm b{display:block;font-weight:600;font-size:15px;line-height:1.25}
+.it .nm small{color:var(--mut);font-size:12px}
+.it .nm i{display:block;color:var(--mut);font-size:12px;font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cnt{width:56px;height:52px;border:0;border-radius:12px;font-size:26px;font-weight:700;cursor:pointer;user-select:none;touch-action:manipulation}
+.cnt.m{background:var(--line);color:var(--ink);width:46px}
+.cnt.p{background:var(--p);color:#fff}
+.cnt:active{transform:scale(.94)}
+.val{min-width:54px;text-align:center;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;border:0;background:none;cursor:pointer;padding:0}
+.val.ro{cursor:default;color:var(--p)}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px;font-weight:600}
+input,select,textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:12px;font-size:16px}
+textarea{min-height:110px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--p);border-color:transparent}
+.fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.ft{position:relative;border-radius:12px;overflow:hidden;background:var(--line);aspect-ratio:4/3}
+.ft img{width:100%;height:100%;object-fit:cover;display:block}
+.ft p{position:absolute;left:0;right:0;bottom:0;margin:0;padding:4px 8px;font-size:12px;background:#000a;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--card);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;justify-content:center}
+.bar .btn{flex:1;max-width:360px}
+.tot{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--p);color:#fff;border-radius:14px;padding:12px 16px;margin-bottom:12px}
+.tot b{font-size:30px;font-family:"Exo 2",system-ui,sans-serif}
+.mask{position:fixed;inset:0;background:#0008;z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.dlg{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px calc(16px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+@media(min-width:600px){.mask{align-items:center}.dlg{border-radius:18px}}
+.dlg h2{margin:0 0 6px;font-size:20px;font-family:"Exo 2",system-ui,sans-serif;font-weight:700}
+.dlg .row{margin-top:14px}
+.cat{display:flex;flex-direction:column;gap:6px;max-height:44vh;overflow:auto;margin-top:8px}
+.cat label{display:flex;gap:10px;align-items:center;margin:0;padding:10px;border:1px solid var(--line);border-radius:10px;color:var(--ink);font-weight:500;font-size:15px}
+.cat input{width:22px;height:22px;flex:none}
+.cat h4{margin:8px 2px 0;font-size:12px;color:var(--p);text-transform:uppercase}
+.btn.rec{background:var(--p);color:#fff;border-color:var(--p);animation:pul 1.2s infinite}@keyframes pul{50%{opacity:.75}}@media(prefers-reduced-motion:reduce){.btn.rec{animation:none}}
+audio{max-width:100%}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;z-index:60;font-size:14px;font-weight:600;display:flex;gap:12px;align-items:center}
+.toast button{background:none;border:0;color:var(--p);font-weight:700;cursor:pointer}
+.mut{color:var(--mut);font-size:13px}
+.srch{margin-bottom:8px}
+.big{width:100%;max-height:70vh;object-fit:contain;border-radius:10px;background:#000}
+.hide{display:none!important}
+.sw{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:15px}
+.sw input{width:22px;height:22px}
+</style>
+</head>
+<body>
+<header>
+  <button class="hb hide" id="back" aria-label="Volver">‹</button>
+  <img class="logo hide" id="hlogo" alt="SOLTEC">
+  <h1 id="htitle">SOLTEC · Conteo de obra</h1>
+  <button class="hb" id="cfgBtn" aria-label="Ajustes">⚙</button>
+</header>
+<nav class="tabs hide" id="tabs">
+  <button data-t="conteo" class="on">Conteo</button>
+  <button data-t="notas">Notas y fotos</button>
+  <button data-t="datos">Datos</button>
+  <button data-t="informe">Informe</button>
+</nav>
+<main id="main"></main>
+<div class="bar" id="bar"></div>
+<input type="file" id="fotoIn" accept="image/*" capture="environment" class="hide">
+<input type="file" id="galIn" accept="image/*" multiple class="hide">
+<input type="file" id="logoIn" accept="image/*" class="hide">
+<input type="file" id="audIn" accept="audio/*" capture class="hide">
+<input type="file" id="impIn" accept=".json,application/json" class="hide">
+
+<script>
+{
+const VERSION="1.1.0";
+const LOGO_SOLTEC="data:image/png;base64,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";
+/* ---------- Catálogo base ---------- */
+const CATALOGO={
+ "Mecanismos":[["Interruptor","ud"],["Conmutador","ud"],["Cruzamiento","ud"],["Pulsador","ud"],["Base enchufe 16 A","ud"],["Base enchufe 25 A (cocina)","ud"],["Base enchufe doble","ud"],["Base USB","ud"],["Toma TV","ud"],["Toma datos RJ45","ud"],["Toma teléfono","ud"],["Regulador","ud"]],
+ "Iluminación":[["Punto de luz","ud"],["Downlight","ud"],["Foco empotrable tipo Vulcano","ud"],["Foco empotrable tipo Online","ud"],["Aplique","ud"],["Tira LED (metros)","m"],["Tira LED (unidades)","ud"],["Perfil de aluminio para tira LED","m"],["Fuente de alimentación LED","ud"],["Luminaria de emergencia","ud"],["Detector de presencia","ud"]],
+ "Distribución":[["Caja de registro","ud"],["Caja de mecanismo","ud"],["Tubo corrugado","m"],["Bandeja","m"],["Canaleta","m"],["Línea / circuito","ud"]],
+ "Cuadros y protecciones":[["Cuadro general","ud"],["Subcuadro","ud"],["Magnetotérmico","ud"],["Diferencial","ud"],["Protector sobretensiones","ud"]],
+ "Otros":[["Videoportero / portero","ud"],["Termostato","ud"],["Timbre","ud"],["Extractor","ud"],["Punto de recarga VE","ud"],["Toma de tierra","ud"]]
+};
+const PLANTILLA=[["Mecanismos","Interruptor"],["Mecanismos","Conmutador"],["Mecanismos","Base enchufe 16 A"],["Mecanismos","Base enchufe 25 A (cocina)"],["Mecanismos","Toma TV"],["Mecanismos","Toma datos RJ45"],["Iluminación","Punto de luz"],["Iluminación","Downlight"],["Distribución","Caja de registro"]];
+
+/* ---------- Almacenamiento (IndexedDB) ---------- */
+let db;
+const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open("soltec_conteo",2);r.onupgradeneeded=()=>{const d=r.result;for(const n of ["jobs","fotos","audios"])if(!d.objectStoreNames.contains(n))d.createObjectStore(n,{keyPath:"id"});if(!d.objectStoreNames.contains("cfg"))d.createObjectStore("cfg")};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const tx=(s,m,fn)=>new Promise((res,rej)=>{const t=db.transaction(s,m);const st=t.objectStore(s);const r=fn(st);t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error)});
+const all=s=>tx(s,"readonly",st=>st.getAll());
+const get=(s,k)=>tx(s,"readonly",st=>st.get(k));
+const put=(s,v,k)=>tx(s,"readwrite",st=>k===undefined?st.put(v):st.put(v,k));
+const del=(s,k)=>tx(s,"readwrite",st=>st.delete(k));
+
+/* ---------- Estado ---------- */
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const hoy=()=>new Date().toISOString().slice(0,10);
+const fmtF=d=>d?d.split("-").reverse().join("/"):"";
+const num=n=>Number.isInteger(n)?String(n):String(Math.round(n*100)/100).replace(".",",");
+let CFG={empresa:"M. A. SOLTEC SL",comercial:"M. A. SOLTEC",cif:"",dir:"",loc:"La Puebla de Alfindén (Zaragoza)",tel:"",email:"",web:"soltecinstalaciones.com",color:"#de0023",logo:LOGO_SOLTEC,v:2,tecnico:"",pie:"Conteo realizado en visita a obra. Cantidades sujetas a verificación en replanteo."};
+let jobs=[],job=null,tab="conteo",zona=null,filtro="",undo=null;
+
+const save=async()=>{job.mod=Date.now();await put("jobs",job)};
+const totalP=p=>Object.values(p.cant||{}).reduce((a,b)=>a+(+b||0),0);
+const totalJ=j=>j.partidas.reduce((a,p)=>a+totalP(p),0);
+
+/* ---------- Utilidades UI ---------- */
+function toast(msg,undoFn){document.querySelectorAll(".toast").forEach(e=>e.remove());const t=document.createElement("div");t.className="toast";t.innerHTML=esc(msg)+(undoFn?' <button>Deshacer</button>':"");document.body.appendChild(t);if(undoFn)t.querySelector("button").onclick=()=>{undoFn();t.remove()};setTimeout(()=>t.remove(),undoFn?5000:2200)}
+function modal(html,onMount,fija){const m=document.createElement("div");m.className="mask";m.innerHTML='<div class="dlg">'+html+'</div>';document.body.appendChild(m);m.addEventListener("click",e=>{if(e.target===m&&!fija)m.remove()});const close=()=>m.remove();onMount&&onMount(m.querySelector(".dlg"),close);return close}
+function confirmar(msg,ok,txt="Eliminar"){modal(`<h2>${esc(msg)}</h2><div class="row"><button class="btn sec" data-x>Cancelar</button><button class="btn bad" data-ok>${esc(txt)}</button></div>`,(d,c)=>{d.querySelector("[data-x]").onclick=c;d.querySelector("[data-ok]").onclick=()=>{c();ok()}})}
+const vib=ms=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
+function aplicaColor(){document.documentElement.style.setProperty("--p",CFG.color);const l=$("#hlogo");if(CFG.logo){l.src=CFG.logo;l.classList.remove("hide")}else l.classList.add("hide")}
+
+/* Comprimir imagen */
+function comprime(file,max=1400,q=.72,tipo="image/jpeg"){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{let w=im.width,h=im.height;const k=Math.min(1,max/Math.max(w,h));w=Math.round(w*k);h=Math.round(h*k);const c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d");if(tipo==="image/jpeg"){x.fillStyle="#fff";x.fillRect(0,0,w,h)}x.drawImage(im,0,0,w,h);res({data:c.toDataURL(tipo,q),w,h})};im.onerror=rej;im.src=fr.result};fr.onerror=rej;fr.readAsDataURL(file)})}
+
+/* ---------- Pantalla: lista de trabajos ---------- */
+async function inicio(){
+  job=null;jobs=(await all("jobs")).sort((a,b)=>b.mod-a.mod);
+  $("#back").classList.add("hide");$("#tabs").classList.add("hide");
+  $("#htitle").innerHTML="Conteo de obra<small>"+esc(CFG.empresa||CFG.comercial||"SOLTEC")+"</small>";
+  const q=filtro.toLowerCase();
+  const lista=jobs.filter(j=>!q||(j.nombre+" "+j.cliente+" "+j.direccion).toLowerCase().includes(q));
+  $("#main").innerHTML=(jobs.length>3?`<input class="srch" id="srch" placeholder="Buscar obra, cliente o dirección" value="${esc(filtro)}">`:"")+
+   (lista.length?lista.map(j=>`<div class="card job" data-id="${j.id}"><div><b>${esc(j.nombre||"Sin nombre")}</b><span>${esc(j.cliente||"")}${j.cliente&&j.fecha?" · ":""}${fmtF(j.fecha)}</span></div><div class="n">${num(totalJ(j))}<small>${j.partidas.length} partidas</small></div></div>`).join("")
+   :`<div class="empty"><p style="font-size:40px;margin:0">▦</p><p><b>${jobs.length?"Sin resultados":"Aún no hay trabajos"}</b></p><p>${jobs.length?"Prueba con otra búsqueda.":"Crea un trabajo al llegar a la obra y empieza a contar."}</p></div>`);
+  const s=$("#srch");if(s){s.oninput=()=>{filtro=s.value;inicio().then(()=>{const n=$("#srch");n.focus();n.setSelectionRange(n.value.length,n.value.length)})}}
+  if(!instalada()&&location.protocol.startsWith("http")){const c=document.createElement("div");c.className="card";c.style.cssText="display:flex;gap:12px;align-items:center";c.innerHTML='<img src="icon-192.png" alt="" width="48" height="48" style="border-radius:12px;flex:none;border:1px solid var(--line)"><div style="flex:1"><b>Instalar en el móvil</b><br><span class="mut">Icono en la pantalla de inicio y funciona sin conexión.</span></div><button class="btn" id="inst" style="flex:none">Instalar</button>';$("#main").prepend(c);$("#inst").onclick=instalar}
+  document.querySelectorAll(".job").forEach(e=>e.onclick=()=>abrir(e.dataset.id));
+  $("#bar").innerHTML='<button class="btn w" id="nuevo">+ Nuevo trabajo</button>';
+  $("#nuevo").onclick=nuevoTrabajo;
+}
+
+function nuevoTrabajo(){
+  modal(`<h2>Nuevo trabajo</h2>
+  <label>Obra / referencia</label><input id="n_nom" placeholder="Ej. Vivienda unifamiliar C/ Mayor 12">
+  <label>Cliente</label><input id="n_cli">
+  <label>Dirección</label><input id="n_dir">
+  <div class="row"><div><label>Fecha</label><input type="date" id="n_fec" value="${hoy()}"></div><div><label>Técnico</label><input id="n_tec" value="${esc(CFG.tecnico)}"></div></div>
+  <label>Empezar con</label><select id="n_pla"><option value="1">Partidas habituales de vivienda</option><option value="0">Lista vacía</option></select>
+  <div class="row"><button class="btn sec" data-x>Cancelar</button><button class="btn" data-ok>Crear</button></div>`,(d,c)=>{
+    d.querySelector("#n_nom").focus();d.querySelector("[data-x]").onclick=c;
+    d.querySelector("[data-ok]").onclick=async()=>{
+      const j={id:uid(),nombre:d.querySelector("#n_nom").value.trim()||"Obra sin nombre",cliente:d.querySelector("#n_cli").value.trim(),direccion:d.querySelector("#n_dir").value.trim(),fecha:d.querySelector("#n_fec").value,tecnico:d.querySelector("#n_tec").value.trim(),notas:"",zonas:["General"],partidas:[],fotos:[],creado:Date.now(),mod:Date.now()};
+      if(d.querySelector("#n_pla").value==="1")j.partidas=PLANTILLA.map(([cap,n])=>({id:uid(),cap,nombre:n,ud:(CATALOGO[cap].find(x=>x[0]===n)||[0,"ud"])[1],cant:{},nota:""}));
+      await put("jobs",j);c();abrir(j.id);
+    }});
+}
+
+/* ---------- Pantalla: trabajo ---------- */
+async function abrir(id){job=await get("jobs",id);tab="conteo";zona=job.zonas[0];pintaTrabajo()}
+function pintaTrabajo(){
+  $("#back").classList.remove("hide");$("#tabs").classList.remove("hide");
+  $("#htitle").innerHTML=esc(job.nombre)+"<small>"+esc([job.cliente,fmtF(job.fecha)].filter(Boolean).join(" · "))+"</small>";
+  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
+  ({conteo:vConteo,notas:vNotas,datos:vDatos,informe:vInforme})[tab]();
+}
+
+function vConteo(){
+  if(zona!=="__all"&&!job.zonas.includes(zona))zona=job.zonas[0];
+  const multi=job.zonas.length>1,ro=zona==="__all";
+  const caps=[...new Set(job.partidas.map(p=>p.cap))];
+  const zt=z=>job.partidas.reduce((a,p)=>a+(+(p.cant||{})[z]||0),0);
+  let h=`<div class="chips">${job.zonas.map(z=>`<button class="chip ${z===zona?"on":""}" data-z="${esc(z)}">${esc(z)} · ${num(zt(z))}</button>`).join("")}${multi?`<button class="chip ${ro?"on":""}" data-z="__all">Total obra · ${num(totalJ(job))}</button>`:""}<button class="chip add" id="addZ">+ Zona</button></div>`;
+  if(ro)h+=`<p class="mut">Vista de totales de todas las zonas. Elige una zona para contar.</p>`;
+  if(!job.partidas.length)h+=`<div class="empty"><p><b>No hay partidas</b></p><p>Añade conceptos del catálogo o crea los tuyos.</p></div>`;
+  caps.forEach(cap=>{
+    const ps=job.partidas.filter(p=>p.cap===cap);
+    const sub=ps.reduce((a,p)=>a+(ro?totalP(p):(+(p.cant||{})[zona]||0)),0);
+    h+=`<div class="cap">${esc(cap)}<span>${num(sub)}</span></div>`;
+    h+=ps.map(p=>{const v=ro?totalP(p):(+(p.cant||{})[zona]||0);
+      return `<div class="it ${v?"":"z"}" data-p="${p.id}"><div class="nm" data-ed><b>${esc(p.nombre)}</b><small>${esc(p.ud)}${multi&&!ro?` · total ${num(totalP(p))}`:""}</small>${p.nota?`<i>✎ ${esc(p.nota)}</i>`:""}</div>
+      ${ro?`<span class="val ro">${num(v)}</span>`:`<button class="cnt m" data-d="-1" aria-label="Restar">−</button><button class="val" data-v aria-label="Escribir cantidad">${num(v)}</button><button class="cnt p" data-d="1" aria-label="Sumar">+</button>`}</div>`}).join("");
+  });
+  $("#main").innerHTML=h;
+  document.querySelectorAll("[data-z]").forEach(b=>b.onclick=()=>{zona=b.dataset.z;vConteo()});
+  $("#addZ").onclick=gestionZonas;
+  document.querySelectorAll(".it").forEach(r=>{
+    const p=job.partidas.find(x=>x.id===r.dataset.p);
+    r.querySelector("[data-ed]").onclick=()=>editaPartida(p);
+    r.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>suma(p,+b.dataset.d));
+    const v=r.querySelector("[data-v]");if(v)v.onclick=()=>escribe(p);
+  });
+  $("#bar").innerHTML='<button class="btn sec" id="addP">+ Partida</button><button class="btn ac" id="goInf">Informe PDF</button>';
+  $("#addP").onclick=anadePartidas;$("#goInf").onclick=()=>{tab="informe";pintaTrabajo()};
+}
+async function suma(p,d){p.cant=p.cant||{};const a=+p.cant[zona]||0;const n=Math.max(0,a+d);if(n===a)return;p.cant[zona]=n;vib(d>0?12:25);await save();vConteo()}
+function escribe(p){
+  modal(`<h2>${esc(p.nombre)}</h2><p class="mut">Zona: ${esc(zona)} · unidad: ${esc(p.ud)}</p><input id="q" type="number" inputmode="decimal" step="any" min="0" value="${+(p.cant||{})[zona]||0}">
+  <div class="row"><button class="btn sec" data-x>Cancelar</button><button class="btn" data-ok>Guardar</button></div>`,(d,c)=>{
+    const i=d.querySelector("#q");i.focus();i.select();d.querySelector("[data-x]").onclick=c;
+    const ok=async()=>{const v=Math.max(0,parseFloat(String(i.value).replace(",","."))||0);p.cant=p.cant||{};p.cant[zona]=v;await save();c();vConteo()};
+    d.querySelector("[data-ok]").onclick=ok;i.onkeydown=e=>{if(e.key==="Enter")ok()};
+  });
+}
+function editaPartida(p){
+  const caps=[...new Set([...Object.keys(CATALOGO),...job.partidas.map(x=>x.cap)])];
+  modal(`<h2>Editar partida</h2>
+  <label>Concepto</label><input id="e_n" value="${esc(p.nombre)}">
+  <div class="row"><div><label>Capítulo</label><input id="e_c" list="dl_c" value="${esc(p.cap)}"><datalist id="dl_c">${caps.map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div><div style="flex:.5"><label>Unidad</label><input id="e_u" list="dl_u" value="${esc(p.ud)}"><datalist id="dl_u"><option value="ud"><option value="m"><option value="m²"><option value="h"><option value="pa"></datalist></div></div>
+  <label>Nota de la partida</label><input id="e_t" value="${esc(p.nota||"")}" placeholder="Ej. serie Niessen Zenit antracita">
+  ${job.zonas.length>1?`<p class="mut">Total en todas las zonas: ${num(totalP(p))} ${esc(p.ud)}</p>`:""}
+  <div class="row"><button class="btn bad" data-del>Eliminar</button><button class="btn sec" data-x>Cancelar</button><button class="btn" data-ok>Guardar</button></div>`,(d,c)=>{
+    d.querySelector("[data-x]").onclick=c;
+    d.querySelector("[data-ok]").onclick=async()=>{p.nombre=d.querySelector("#e_n").value.trim()||p.nombre;p.cap=d.querySelector("#e_c").value.trim()||"Otros";p.ud=d.querySelector("#e_u").value.trim()||"ud";p.nota=d.querySelector("#e_t").value.trim();await save();c();vConteo()};
+    d.querySelector("[data-del]").onclick=async()=>{const i=job.partidas.indexOf(p);job.partidas.splice(i,1);await save();c();vConteo();toast("Partida eliminada",async()=>{job.partidas.splice(i,0,p);await save();vConteo()})};
+  });
+}
+function anadePartidas(){
+  const ya=new Set(job.partidas.map(p=>p.cap+"|"+p.nombre));
+  modal(`<h2>Añadir partidas</h2>
+  <label>Concepto nuevo</label><div class="row"><input id="a_n" placeholder="Ej. Toma de antena satélite" style="flex:2"><input id="a_u" value="ud" style="flex:.6" aria-label="Unidad"></div>
+  <input id="a_c" list="dl_c2" placeholder="Capítulo (opcional)" style="margin-top:8px"><datalist id="dl_c2">${[...new Set([...Object.keys(CATALOGO),...job.partidas.map(x=>x.cap)])].map(c=>`<option value="${esc(c)}">`).join("")}</datalist>
+  <label>O marca del catálogo</label><div class="cat">${Object.entries(CATALOGO).map(([cap,its])=>`<h4>${esc(cap)}</h4>`+its.map(([n,u])=>{const k=cap+"|"+n;return `<label><input type="checkbox" data-k="${esc(k)}" data-u="${u}" ${ya.has(k)?"disabled checked":""}>${esc(n)} <span class="mut">(${u})</span>${ya.has(k)?' <span class="mut">· ya añadida</span>':""}</label>`}).join("")).join("")}</div>
+  <div class="row"><button class="btn sec" data-x>Cancelar</button><button class="btn" data-ok>Añadir</button></div>`,(d,c)=>{
+    d.querySelector("[data-x]").onclick=c;
+    d.querySelector("[data-ok]").onclick=async()=>{
+      const n=d.querySelector("#a_n").value.trim();let k=0;
+      if(n){job.partidas.push({id:uid(),cap:d.querySelector("#a_c").value.trim()||"Otros",nombre:n,ud:d.querySelector("#a_u").value.trim()||"ud",cant:{},nota:""});k++}
+      d.querySelectorAll("input[data-k]:checked:not(:disabled)").forEach(i=>{const[cap,nm]=i.dataset.k.split("|");job.partidas.push({id:uid(),cap,nombre:nm,ud:i.dataset.u,cant:{},nota:""});k++});
+      const orden=Object.keys(CATALOGO);job.partidas.sort((a,b)=>{const ia=orden.indexOf(a.cap),ib=orden.indexOf(b.cap);return (ia<0?99:ia)-(ib<0?99:ib)});
+      await save();c();vConteo();if(k)toast(k+(k>1?" partidas añadidas":" partida añadida"));
+    };
+  });
+}
+function gestionZonas(){
+  const pinta=(d)=>{d.querySelector("#zl").innerHTML=job.zonas.map((z,i)=>`<div class="it"><div class="nm"><b>${esc(z)}</b><small>${num(job.partidas.reduce((a,p)=>a+(+(p.cant||{})[z]||0),0))} elementos</small></div><button class="btn sec" data-r="${i}">Renombrar</button>${job.zonas.length>1?`<button class="btn sec" data-b="${i}" aria-label="Eliminar zona">✕</button>`:""}</div>`).join("");
+    d.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.r,old=job.zonas[i];const row=b.closest(".it");row.innerHTML=`<input value="${esc(old)}"><button class="btn">OK</button>`;const inp=row.querySelector("input");inp.focus();row.querySelector("button").onclick=async()=>{const nv=inp.value.trim();if(nv&&nv!==old&&!job.zonas.includes(nv)){job.zonas[i]=nv;job.partidas.forEach(p=>{if(p.cant&&old in p.cant){p.cant[nv]=p.cant[old];delete p.cant[old]}});if(zona===old)zona=nv;await save()}pinta(d)}});
+    d.querySelectorAll("[data-b]").forEach(b=>b.onclick=()=>{const z=job.zonas[+b.dataset.b];const n=job.partidas.reduce((a,p)=>a+(+(p.cant||{})[z]||0),0);const go=async()=>{job.zonas.splice(job.zonas.indexOf(z),1);job.partidas.forEach(p=>p.cant&&delete p.cant[z]);if(zona===z)zona=job.zonas[0];await save();pinta(d)};n?confirmar(`¿Eliminar la zona "${z}" y sus ${num(n)} elementos contados?`,go):go()});};
+  modal(`<h2>Zonas / estancias</h2><p class="mut">Cuenta por estancia o planta; el informe sumará el total de la obra.</p>
+  <div class="row" style="margin-top:6px"><input id="zn" placeholder="Ej. Cocina, Planta 1, Garaje" style="flex:2"><button class="btn" id="zadd" style="flex:.6">Añadir</button></div>
+  <div class="chips" style="margin-top:8px">${["Salón","Cocina","Dormitorio 1","Dormitorio 2","Baño","Pasillo","Terraza","Garaje"].map(z=>`<button class="chip" data-q="${z}">${z}</button>`).join("")}</div>
+  <div id="zl" style="margin-top:6px"></div><button class="btn w" data-x style="margin-top:12px">Hecho</button>`,(d,c)=>{
+    pinta(d);
+    const add=async v=>{v=v.trim();if(!v||job.zonas.includes(v))return;if(job.zonas.length===1&&job.zonas[0]==="General"&&totalJ(job)===0){job.zonas=[v]}else job.zonas.push(v);zona=v;await save();pinta(d)};
+    d.querySelector("#zadd").onclick=()=>{add(d.querySelector("#zn").value);d.querySelector("#zn").value=""};
+    d.querySelector("#zn").onkeydown=e=>{if(e.key==="Enter")d.querySelector("#zadd").click()};
+    d.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>add(b.dataset.q));
+    d.querySelector("[data-x]").onclick=()=>{c();vConteo()};
+  });
+}
+
+/* ---------- Notas y fotos ---------- */
+const SRec=window.SpeechRecognition||window.webkitSpeechRecognition;
+const dur=x=>{x=Math.round(x||0);return Math.floor(x/60)+":"+String(x%60).padStart(2,"0")};
+const capi=t=>t?t.charAt(0).toUpperCase()+t.slice(1):t;
+let dictando=null;
+function dictar(target,btn,onDone){
+  if(dictando){dictando.stop();return}
+  if(!SRec||!window.isSecureContext){ayudaVoz(target);return}
+  const lbl=btn.textContent,base=target.value.replace(/\s*$/,"");let fin="";
+  const r=new SRec();r.lang="es-ES";r.continuous=true;r.interimResults=true;
+  r.onresult=e=>{let tmp="";for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal)fin+=t+" ";else tmp+=t}const nuevo=capi((fin+tmp).trim());target.value=base?base+(/[.!?:]$/.test(base)?" ":". ")+nuevo:nuevo};
+  r.onerror=e=>toast(e.error==="not-allowed"||e.error==="service-not-allowed"?"Permite el micrófono para dictar":e.error==="network"?"El dictado necesita conexión a internet":e.error==="no-speech"?"No se ha oído nada":"Dictado detenido");
+  r.onend=()=>{dictando=null;btn.textContent=lbl;btn.classList.remove("rec");onDone&&onDone(target.value)};
+  try{r.start();dictando=r;btn.textContent="■ Parar dictado";btn.classList.add("rec")}catch(e){toast("No se pudo iniciar el dictado")}
+}
+async function vNotas(){
+  const fotos=(await Promise.all((job.fotos||[]).map(id=>get("fotos",id)))).filter(Boolean);
+  const auds=(await Promise.all((job.audios||[]).map(id=>get("audios",id)))).filter(Boolean);
+  $("#main").innerHTML=`<div class="card"><label style="margin-top:0">Notas de la visita</label><textarea id="nt" placeholder="Observaciones, accesos, estado de la instalación, materiales a pedir…">${esc(job.notas)}</textarea>
+  <div class="row" style="margin-top:8px"><button class="btn sec" id="dict">🎤 Dictar texto</button><button class="btn sec" id="rec">● Nota de voz</button></div>
+  <p class="mut" id="ntok">${SRec&&window.isSecureContext?"Se guarda automáticamente. El dictado escribe directamente en las notas.":"Se guarda automáticamente. Para dictar, usa el micrófono del teclado."}</p></div>
+  <div class="cap">Notas de voz<span>${auds.length}</span></div>
+  ${auds.length?auds.map((a,i)=>`<div class="card" data-a="${a.id}"><div style="display:flex;gap:10px;align-items:center"><b style="white-space:nowrap">Nota ${i+1} · ${dur(a.dur)}</b><audio controls preload="metadata" style="flex:1;min-width:0;height:40px"></audio></div>
+   <label>Transcripción</label><textarea class="tr" style="min-height:70px" placeholder="Sin transcripción. Escríbela o díctala mientras la escuchas.">${esc(a.texto)}</textarea>
+   <div class="row" style="margin-top:8px"><button class="btn sec" data-dt>🎤 Dictar</button><button class="btn sec" data-pn>Pasar a notas</button><button class="btn sec" data-dl style="flex:0 0 52px" aria-label="Eliminar nota de voz">✕</button></div></div>`).join(""):`<div class="empty" style="padding:16px">Sin notas de voz.</div>`}
+  <div class="cap">Fotografías<span>${fotos.length}</span></div>
+  ${fotos.length?`<div class="fotos">${fotos.map(f=>`<div class="ft" data-f="${f.id}"><img src="${f.data}" alt=""><p>${esc(f.pie||"Sin descripción")}</p></div>`).join("")}</div>`:`<div class="empty">Sin fotos todavía.</div>`}`;
+  const nt=$("#nt"),gn=async()=>{job.notas=nt.value;await save();$("#ntok").textContent="Guardado ✓"};
+  let t;nt.oninput=()=>{clearTimeout(t);t=setTimeout(gn,500)};
+  $("#dict").onclick=e=>dictar(nt,e.currentTarget,gn);
+  $("#rec").onclick=grabar;
+  document.querySelectorAll("[data-a]").forEach(c=>{const a=auds.find(x=>x.id===c.dataset.a);
+    try{c.querySelector("audio").src=URL.createObjectURL(a.blob)}catch(e){}
+    const tr=c.querySelector(".tr"),gt=async()=>{a.texto=tr.value.trim();await put("audios",a)};let k;tr.oninput=()=>{clearTimeout(k);k=setTimeout(gt,500)};
+    c.querySelector("[data-dt]").onclick=e=>dictar(tr,e.currentTarget,gt);
+    c.querySelector("[data-pn]").onclick=async()=>{if(!tr.value.trim()){toast("No hay texto que pasar");return}job.notas=(job.notas.trim()?job.notas.trim()+"\n":"")+"• "+tr.value.trim();await save();vNotas();toast("Añadido a las notas")};
+    c.querySelector("[data-dl]").onclick=()=>confirmar("¿Eliminar esta nota de voz?",async()=>{job.audios=job.audios.filter(x=>x!==a.id);await del("audios",a.id);await save();vNotas()});
+  });
+  document.querySelectorAll("[data-f]").forEach(e=>e.onclick=()=>verFoto(fotos.find(f=>f.id===e.dataset.f)));
+  $("#bar").innerHTML='<button class="btn" id="cam">📷 Hacer foto</button><button class="btn sec" id="gal">Galería</button>';
+  $("#cam").onclick=()=>$("#fotoIn").click();$("#gal").onclick=()=>$("#galIn").click();
+}
+function grabadoraMovil(motivo){
+  modal(`<h2>Grabar nota de voz</h2><p>${esc(motivo||"Abierta como archivo en el móvil, Chrome no deja usar el micrófono dentro de la app.")}</p>
+  <p>Pulsa el botón para grabar con la <b>grabadora del móvil</b>. Al terminar, la nota se guarda en esta obra.</p>
+  <button class="btn w" id="gm">● Abrir grabadora</button>
+  <p class="mut" style="margin-top:12px">Si tu móvil abre la lista de archivos en vez de la grabadora, graba antes con su app de grabadora y elige aquí el audio.</p>
+  <p class="mut">Para pasar a texto, toca la caja de la transcripción y pulsa el micrófono del teclado.</p>
+  <button class="btn sec w" data-x style="margin-top:8px">Cerrar</button>`,(d,c)=>{d.querySelector("#gm").onclick=()=>{c();$("#audIn").click()};d.querySelector("[data-x]").onclick=c});
+}
+function ayudaVoz(target){
+  modal(`<h2>Dictar texto</h2><p>Abierta como archivo en el móvil, Chrome no deja dictar dentro de la app.</p>
+  <p>Usa el <b>micrófono del teclado</b>: toca la caja de texto y pulsa el icono 🎤 del teclado. El texto se guarda solo.</p>
+  <button class="btn w" data-x>Entendido</button>`,(d,c)=>{d.querySelector("[data-x]").onclick=()=>{c();target.focus()}});
+}
+const durDe=blob=>new Promise(r=>{try{const a=new Audio();const u=URL.createObjectURL(blob);let ok=false;const fin=v=>{if(ok)return;ok=true;URL.revokeObjectURL(u);r(isFinite(v)?v:0)};a.preload="metadata";a.onloadedmetadata=()=>fin(a.duration);a.onerror=()=>fin(0);setTimeout(()=>fin(0),4000);a.src=u}catch(e){r(0)}});
+async function addAudios(files){
+  for(const f of files){const id=uid();await put("audios",{id,jobId:job.id,blob:f,mime:f.type||"audio/mpeg",dur:await durDe(f),texto:"",fecha:Date.now()});job.audios=job.audios||[];job.audios.push(id)}
+  await save();vNotas();toast(files.length>1?files.length+" notas de voz guardadas":"Nota de voz guardada");
+}
+async function grabar(){
+  if(dictando)dictando.stop();
+  if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){grabadoraMovil();return}
+  let stream;try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){grabadoraMovil(e.name==="NotAllowedError"?"Chrome no tiene permiso para el micrófono.":"No se ha podido abrir el micrófono.");return}
+  const mime=["audio/webm;codecs=opus","audio/webm","audio/mp4","audio/ogg"].find(m=>MediaRecorder.isTypeSupported(m))||"";
+  const mr=new MediaRecorder(stream,mime?{mimeType:mime}:undefined),chunks=[];mr.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  const t0=Date.now();let txt="",activo=true,fallo=false,rec=null,tick;
+  modal(`<h2>Grabando nota de voz</h2><p style="font:800 40px/1 'Exo 2',system-ui;margin:10px 0;color:var(--p)" id="rt">● 0:00</p>
+   <label class="sw"><input type="checkbox" id="rtr" ${SRec?"checked":"disabled"}> Transcribir a texto mientras grabo</label>
+   <p class="mut" id="rs">${SRec?"Habla con normalidad. El texto aparecerá aquí.":"Este navegador no transcribe: se guardará solo el audio."}</p>
+   <div id="rtx" style="min-height:64px;padding:10px;border:1px solid var(--line);border-radius:10px;white-space:pre-wrap"></div>
+   <div class="row"><button class="btn sec" data-x>Descartar</button><button class="btn" data-ok>■ Parar y guardar</button></div>`,(d,c)=>{
+    tick=setInterval(()=>{d.querySelector("#rt").textContent="● "+dur((Date.now()-t0)/1000)},500);
+    mr.start(1000);
+    const arranca=()=>{if(!SRec||!d.querySelector("#rtr").checked)return;try{rec=new SRec();rec.lang="es-ES";rec.continuous=true;rec.interimResults=true;
+      rec.onresult=e=>{let tmp="";for(let i=e.resultIndex;i<e.results.length;i++){const s=e.results[i][0].transcript;if(e.results[i].isFinal)txt+=s+" ";else tmp+=s}d.querySelector("#rtx").textContent=capi((txt+tmp).trim())};
+      rec.onerror=e=>{if(e.error==="no-speech")return;fallo=true;d.querySelector("#rs").textContent=e.error==="network"?"Sin internet: se guarda solo el audio. Podrás dictar la transcripción después.":"El móvil no deja transcribir mientras graba: se guarda solo el audio. Podrás dictar la transcripción después."};
+      rec.onend=()=>{if(activo&&!fallo&&d.querySelector("#rtr").checked)try{rec.start()}catch(e){}};rec.start()}catch(e){fallo=true}};
+    arranca();
+    d.querySelector("#rtr").onchange=e=>{if(e.target.checked){fallo=false;arranca()}else try{rec&&rec.stop()}catch(x){}};
+    const fin=async guardar=>{activo=false;clearInterval(tick);try{rec&&rec.stop()}catch(e){}
+      await new Promise(r=>{mr.onstop=r;try{mr.stop()}catch(e){r()}});stream.getTracks().forEach(t=>t.stop());c();
+      if(!guardar)return;
+      const blob=new Blob(chunks,{type:mr.mimeType||mime||"audio/webm"}),id=uid();
+      await put("audios",{id,jobId:job.id,blob,mime:blob.type,dur:(Date.now()-t0)/1000,texto:capi(txt.trim()),fecha:Date.now()});
+      job.audios=job.audios||[];job.audios.push(id);await save();vNotas();toast("Nota de voz guardada")};
+    d.querySelector("[data-x]").onclick=()=>fin(false);d.querySelector("[data-ok]").onclick=()=>fin(true);
+  },true);
+}
+async function addFotos(files){
+  if(!files.length)return;toast("Procesando "+files.length+" foto(s)…");
+  for(const f of files){try{const r=await comprime(f);const id=uid();await put("fotos",{id,jobId:job.id,...r,pie:"",fecha:Date.now()});job.fotos=job.fotos||[];job.fotos.push(id)}catch(e){toast("No se pudo leer una imagen")}}
+  await save();vNotas();
+  if(files.length===1){const id=job.fotos[job.fotos.length-1];verFoto(await get("fotos",id),true)}
+}
+function verFoto(f,nueva){
+  modal(`<img class="big" src="${f.data}" alt=""><label>Descripción (aparece en el informe)</label><input id="pf" value="${esc(f.pie)}" placeholder="Ej. Cuadro existente en garaje">
+  <div class="row"><button class="btn bad" data-del>Eliminar</button><button class="btn" data-ok>Guardar</button></div>`,(d,c)=>{
+    const i=d.querySelector("#pf");if(nueva)i.focus();
+    d.querySelector("[data-ok]").onclick=async()=>{f.pie=i.value.trim();await put("fotos",f);c();vNotas()};
+    d.querySelector("[data-del]").onclick=()=>confirmar("¿Eliminar esta foto?",async()=>{job.fotos=job.fotos.filter(x=>x!==f.id);await del("fotos",f.id);await save();c();vNotas()});
+  });
+}
+
+/* ---------- Datos del trabajo ---------- */
+function vDatos(){
+  const F=[["nombre","Obra / referencia"],["cliente","Cliente"],["direccion","Dirección"],["contacto","Persona de contacto / teléfono"],["tecnico","Técnico"]];
+  $("#main").innerHTML=`<div class="card">${F.map(([k,l])=>`<label>${l}</label><input data-k="${k}" value="${esc(job[k]||"")}">`).join("")}<label>Fecha de visita</label><input type="date" data-k="fecha" value="${esc(job.fecha)}"></div>
+  <div class="card"><div class="row"><button class="btn sec" id="dup">Duplicar trabajo</button><button class="btn bad" id="delJ">Eliminar trabajo</button></div></div>`;
+  document.querySelectorAll("[data-k]").forEach(i=>i.onchange=async()=>{job[i.dataset.k]=i.value.trim();await save();$("#htitle").innerHTML=esc(job.nombre)+"<small>"+esc([job.cliente,fmtF(job.fecha)].filter(Boolean).join(" · "))+"</small>";toast("Guardado")});
+  $("#dup").onclick=async()=>{const j=JSON.parse(JSON.stringify(job));j.id=uid();j.nombre+=" (copia)";j.fotos=[];j.audios=[];j.creado=j.mod=Date.now();j.partidas.forEach(p=>{p.id=uid();p.cant={}});await put("jobs",j);toast("Duplicado con las mismas partidas y cantidades a cero");abrir(j.id)};
+  $("#delJ").onclick=()=>confirmar(`¿Eliminar "${job.nombre}" con sus fotos y notas de voz?`,async()=>{for(const f of job.fotos||[])await del("fotos",f);for(const a of job.audios||[])await del("audios",a);await del("jobs",job.id);inicio()});
+  $("#bar").innerHTML='<button class="btn ac" id="goInf">Informe PDF</button>';$("#goInf").onclick=()=>{tab="informe";pintaTrabajo()};
+}
+
+/* ---------- Informe ---------- */
+let OPC={ceros:false,zonas:true,fotos:true,notas:true,partNotas:true,voz:true};
+function vInforme(){
+  const multi=job.zonas.length>1;
+  $("#main").innerHTML=`<div class="tot"><div>Total elementos contados<br><span class="mut" style="color:#fffc">${job.partidas.filter(p=>totalP(p)).length} partidas · ${(job.fotos||[]).length} fotos${(job.audios||[]).length?" · "+job.audios.length+" notas de voz":""}</span></div><b>${num(totalJ(job))}</b></div>
+  <div class="card"><b>Contenido del informe</b>
+  <label class="sw"><input type="checkbox" data-o="ceros" ${OPC.ceros?"checked":""}> Incluir partidas a cero</label>
+  ${multi?`<label class="sw"><input type="checkbox" data-o="zonas" ${OPC.zonas?"checked":""}> Desglose por zonas</label>`:""}
+  <label class="sw"><input type="checkbox" data-o="partNotas" ${OPC.partNotas?"checked":""}> Notas de cada partida</label>
+  <label class="sw"><input type="checkbox" data-o="notas" ${OPC.notas?"checked":""}> Notas de la visita</label>
+  ${(job.audios||[]).length?`<label class="sw"><input type="checkbox" data-o="voz" ${OPC.voz?"checked":""}> Transcripciones de las notas de voz</label>`:""}
+  <label class="sw"><input type="checkbox" data-o="fotos" ${OPC.fotos?"checked":""}> Fotografías</label></div>
+  <div class="card"><b>Resumen</b>${resumenHTML()}</div>
+  <p class="mut">El PDF lleva la cabecera, el logotipo y los datos de empresa configurados en ⚙ Ajustes.</p>`;
+  document.querySelectorAll("[data-o]").forEach(i=>i.onchange=()=>{OPC[i.dataset.o]=i.checked;vInforme()});
+  $("#bar").innerHTML='<button class="btn sec" id="dl">Descargar</button><button class="btn ac" id="sh">Compartir PDF</button>';
+  $("#dl").onclick=()=>pdf(false);$("#sh").onclick=()=>pdf(true);
+}
+function resumenHTML(){
+  const ps=job.partidas.filter(p=>OPC.ceros||totalP(p));
+  if(!ps.length)return '<p class="mut">No hay cantidades contadas.</p>';
+  const caps=[...new Set(ps.map(p=>p.cap))];
+  return caps.map(c=>`<div class="cap">${esc(c)}</div>`+ps.filter(p=>p.cap===c).map(p=>`<div style="display:flex;gap:10px;padding:4px 2px;border-bottom:1px solid var(--line)"><b style="white-space:nowrap;min-width:4.5em;text-align:right;color:var(--p)">${num(totalP(p))} ${esc(p.ud)}</b><span>${esc(p.nombre)}</span></div>`).join("")).join("");
+}
+const hex2rgb=h=>{h=h.replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");const n=parseInt(h,16);return[(n>>16)&255,(n>>8)&255,n&255]};
+function imgSize(src){return new Promise(r=>{const i=new Image();i.onload=()=>r([i.width,i.height]);i.onerror=()=>r([1,1]);i.src=src})}
+async function pdf(compartir){
+  if(!window.jspdf){toast("Sin conexión: no se ha podido cargar el generador de PDF. Ábrela con internet una vez.");return}
+  toast("Generando PDF…");
+  const {jsPDF}=window.jspdf;const d=new jsPDF({unit:"mm",format:"a4"});
+  const W=210,M=14,C=hex2rgb(CFG.color);let y;
+  /* Cabecera */
+  const G=[29,29,31];
+  if(CFG.logo){const[lw,lh]=await imgSize(CFG.logo);let h=17,w=h*lw/lh;if(w>62){w=62;h=w*lh/lw}d.addImage(CFG.logo,CFG.logo.startsWith("data:image/png")?"PNG":"JPEG",M,8+(17-h)/2,w,h)}
+  else{d.setTextColor(...G);d.setFont("helvetica","bold");d.setFontSize(18);d.text(CFG.comercial||"SOLTEC",M,19)}
+  d.setTextColor(...G);d.setFont("helvetica","bold");d.setFontSize(9.5);d.text(CFG.empresa||CFG.comercial||"",W-M,11,{align:"right"});
+  d.setFont("helvetica","normal");d.setFontSize(8);d.setTextColor(98,98,107);
+  const l1=CFG.cif?("CIF "+CFG.cif):"";
+  const l2=[CFG.dir,CFG.loc].filter(Boolean).join(", ");const l3=[CFG.tel,CFG.email].filter(Boolean).join(" · ");
+  [l1,l2,l3,CFG.web].filter(Boolean).forEach((l,i)=>d.text(l,W-M,15.5+i*3.7,{align:"right"}));
+  d.setFillColor(...C);d.rect(M,29,W-2*M,1.1,"F");
+  /* Título y datos */
+  y=42;d.setTextColor(29,29,31);d.setFont("helvetica","bold");d.setFontSize(16);d.text("Informe de conteo de obra",M,y);
+  d.setDrawColor(...C);d.setLineWidth(.8);d.line(M,y+2.5,M+30,y+2.5);
+  y+=9;d.setFontSize(9.5);
+  const datos=[["Obra",job.nombre],["Cliente",job.cliente],["Dirección",job.direccion],["Contacto",job.contacto],["Fecha de visita",fmtF(job.fecha)],["Técnico",job.tecnico]].filter(x=>x[1]);
+  d.autoTable({startY:y,body:datos,theme:"plain",margin:{left:M,right:M},styles:{fontSize:9.5,cellPadding:1.4},columnStyles:{0:{fontStyle:"bold",cellWidth:34,textColor:[98,98,107]}}});
+  y=d.lastAutoTable.finalY+6;
+  /* Tabla de partidas */
+  const ps=job.partidas.filter(p=>OPC.ceros||totalP(p));
+  const zs=job.zonas.length>1&&OPC.zonas?job.zonas:[];
+  const zCols=zs.length&&zs.length<=5;
+  const head=[["Cant.","Ud","Concepto",...(zCols?zs:[])]];
+  const body=[];const caps=[...new Set(ps.map(p=>p.cap))];
+  caps.forEach(c=>{body.push([{content:c.toUpperCase(),colSpan:head[0].length,styles:{fillColor:[244,244,245],fontStyle:"bold",textColor:C,fontSize:8.5,halign:"left"}}]);
+    ps.filter(p=>p.cap===c).forEach(p=>body.push([{content:num(totalP(p)),styles:{fontStyle:"bold"}},p.ud,p.nombre+(OPC.partNotas&&p.nota?"\n"+p.nota:""),...(zCols?zs.map(z=>num(+(p.cant||{})[z]||0)):[])]))});
+  if(!body.length)body.push(["—","",{content:"Sin cantidades contadas",styles:{textColor:[120,120,128]}},...(zCols?zs.map(()=>""):[])]);
+  const cs={0:{cellWidth:18,halign:"right"},1:{cellWidth:14,halign:"center"}};const nc=head[0].length;for(let i=3;i<nc;i++)cs[i]={halign:"right",cellWidth:18};
+  d.autoTable({startY:y,head,body,margin:{left:M,right:M,bottom:18},theme:"grid",headStyles:{fillColor:G,textColor:255,fontStyle:"bold",fontSize:9,halign:"left"},styles:{fontSize:9.5,cellPadding:2,lineColor:[226,230,238],lineWidth:.2,valign:"middle"},columnStyles:cs,
+    didParseCell:h=>{if(h.section==="head"&&(h.column.index===0||h.column.index>=3))h.cell.styles.halign="right";if(h.section==="head"&&h.column.index===1)h.cell.styles.halign="center"},
+    didDrawCell:h=>{if(h.section==="body"&&h.column.index===0&&OPC.partNotas&&typeof h.cell.raw==="string"&&h.cell.raw.includes("\n")){}}});
+  y=d.lastAutoTable.finalY;
+  d.autoTable({startY:y,body:[[{content:num(ps.reduce((a,p)=>a+totalP(p),0)),styles:{halign:"right",fontStyle:"bold"}},{content:"TOTAL ELEMENTOS",styles:{fontStyle:"bold"}}]],columnStyles:{0:{cellWidth:18}},theme:"plain",margin:{left:M,right:M},styles:{fontSize:10.5,cellPadding:2.4,fillColor:[253,232,235],textColor:[176,0,28]}});
+  y=d.lastAutoTable.finalY+6;
+  /* Desglose por zonas si son muchas */
+  if(zs.length>5){
+    const zb=[];zs.forEach(z=>{const zp=ps.filter(p=>+(p.cant||{})[z]);if(!zp.length)return;zb.push([{content:z.toUpperCase(),colSpan:3,styles:{fillColor:[244,244,245],fontStyle:"bold",textColor:C,fontSize:8.5,halign:"left"}}]);zp.forEach(p=>zb.push([{content:num(p.cant[z]),styles:{halign:"right",fontStyle:"bold"}},p.ud,p.nombre]))});
+    if(zb.length){if(y>250){d.addPage();y=20}d.setFont("helvetica","bold");d.setFontSize(12);d.setTextColor(20,24,38);d.text("Desglose por zonas",M,y);
+      d.autoTable({startY:y+3,head:[["Cant.","Ud","Concepto"]],body:zb,margin:{left:M,right:M,bottom:18},theme:"grid",headStyles:{fillColor:G},styles:{fontSize:9,cellPadding:1.8,lineColor:[226,230,238],lineWidth:.2},columnStyles:{0:{cellWidth:18},1:{cellWidth:14,halign:"center"}}});y=d.lastAutoTable.finalY+6}
+  }
+  /* Notas */
+  if(OPC.notas&&job.notas.trim()){
+    const ls=d.splitTextToSize(job.notas.trim(),W-2*M);if(y>255){d.addPage();y=20}
+    d.setFont("helvetica","bold");d.setFontSize(12);d.setTextColor(20,24,38);d.text("Notas de la visita",M,y);y+=6;
+    d.setFont("helvetica","normal");d.setFontSize(9.5);d.setTextColor(50,56,70);
+    ls.forEach(l=>{if(y>280){d.addPage();y=20}d.text(l,M,y);y+=4.6});y+=4;
+  }
+  const voz=OPC.voz?(await Promise.all((job.audios||[]).map(id=>get("audios",id)))).filter(a=>a&&a.texto&&a.texto.trim()):[];
+  if(voz.length){if(y>255){d.addPage();y=20}
+    d.setFont("helvetica","bold");d.setFontSize(12);d.setTextColor(29,29,31);d.text("Notas de voz transcritas",M,y);y+=6;
+    d.setFontSize(9.5);
+    voz.forEach((a,i)=>{const ls=d.splitTextToSize(a.texto.trim(),W-2*M-6);if(y>275){d.addPage();y=20}
+      d.setFont("helvetica","bold");d.setTextColor(...C);d.text(`Nota ${(job.audios.indexOf(a.id))+1} · ${dur(a.dur)}`,M,y);y+=4.6;
+      d.setFont("helvetica","normal");d.setTextColor(50,56,70);ls.forEach(l=>{if(y>280){d.addPage();y=20}d.text(l,M+6,y);y+=4.6});y+=2.5});y+=3;
+  }
+  /* Fotos */
+  const fotos=OPC.fotos?(await Promise.all((job.fotos||[]).map(id=>get("fotos",id)))).filter(Boolean):[];
+  if(fotos.length){
+    d.addPage();y=20;d.setFont("helvetica","bold");d.setFontSize(12);d.setTextColor(20,24,38);d.text("Reportaje fotográfico",M,y);y+=6;
+    const cw=(W-2*M-6)/2,ch=cw*0.75;let col=0;
+    fotos.forEach((f,i)=>{if(y+ch+10>285){d.addPage();y=20}
+      const x=M+col*(cw+6);const k=Math.min(cw/f.w,ch/f.h);const iw=f.w*k,ih=f.h*k;
+      d.setFillColor(244,244,245);d.rect(x,y,cw,ch,"F");d.addImage(f.data,"JPEG",x+(cw-iw)/2,y+(ch-ih)/2,iw,ih,undefined,"FAST");
+      d.setFont("helvetica","normal");d.setFontSize(8.5);d.setTextColor(70,76,90);d.text(d.splitTextToSize((i+1)+". "+(f.pie||""),cw)[0],x,y+ch+4);
+      col++;if(col===2){col=0;y+=ch+10}});
+  }
+  /* Pie */
+  const n=d.getNumberOfPages();
+  for(let i=1;i<=n;i++){d.setPage(i);d.setFillColor(...C);d.rect(M,286.6,18,.8,"F");d.setDrawColor(228,228,231);d.setLineWidth(.3);d.line(M+18,287,W-M,287);d.setFont("helvetica","normal");d.setFontSize(7.5);d.setTextColor(120,128,142);
+    if(CFG.pie)d.text(d.splitTextToSize(CFG.pie,W-2*M-30)[0],M,291);d.text(`Pág. ${i}/${n}`,W-M,291,{align:"right"})}
+  const nombre=("Conteo_"+(job.nombre||"obra")+"_"+(job.fecha||hoy())).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w-]+/g,"_").slice(0,80)+".pdf";
+  const blob=d.output("blob");const file=new File([blob],nombre,{type:"application/pdf"});
+  if(compartir&&navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:"Informe de conteo · "+job.nombre,text:`Informe de conteo de obra: ${job.nombre}${job.cliente?" ("+job.cliente+")":""} · ${CFG.comercial}`})}catch(e){if(e.name!=="AbortError")descarga(blob,nombre)}
+  }else{if(compartir)toast("Este navegador no permite compartir archivos; se descarga el PDF");descarga(blob,nombre)}
+}
+function descarga(blob,nombre){const u=URL.createObjectURL(blob);const a=document.createElement("a");a.href=u;a.download=nombre;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+
+/* ---------- Ajustes ---------- */
+function ajustes(){
+  const F=[["empresa","Razón social"],["comercial","Nombre comercial"],["cif","CIF"],["dir","Dirección"],["loc","Localidad"],["tel","Teléfono"],["email","Correo electrónico"],["web","Web"],["tecnico","Técnico por defecto"]];
+  modal(`<h2>Ajustes · imagen corporativa</h2>
+  <label>Logotipo</label><div class="row" style="align-items:center"><div style="flex:0 0 96px;height:60px;border:1px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;background:#fff">${CFG.logo?`<img src="${CFG.logo}" style="max-width:90px;max-height:54px">`:'<span class="mut">Sin logo</span>'}</div><button class="btn sec" id="lg">Elegir imagen</button>${CFG.logo!==LOGO_SOLTEC?'<button class="btn sec" id="lgx">Logo SOLTEC</button>':""}</div>
+  <label>Color corporativo</label><div class="row" style="align-items:center"><input type="color" id="cl" value="${CFG.color}" style="height:48px;padding:4px"><button class="btn sec" id="clr" type="button">Rojo SOLTEC</button></div>
+  ${F.map(([k,l])=>`<label>${l}</label><input data-c="${k}" value="${esc(CFG[k])}">`).join("")}
+  <label>Texto al pie del informe</label><textarea data-c="pie" style="min-height:70px">${esc(CFG.pie)}</textarea>
+  ${!instalada()&&location.protocol.startsWith("http")?'<label>App</label><button class="btn sec w" id="inst2">Instalar en el móvil</button>':""}
+  <label>Copia de seguridad</label><div class="row"><button class="btn sec" id="exp">Exportar datos</button><button class="btn sec" id="imp">Importar</button></div>
+  <div class="row"><button class="btn sec" data-x>Cancelar</button><button class="btn" data-ok>Guardar</button></div>
+  <p class="mut" style="text-align:center;margin-top:12px">SOLTEC · Conteo de obra · versión ${VERSION}</p>`,(d,c)=>{
+    d.querySelector("[data-x]").onclick=c;
+    d.querySelector("#lg").onclick=()=>{c();$("#logoIn").click()};
+    const lx=d.querySelector("#lgx");if(lx)lx.onclick=async()=>{CFG.logo=LOGO_SOLTEC;await put("cfg",CFG,"cfg");aplicaColor();c();ajustes()};
+    const i2=d.querySelector("#inst2");if(i2)i2.onclick=()=>{c();instalar()};d.querySelector("#clr").onclick=()=>d.querySelector("#cl").value="#de0023";d.querySelector("#exp").onclick=exportar;d.querySelector("#imp").onclick=()=>$("#impIn").click();
+    d.querySelector("[data-ok]").onclick=async()=>{d.querySelectorAll("[data-c]").forEach(i=>CFG[i.dataset.c]=i.value.trim());CFG.color=d.querySelector("#cl").value;await put("cfg",CFG,"cfg");aplicaColor();c();job?pintaTrabajo():inicio();toast("Ajustes guardados")};
+  });
+}
+const b2d=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.onerror=()=>r("");f.readAsDataURL(b)});
+const d2b=u=>{const[h,b]=u.split(",");const bin=atob(b),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:(h.match(/:(.*?);/)||[])[1]||"audio/webm"})};
+async function exportar(){const audios=await Promise.all((await all("audios")).map(async a=>{const{blob,...r}=a;return{...r,data:blob?await b2d(blob):""}}));const data={app:"soltec-conteo",v:2,fecha:new Date().toISOString(),cfg:CFG,jobs:await all("jobs"),fotos:await all("fotos"),audios};descarga(new Blob([JSON.stringify(data)],{type:"application/json"}),"soltec-conteo-copia-"+hoy()+".json")}
+async function importar(file){try{const data=JSON.parse(await file.text());if(data.app!=="soltec-conteo")throw 0;for(const f of data.fotos||[])await put("fotos",f);for(const a of data.audios||[]){const{data:u,...r}=a;if(u)r.blob=d2b(u);await put("audios",r)}for(const j of data.jobs||[])await put("jobs",j);if(data.cfg){CFG={...CFG,...data.cfg};await put("cfg",CFG,"cfg");aplicaColor()}document.querySelectorAll(".mask").forEach(m=>m.remove());toast((data.jobs||[]).length+" trabajos importados");inicio()}catch(e){toast("Archivo de copia no válido")}}
+
+/* ---------- Instalación (PWA) ---------- */
+let pideInstalar=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();pideInstalar=e});
+window.addEventListener("appinstalled",()=>{pideInstalar=null;toast("App instalada");if(!job)inicio()});
+const esIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const instalada=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+async function instalar(){
+  if(pideInstalar){pideInstalar.prompt();const r=await pideInstalar.userChoice;pideInstalar=null;if(r.outcome==="accepted")toast("Instalando…");return}
+  const ios=esIOS();
+  modal(`<h2>Instalar en el móvil</h2>${ios?`<p>En iPhone o iPad, desde <b>Safari</b>:</p><ol style="padding-left:20px;line-height:1.7"><li>Pulsa el botón <b>Compartir</b> (cuadrado con flecha hacia arriba).</li><li>Elige <b>Añadir a pantalla de inicio</b>.</li><li>Pulsa <b>Añadir</b>.</li></ol>`:`<p>En Android, desde <b>Chrome</b>:</p><ol style="padding-left:20px;line-height:1.7"><li>Pulsa el menú <b>⋮</b> arriba a la derecha.</li><li>Elige <b>Instalar aplicación</b> o <b>Añadir a pantalla de inicio</b>.</li><li>Confirma con <b>Instalar</b>.</li></ol>`}<p class="mut">Aparecerá el icono de SOLTEC y la app se abrirá a pantalla completa, también sin conexión.</p><button class="btn w" data-x>Entendido</button>`,(d,c)=>d.querySelector("[data-x]").onclick=c);
+}
+if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+
+/* ---------- Eventos ---------- */
+$("#back").onclick=inicio;$("#cfgBtn").onclick=ajustes;
+document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;pintaTrabajo();scrollTo(0,0)});
+$("#fotoIn").onchange=e=>{addFotos([...e.target.files]);e.target.value=""};
+$("#galIn").onchange=e=>{addFotos([...e.target.files]);e.target.value=""};
+$("#logoIn").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;const r=await comprime(f,500,.92,"image/png");CFG.logo=r.data;await put("cfg",CFG,"cfg");aplicaColor();ajustes()};
+$("#audIn").onchange=e=>{const f=[...e.target.files];e.target.value="";if(f.length&&job)addAudios(f)};
+$("#impIn").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)importar(f)};
+
+(async()=>{try{db=await idb();const c=await get("cfg","cfg");if(c){const v2=c.v>=2;CFG={...CFG,...c};if(!v2){CFG.color="#de0023";if(!c.logo)CFG.logo=LOGO_SOLTEC;CFG.v=2;await put("cfg",CFG,"cfg")}}}catch(e){$("#main").innerHTML='<div class="empty">Este navegador no permite guardar datos (modo privado). Ábrela en Chrome normal.</div>';return}aplicaColor();inicio()})();
+}
+</script>
+</body>
+</html>
