@@ -1,5 +1,5 @@
 /* SOLTEC · Conteo de obra — service worker (funciona sin conexión) */
-const CACHE = "conteo-obra-1.1.0";
+const CACHE = "conteo-obra-1.2.0";
 const LOCAL = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png"];
 const CDN = [
   "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
@@ -22,6 +22,8 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
+  // El reconocedor de voz guarda su propio modelo; no se duplica aquí
+  if (/huggingface\.co|hf\.co|xethub/.test(req.url)) return;
   // La página: primero la red (para recibir versiones nuevas), si no hay conexión la copia guardada
   if (req.mode === "navigate") {
     e.respondWith(fetch(req).then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put("index.html", cp)); return r; })
