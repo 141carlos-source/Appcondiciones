@@ -1,5 +1,5 @@
 /* SOLTEC · Conteo de obra — service worker (funciona sin conexión) */
-const CACHE = "conteo-obra-1.4.1";
+const CACHE = "conteo-obra-1.4.2";
 const LOCAL = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png"];
 const CDN = [
   "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
