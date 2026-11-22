@@ -1,9 +1,10 @@
 /* SOLTEC · Conteo de obra — service worker (funciona sin conexión) */
-const CACHE = "conteo-obra-1.4.0";
+const CACHE = "conteo-obra-1.4.1";
 const LOCAL = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png"];
 const CDN = [
   "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"
+  "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js",
+  "https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"
 ];
 self.addEventListener("install", e => {
   e.waitUntil((async () => {
