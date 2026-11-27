@@ -1,12 +1,13 @@
 // SOLTEC V2 · Capa 5 · Carcasa de la aplicación: navegación, estado de sincronización,
 // ajustes, copias, salida segura y actualización. Un único render por pantalla.
 
+import { vistaCuadros } from './modulos/cuadroFoto.js';
 import { Storage } from './core/storage.js';
 import { SyncManager, SyncError } from './core/sync.js';
 import { exportar, exportarBlob, importar, verificar } from './core/backup.js';
 import { isExpediente } from './core/model.js';
 
-export const VERSION = 'V2-1.43.1';
+export const VERSION = 'V2-1.44.0';
 
 import { h, ico, toast, hace, descargar, activarMayusculas, vigilarFocoTeclado, confirmar, preguntar } from './ui.js';
 import { vistaAvisos, vistaExpedientes, vistaFicha } from './modulos/avisos.js';
@@ -33,6 +34,7 @@ const ICONOS = {
   avisos: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h7"/>',
   expedientes: '<path d="M3 6h7l2 2h9v11H3z"/><path d="M3 10h18"/>',
   agenda: '<rect x="3" y="5" width="18" height="16"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  cuadros: '<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M4 9h16M4 15h16M8 6v0M9 11v2M12 11v2M15 11v2M9 17v2M12 17v2"/>',
   ajustes: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
   salir: '<path d="M14 4h5v16h-5"/><path d="M10 8l-4 4 4 4M6 12h10"/>',
 };
@@ -51,6 +53,7 @@ const RUTAS = {
   empresa: { titulo: 'Empresa', vista: () => vistaEmpresa(app), nav: 'ajustes' },
   firma: { titulo: 'Firma', vista: (id) => vistaFirma(app, id), nav: 'avisos' },
   partes: { titulo: 'Partes', vista: () => vistaPartes(app), nav: 'inicio' },
+  cuadros: { titulo: 'Cuadros', vista: () => vistaCuadros(app) },
   importar: { titulo: 'Importar V1.35', vista: () => vistaImportar(app), nav: 'ajustes' },
   parte: { titulo: 'Parte', vista: (id) => vistaParte(app, id), nav: 'inicio' },
   ajustes: { titulo: 'Ajustes', vista: vistaAjustes },
@@ -819,7 +822,7 @@ async function buscarActualizacion(avisar) {
 // ---------------------------------------------------------------- arranque
 function carcasa() {
   const nav = h('nav', { class: 'inferior', 'aria-label': 'Navegación principal' },
-    ...['inicio', 'avisos', 'expedientes', 'agenda', 'ajustes'].map((r) =>
+    ...['inicio', 'avisos', 'expedientes', 'cuadros', 'agenda', 'ajustes'].map((r) =>
       h('a', { href: '#/' + r, 'data-ruta': r }, icono(r), h('span', {}, RUTAS[r].titulo))),
     h('a', { href: '#/salir', 'data-ruta': 'salir', class: 'salir' }, icono('salir'), h('span', {}, 'Salir')));
   document.body.replaceChildren(

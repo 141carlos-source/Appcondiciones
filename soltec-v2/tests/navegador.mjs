@@ -40,9 +40,9 @@ try {
   await page.waitForSelector('nav.inferior');
   await page.waitForFunction(() => window.soltec?.storage);
 
-  // Navegación: 6 botones en UNA fila y «Salir» visible a 360 px
+  // Navegación: 7 botones en UNA fila y «Salir» visible a 360 px
   const cajas = await page.$$eval('nav.inferior > a', (as) => as.map((a) => { const r = a.getBoundingClientRect(); return { t: a.textContent.trim(), top: Math.round(r.top), right: r.right }; }));
-  assert.equal(cajas.length, 6);
+  assert.equal(cajas.length, 7);
   assert.equal(new Set(cajas.map((c) => c.top)).size, 1, 'todos en la misma fila');
   assert.equal(cajas.at(-1).t, 'Salir');
   assert.ok(cajas.at(-1).right <= 360, 'Salir dentro de la pantalla');

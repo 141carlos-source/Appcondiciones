@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cuadro desde foto · SOLTEC</title>
+<style>
+:root{--bg:#f3f3f1;--card:#fff;--ink:#17181a;--mut:#62656a;--line:#dadbd8;--red:#c8102e;--soft:#fff3f5;--warn:#fff7e0;--ok:#e9f6ec}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow-x:clip}
+header{background:var(--card);border-bottom:3px solid var(--red);padding:8px max(3vw,12px);display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+header h1{font-size:17px;margin:0;flex:1;min-width:160px;line-height:1.15}
+header h1 span{display:block;font-weight:400;font-size:13px;color:var(--mut)}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+button,.btn{font:600 14px system-ui,Arial,sans-serif;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:10px 14px;min-height:44px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--red);outline-offset:1px}
+nav button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+button.pri{background:var(--red);border-color:var(--red);color:#fff}
+main{padding:14px max(3vw,12px);max-width:1400px;margin:0 auto}
+.view{display:none}.view.on{display:block}
+.hint{color:var(--mut);font-size:13.5px;margin:0 0 12px;max-width:75ch}
+.form{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+.form h3{margin:0 0 10px;font-size:16px}
+.form.warn{background:var(--warn)}.form.ok{background:var(--ok)}
+.form ul{margin:0;padding-left:20px}
+.row{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr))}
+label{display:block;font-size:12.5px;color:var(--mut)}
+input,select,textarea{width:100%;font:16px system-ui,Arial,sans-serif;padding:9px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);margin-top:3px;min-height:44px}
+textarea{min-height:90px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;align-items:center}
+.fotos{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+.fotos figure{margin:0;position:relative}
+.fotos img{height:150px;border-radius:8px;border:1px solid var(--line);display:block}
+.fotos figure button{position:absolute;top:4px;right:4px;min-height:32px;padding:4px 9px}
+.groups{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));align-items:start}
+.grp{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.gh{display:flex;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer}
+.gh b{font-size:15px}.gh span{display:block;font-size:12.5px;color:var(--mut)}
+.gh .tag{background:var(--red);color:#fff;font:700 12px system-ui;border-radius:5px;padding:3px 7px}
+.gh .tag.sd{background:var(--mut)}
+.list{min-height:64px;padding:8px;display:flex;flex-direction:column;gap:6px}
+.list.over{background:var(--soft)}
+.card{display:flex;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ink);border-radius:8px;user-select:none}
+.card.dragging{opacity:.35}
+.handle{width:44px;flex:none;display:grid;place-items:center;color:var(--mut);cursor:grab;touch-action:none;border-right:1px solid var(--line);font-size:20px}
+.cb{flex:1;padding:8px 10px;cursor:pointer}
+.cb b{display:block}.cb small{color:var(--mut);font-size:12.5px}
+.ghost{position:fixed;z-index:100;pointer-events:none;box-shadow:0 10px 26px rgba(0,0,0,.25);transform:rotate(1deg)}
+.add{margin:0 8px 8px;width:calc(100% - 16px);border-style:dashed;color:var(--mut)}
+.sheets{display:grid;gap:16px;justify-items:center}
+.page{background:#fff;border:1px solid var(--line);border-radius:6px;overflow:auto;box-shadow:0 2px 10px rgba(0,0,0,.08);width:100%}
+.page.v{max-width:820px}
+.page svg{display:block;width:100%;height:auto}
+.page.h svg{min-width:900px}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:50;align-items:center;justify-content:center;padding:12px}
+.sheet.on{display:flex}
+.sheet .in{background:var(--card);width:100%;max-width:520px;max-height:92vh;overflow:auto;border-radius:12px;padding:16px}
+.sheet h3{margin:0 0 12px;font-size:17px}
+.calc{background:var(--bg);border-radius:8px;padding:9px 11px;font-size:13.5px;margin-top:10px}
+.toast{pointer-events:none;position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;display:none;z-index:200;max-width:90vw}
+.toast.on{display:block}
+.vacio{color:var(--mut);text-align:center;padding:30px 10px}
+.giro{display:inline-block;width:16px;height:16px;border:3px solid #fff;border-right-color:transparent;border-radius:50%;animation:g 1s linear infinite}
+@keyframes g{to{transform:rotate(360deg)}}
+@media(max-width:600px){header h1{font-size:15.5px}nav{width:100%}nav button{flex:1;padding:8px 6px;font-size:13px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Cuadro desde foto <span id="hobra">Sin obra</span></h1>
+  <nav>
+    <button data-v="foto" class="on">Foto</button>
+    <button data-v="circ">Circuitos</button>
+    <button data-v="uni">Unifilar</button>
+    <button data-v="chint">Cuadro CHINT</button>
+    <button data-v="datos">Datos</button>
+  </nav>
+  <button id="volver" hidden>← Volver al aviso</button>
+</header>
+<main>
+<section class="view on" id="v-foto">
+  <div class="form">
+    <h3>1. Fotos del cuadro</h3>
+    <p class="hint">Una general con la tapa abierta y otra de cerca donde se lean calibres, curvas y etiquetas. Puedes hacerlas con la cámara o elegirlas de la galería.</p>
+    <div class="bar">
+      <button class="pri" id="bCamara">📷 Hacer foto</button><input id="fCamara" type="file" accept="image/*" capture="environment" hidden>
+      <button id="bGaleria">Elegir fotos</button><input id="fGaleria" type="file" accept="image/*" multiple hidden>
+    </div>
+    <div class="fotos" id="fotos"></div>
+  </div>
+  <div class="form">
+    <h3>2. Leer el cuadro con Claude</h3>
+    <p class="hint">Claude lee la foto y saca IGA, sobretensiones, diferenciales y PIA con sus etiquetas. Lo que no se lea bien queda en «Comprobar en obra» y no sale en el unifilar.</p>
+    <div class="row" id="claveCaja" hidden>
+      <label>Clave de la API de Claude (se guarda solo en este dispositivo)<input id="clave" type="password" autocomplete="off" placeholder="sk-ant-…"></label>
+    </div>
+    <div class="bar">
+      <button class="pri" id="bLeer">Leer cuadro de la foto</button>
+      <button id="bClave">Clave de la API</button>
+      <span class="hint" id="estadoLeer" style="margin:0"></span>
+    </div>
+  </div>
+  <div class="form ok" id="resumenLeido" hidden></div>
+</section>
+<section class="view" id="v-circ">
+  <p class="hint">Arrastra cada PIA por el asa ⠿ para cambiarlo de diferencial. Toca un circuito o un diferencial para editarlo. Las secciones salen del REBT según el calibre del PIA.</p>
+  <div class="groups" id="groups"></div>
+  <div class="bar"><button id="addDif">＋ Diferencial</button><button id="addSD">＋ Grupo sin diferencial</button><span style="flex:1"></span><button id="reset">Volver a lo leído de la foto</button></div>
+</section>
+<section class="view" id="v-uni">
+  <div class="bar"><button class="pri" id="pdfUni">Guardar PDF del unifilar</button><span class="hint" style="margin:0" id="nomUni"></span></div>
+  <div class="sheets" id="sheetsUni"></div>
+</section>
+<section class="view" id="v-chint">
+  <div class="bar">
+    <label>Módulos por fila <select id="mpf"><option>12</option><option>18</option><option selected>24</option></select></label>
+    <label>Reserva mínima <select id="res"><option value="0">0 %</option><option value="10">10 %</option><option value="20" selected>20 %</option><option value="30">30 %</option></select></label>
+    <button class="pri" id="pdfChint">Guardar PDF del cuadro CHINT</button>
+  </div>
+  <div class="sheets" id="sheetsChint"></div>
+</section>
+<section class="view" id="v-datos">
+  <div class="form warn"><h3>Comprobar en obra (no sale en el unifilar ni en el PDF)</h3><textarea id="f_comp" placeholder="Una línea por cosa a comprobar"></textarea></div>
+  <div class="form"><h3>Obra</h3><div class="row">
+    <label>Dirección y población<input id="f_obra"></label>
+    <label>Fecha<input id="f_fecha"></label>
+    <label>Revisión<input id="f_rev"></label>
+    <label>Suministro<input id="f_red"></label>
+    <label>Tipo de instalación<select id="f_tipo"><option value="vivienda">Vivienda (ITC-BT-25)</option><option value="general">General (ITC-BT-19)</option></select></label>
+  </div></div>
+  <div class="form"><h3>Cabecera del cuadro</h3><div class="row">
+    <label>IGA calibre (A)<input id="f_igacal" inputmode="numeric" placeholder="sin dato"></label>
+    <label>IGA curva<input id="f_igacu"></label>
+    <label>IGA polos<select id="f_igapo"><option>2P</option><option>4P</option></select></label>
+    <label>Poder de corte<input id="f_igapdc"></label>
+    <label>Protector de sobretensiones<input id="f_sob"></label>
+    <label>Sobretensiones permanentes<select id="f_perm"><option value="">No</option><option value="1">Sí (POVH)</option></select></label>
+  </div></div>
+  <div class="form"><h3>Empresa (cajetín)</h3><div id="emp" class="hint" style="margin:0"></div></div>
+</section>
+</main>
+<div class="sheet" id="dlg"><div class="in" id="dlgIn"></div></div>
+<div class="toast" id="toast"></div>
+<script src="../vendor/pdf-lib.min.js"></script>
+<script>
+{
+/* SOLTEC V2 · Cuadro desde foto. Un único archivo que también funciona suelto.
+   Dentro de la V2 (#host) habla con la ficha del aviso por mensajes (cf-listo, cf-cargar, cf-cambio, cf-foto, cf-pdf, cf-clave, cf-volver)
+   y no guarda nada por su cuenta. Suelto, guarda en localStorage de este navegador. */
+const HOST=location.hash.includes('host');
+const KEY='cdf:suelto';
+let EMP={nombre:'M. A. SOLTEC SL',nif:'',dir:'',cp:'',loc:'',prov:'',tel:'',email:'',web:''};
+let LOGO='';
+let CLAVE='',MODELO='claude-sonnet-5-5';
+const hoy=()=>{const d=new Date();return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()};
+const vacio=()=>({obra:'',fecha:hoy(),rev:'0',red:'3×400/230 V + N · 50 Hz',tipoInst:'vivienda',iga:{cal:'',cu:'C',po:'4P',pdc:''},sob:'Transitorias',perm:false,difs:[],circ:[],comprobar:[]});
+let S=vacio(),S0=null;
+let FOTOS=[]; // {nombre,dataUrl}
+const clone=o=>JSON.parse(JSON.stringify(o));
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=n=>String(n).replace('.',',');
+function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('on'),3500)}
+const enviar=m=>{if(HOST)parent.postMessage(m,location.origin)};
+function save(){
+  if(HOST)enviar({tipo:'cf-cambio',datos:clone(S),leido:S0?clone(S0):null});
+  else try{localStorage.setItem(KEY,JSON.stringify({S,S0}))}catch(e){}
+}
+function lineasEmp(){const j=(a,s)=>a.filter(Boolean).join(s);return [EMP.nif?'CIF '+EMP.nif:'',j([EMP.dir,j([EMP.cp,EMP.loc],' ')],' · '),j([EMP.prov?'('+EMP.prov+')':'',EMP.tel?'Tel. '+EMP.tel:''],' · '),EMP.email,EMP.web].filter(Boolean).slice(0,5)}
+const nombreArch=p=>p+' '+(S.obra||'sin obra').replace(/[,\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim();
+
+/* ---------- REBT: sección por calibre del PIA ---------- */
+const tri=po=>/^(3P|3P\+N|4P)$/.test(po);
+function sec(c){if(c.s)return +c.s;if(!c.cal)return null;const t=S.tipoInst==='vivienda'&&!tri(c.po)?[[10,1.5],[16,2.5],[20,4],[25,6],[32,6],[40,10],[50,16],[63,16]]:tri(c.po)?[[10,1.5],[16,2.5],[20,4],[25,6],[32,6],[40,10],[50,16],[63,16]]:[[10,1.5],[16,2.5],[20,2.5],[25,4],[32,6],[40,10],[50,10],[63,16]];for(const[a,s]of t)if(+c.cal<=a)return s;return 25}
+const nCond=po=>({'1P':2,'1P+N':2,'2P':2,'3P':3,'3P+N':4,'4P':4}[po]||2);
+const cond=c=>{const v=sec(c);if(v==null)return '';const s=fmt(v);return nCond(c.po)+'×'+s+'+T'+s};
+const prot=c=>c.cal?'PIA '+c.cu+c.cal+' A '+c.po:'PIA '+c.po;
+const difTxt=(d,i)=>d.none?'Sin diferencial':'ID'+(S.difs.filter(x=>!x.none).indexOf(d)+1);
+
+
+
+/* ---------- Editor de circuitos (modelo Palomar 5) ---------- */
+/* ---------- Editor de circuitos ---------- */
+function renderGroups(){
+  $('#hobra').textContent=S.obra;
+  $('#groups').innerHTML=S.difs.map((d,i)=>{
+    const cs=S.circ.filter(c=>c.d===d.id);
+    const head=d.none?`<span class="tag sd">—</span><div style="flex:1"><b>Sin diferencial</b><span>Directo al embarrado · ${cs.length} circuito${cs.length==1?'':'s'}</span></div>`
+      :`<span class="tag">${difTxt(d)}</span><div style="flex:1"><b>Diferencial ${d.cal} A · ${d.sens} mA</b><span>${d.po} · ${cs.length} circuito${cs.length==1?'':'s'}</span></div><span aria-hidden="true">✎</span>`;
+    return `<div class="grp"><div class="gh" ${d.none?'':`data-dif="${d.id}"`}>${head}</div>
+    <div class="list" data-d="${d.id}">${cs.map(c=>`<div class="card" data-id="${c.id}"><div class="handle" title="Arrastrar">⠿</div><div class="cb" data-ed="${c.id}"><b>${esc(c.n)}</b><small>${prot(c)}${cond(c)?' · '+cond(c)+' mm² Cu':' · calibre sin dato'}${c.l?' · '+esc(c.l)+' m':''}${c.p?' · '+esc(c.p)+' W':''}</small></div></div>`).join('')}</div>
+    <button class="add" data-addc="${d.id}">＋ Circuito</button></div>`}).join('');
+}
+let drag=null;
+document.addEventListener('pointerdown',e=>{const h=e.target.closest('.handle');if(!h)return;e.preventDefault();const card=h.closest('.card'),r=card.getBoundingClientRect(),g=card.cloneNode(true);g.classList.add('ghost');g.style.width=r.width+'px';document.body.appendChild(g);card.classList.add('dragging');drag={card,g,dx:e.clientX-r.left,dy:e.clientY-r.top};try{h.setPointerCapture(e.pointerId)}catch(_){}move(e)});
+function move(e){if(!drag)return;drag.g.style.left=(e.clientX-drag.dx)+'px';drag.g.style.top=(e.clientY-drag.dy)+'px';const el=document.elementFromPoint(e.clientX,e.clientY),list=el&&el.closest('.list');$$('.list').forEach(l=>l.classList.toggle('over',l===list));if(list){const after=[...list.querySelectorAll('.card:not(.dragging)')].find(c=>{const r=c.getBoundingClientRect();return e.clientY<r.top+r.height/2});list.insertBefore(drag.card,after||null)}}
+document.addEventListener('pointermove',move);
+const end=()=>{if(!drag)return;drag.g.remove();drag.card.classList.remove('dragging');$$('.list').forEach(l=>l.classList.remove('over'));const order=[];$$('.list').forEach(l=>l.querySelectorAll('.card').forEach(c=>{const x=S.circ.find(k=>k.id===c.dataset.id);x.d=l.dataset.d;order.push(x)}));S.circ=order;drag=null;save();renderAll()};
+document.addEventListener('pointerup',end);document.addEventListener('pointercancel',end);
+
+const POLOS=['1P+N','2P','3P','3P+N','4P'];
+const opts=(a,v)=>a.map(o=>`<option value="${o}"${o==v?' selected':''}>${o===''?'(sin dato)':o}</option>`).join('');
+function openDlg(h){$('#dlgIn').innerHTML=h;$('#dlg').classList.add('on');const f=$('#dlgIn input');if(f)f.focus()}
+const closeDlg=()=>$('#dlg').classList.remove('on');
+$('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')closeDlg()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDlg()});
+function editCirc(id){
+  const c=S.circ.find(k=>k.id===id);
+  openDlg(`<h3>Circuito</h3><div class="row">
+  <label>Nombre<input id="e_n" value="${esc(c.n)}"></label>
+  <label>Calibre PIA (A)<select id="e_cal">${opts(['',6,10,16,20,25,32,40,50,63],c.cal)}</select></label>
+  <label>Curva<select id="e_cu">${opts(['B','C','D'],c.cu)}</select></label>
+  <label>Polos<select id="e_po">${opts(POLOS,c.po)}</select></label>
+  <label>Diferencial<select id="e_d">${S.difs.map(d=>`<option value="${d.id}"${d.id==c.d?' selected':''}>${d.none?'Sin diferencial':difTxt(d)+' · '+d.cal+' A '+d.sens+' mA'}</option>`).join('')}</select></label>
+  <label>Sección manual (mm²)<input id="e_s" inputmode="decimal" placeholder="según REBT" value="${esc(c.s||'')}"></label>
+  <label>Longitud (m)<input id="e_l" inputmode="decimal" value="${esc(c.l)}"></label>
+  <label>Potencia (W)<input id="e_p" inputmode="numeric" value="${esc(c.p)}"></label></div>
+  <div class="calc" id="e_calc"></div>
+  <div class="bar"><button class="pri" id="e_ok">Guardar</button><button id="e_x">Cancelar</button><span style="flex:1"></span><button id="e_del" style="color:var(--red)">Borrar</button></div>`);
+  const tmp=()=>({cal:$('#e_cal').value?+$('#e_cal').value:'',po:$('#e_po').value,s:$('#e_s').value.replace(',','.')});
+  const up=()=>{const t=tmp();$('#e_calc').textContent=cond(t)?'Conductor: '+cond(t)+' mm² Cu'+(t.s?' (manual)':' · según REBT para PIA de '+t.cal+' A '+(tri(t.po)?'trifásico':'monofásico')):'Sin calibre: no se calcula la sección'};
+  $$('#dlgIn select,#dlgIn input').forEach(x=>x.addEventListener('input',up));up();
+  $('#e_ok').onclick=()=>{Object.assign(c,{n:$('#e_n').value.trim()||'Circuito',cal:$('#e_cal').value?+$('#e_cal').value:'',cu:$('#e_cu').value,po:$('#e_po').value,d:$('#e_d').value,s:$('#e_s').value.replace(',','.').trim(),l:$('#e_l').value.trim(),p:$('#e_p').value.trim()});save();closeDlg();renderAll()};
+  $('#e_x').onclick=closeDlg;
+  $('#e_del').onclick=()=>{S.circ=S.circ.filter(k=>k!==c);save();closeDlg();renderAll();toast('Circuito borrado')};
+}
+function editDif(id){
+  const d=S.difs.find(k=>k.id===id);
+  openDlg(`<h3>Diferencial</h3><div class="row">
+  <label>Calibre (A)<select id="d_cal">${opts([25,40,63],d.cal)}</select></label>
+  <label>Sensibilidad (mA)<select id="d_s">${opts([30,300],d.sens)}</select></label>
+  <label>Polos<select id="d_po">${opts(['2P','4P'],d.po)}</select></label></div>
+  <div class="bar"><button class="pri" id="d_ok">Guardar</button><button id="d_x">Cancelar</button><span style="flex:1"></span><button id="d_del" style="color:var(--red)">Borrar</button></div>`);
+  $('#d_ok').onclick=()=>{Object.assign(d,{cal:+$('#d_cal').value,sens:+$('#d_s').value,po:$('#d_po').value});save();closeDlg();renderAll()};
+  $('#d_x').onclick=closeDlg;
+  $('#d_del').onclick=()=>{if(S.circ.some(c=>c.d===d.id)){toast('Mueve antes sus circuitos a otro diferencial');return}S.difs=S.difs.filter(k=>k!==d);save();closeDlg();renderAll()};
+}
+document.addEventListener('click',e=>{
+  const ed=e.target.closest('[data-ed]');if(ed)return editCirc(ed.dataset.ed);
+  const df=e.target.closest('[data-dif]');if(df)return editDif(df.dataset.dif);
+  const ad=e.target.closest('[data-addc]');if(ad){const id='c'+Date.now();S.circ.push({id,n:'Nuevo circuito',cal:16,cu:'C',po:'1P+N',d:ad.dataset.addc,l:'',p:''});save();renderAll();editCirc(id)}
+});
+$('#addDif').onclick=()=>{S.difs.push({id:'D'+Date.now(),cal:40,sens:30,po:'2P'});save();renderAll()};
+$('#reset').onclick=()=>{if(!S0){toast('Aún no se ha leído ninguna foto');return}S=clone(S0);save();renderDatos();renderAll();toast('Recuperado lo leído de la foto')};
+
+
+
+/* ---------- Unifilar (modelo Palomar 5, A4 apaisado) ---------- */
+const UNI=(()=>{
+/* ---------- Unifilar SVG (A4 apaisado 297×210 mm → 1123×794) ---------- */
+const W=1123,H=794,X0=150,MAXC=10;let COL=86;
+function sheetsPlan(){
+  const units=[];S.difs.forEach((d,i)=>{const cs=S.circ.filter(c=>c.d===d.id);if(!cs.length){if(!d.none)units.push({d,i,cs:[],cont:false});return}for(let k=0;k<cs.length;k+=MAXC)units.push({d,i,cs:cs.slice(k,k+MAXC),cont:k>0})});
+  const pages=[[]];let used=0;
+  for(const u of units){const w=Math.max(1,u.cs.length);if(used+w>MAXC&&pages[pages.length-1].length){pages.push([]);used=0}pages[pages.length-1].push(u);used+=w}
+  return pages;
+}
+const T=(x,y,t,o='')=>`<text x="${x}" y="${y}" ${o}${/fill=/.test(o)?'':' fill="#111"'}${/stroke=/.test(o)?'':' stroke="none"'}>${esc(t)}</text>`;
+function poles(x,y,n){let s='';for(let k=0;k<Math.min(n,4);k++){const yy=y+k*4;s+=`<line x1="${x-5}" y1="${yy+3}" x2="${x+5}" y2="${yy-3}"/>`}return s+T(x+8,y+6,n,'font-size="10" stroke="none" fill="#111"')}
+function brk(x,y,dif){
+  let s=`<line x1="${x}" y1="${y}" x2="${x}" y2="${y+16}"/><line x1="${x-4}" y1="${y+12}" x2="${x+4}" y2="${y+20}"/><line x1="${x+4}" y1="${y+12}" x2="${x-4}" y2="${y+20}"/><line x1="${x}" y1="${y+46}" x2="${x-13}" y2="${y+19}"/><line x1="${x}" y1="${y+46}" x2="${x}" y2="${y+60}"/>`;
+  if(dif)s+=`<ellipse cx="${x}" cy="${y+53}" rx="10" ry="4.5" fill="none"/><line x1="${x-13}" y1="${y+32}" x2="${x-20}" y2="${y+32}" stroke-dasharray="3 2"/><line x1="${x-20}" y1="${y+32}" x2="${x-20}" y2="${y+53}" stroke-dasharray="3 2"/><line x1="${x-20}" y1="${y+53}" x2="${x-10}" y2="${y+53}" stroke-dasharray="3 2"/>`;
+  return s;
+}
+function cajetin(n,N){
+  const x=553,y=676,w=550,h=98;
+  return `<g stroke="#111" fill="none" stroke-width="1"><rect x="${x}" y="${y}" width="${w}" height="${h}"/><line x1="${x+170}" y1="${y}" x2="${x+170}" y2="${y+h}"/><line x1="${x+380}" y1="${y}" x2="${x+380}" y2="${y+h}"/><line x1="${x+380}" y1="${y+h/2}" x2="${x+w}" y2="${y+h/2}"/></g>
+  <image href="${LOGO}" x="${x+8}" y="${y+6}" width="154" height="66" preserveAspectRatio="xMidYMid meet"/>
+  ${T(x+85,y+88,EMP.nombre,'text-anchor="middle" font-size="9.5" font-weight="700"')}
+  <g font-size="9.5" fill="#111">${lineasEmp().map((l,i)=>T(x+178,y+16+i*13,l)).join('')}
+  ${T(x+178,y+88,'Instalaciones eléctricas','font-style="italic" fill="#555"')}</g>
+  <g fill="#111">${T(x+388,y+13,'OBRA','font-size="8" fill="#666"')}${T(x+388,y+30,S.obra,'font-size="12" font-weight="700"')}${T(x+388,y+43,'Esquema unifilar · Cuadro general','font-size="9"')}
+  ${T(x+388,y+62,'FECHA','font-size="8" fill="#666"')}${T(x+388,y+78,S.fecha,'font-size="10.5"')}${T(x+388,y+92,'Rev. '+S.rev,'font-size="9"')}
+  ${T(x+480,y+62,'HOJA','font-size="8" fill="#666"')}${T(x+480,y+80,n+' / '+N,'font-size="14" font-weight="700"')}</g>`;
+}
+function sheetSVG(units,n,N){
+  let g='';const busY=n===1?270:150,difY=busY+30,sbY=difY+92,brY=sbY+24,endY=brY+82,tY=endY+26;
+  const nc=units.reduce((a,u)=>a+Math.max(1,u.cs.length),0);COL=Math.min(130,Math.floor((W-60-X0-14*(units.length-1))/Math.max(nc,1)));
+  let x=X0;const cols=[];
+  units.forEach(u=>{const w=Math.max(1,u.cs.length);const xs=[];for(let k=0;k<w;k++)xs.push(x+k*COL+COL/2);cols.push({u,xs,dx:xs[0]});x+=w*COL+14});
+  const xEnd=cols.length?cols[cols.length-1].xs.slice(-1)[0]:X0+60;
+  if(n===1){
+    const ax=X0+COL/2;
+    g+=T(ax+16,98,'Acometida / DI','font-size="11" font-weight="700" stroke="none"')+T(ax+16,112,S.red,'font-size="10" stroke="none"');
+    g+=`<line x1="${ax}" y1="84" x2="${ax}" y2="140"/><polygon points="${ax-4},88 ${ax+4},88 ${ax},80" fill="#111"/>`+poles(ax,118,nCond(S.iga.po));
+    g+=brk(ax,140,false)+`<line x1="${ax}" y1="200" x2="${ax}" y2="${busY}"/>`;
+    g+=T(ax+16,192,'IGA'+(S.iga.cal?' '+S.iga.cal+' A · curva '+S.iga.cu:''),'font-size="11" font-weight="700" stroke="none"')+T(ax+16,206,S.iga.po+(S.iga.pdc?' · Pdc '+S.iga.pdc:''),'font-size="10" stroke="none"');
+    const px=ax+230;
+    g+=`<rect x="${px}" y="142" width="44" height="34" fill="#fff"/>`+T(px+22,164,'SPD','text-anchor="middle" font-size="12" font-weight="700" stroke="none"');
+    g+=`<line x1="${ax}" y1="230" x2="${px+22}" y2="230"/><circle cx="${ax}" cy="230" r="2.5" fill="#111"/><line x1="${px+22}" y1="230" x2="${px+22}" y2="176"/><line x1="${px+22}" y1="142" x2="${px+22}" y2="128"/><line x1="${px+12}" y1="128" x2="${px+32}" y2="128"/><line x1="${px+15}" y1="124" x2="${px+29}" y2="124"/><line x1="${px+18}" y1="120" x2="${px+26}" y2="120"/>`;
+    g+=T(px+54,154,'Protector de sobretensiones general','font-size="11" font-weight="700" stroke="none"')+T(px+54,168,S.sob,'font-size="10" stroke="none"');
+  } else {
+    g+=T(X0-10,busY-10,'Viene de la hoja '+(n-1),'font-size="10" stroke="none" fill="#555"');
+  }
+  g+=`<line x1="${X0+COL/2-(n===1?0:30)}" y1="${busY}" x2="${xEnd}" y2="${busY}" stroke-width="2.2"/>`;
+  if(n<N)g+=`<line x1="${xEnd}" y1="${busY}" x2="${xEnd+40}" y2="${busY}" stroke-width="2.2"/>`+T(xEnd+40,busY-8,'Sigue en hoja '+(n+1),'text-anchor="end" font-size="10" stroke="none" fill="#555"');
+  cols.forEach(({u,xs,dx})=>{
+    const d=u.d;
+    g+=`<circle cx="${dx}" cy="${busY}" r="2.5" fill="#111"/><line x1="${dx}" y1="${busY}" x2="${dx}" y2="${difY}"/>`;
+    if(d.none){g+=`<line x1="${dx}" y1="${difY}" x2="${dx}" y2="${sbY}"/>`+T(dx+12,difY+40,'Sin diferencial','font-size="10" stroke="none" fill="#555"')}
+    else{g+=brk(dx,difY,true)+poles(dx,difY+64,d.po==='4P'?4:2);
+    g+=T(dx+16,difY+22,difTxt(d)+(u.cont?' (cont.)':''),'font-size="11" font-weight="700" stroke="none"')+T(dx+16,difY+36,d.cal+' A · '+d.sens+' mA','font-size="10" stroke="none"')+T(dx+16,difY+49,d.po,'font-size="10" stroke="none"');
+    g+=`<line x1="${dx}" y1="${difY+60}" x2="${dx}" y2="${sbY}"/>`;}
+    if(xs.length>1)g+=`<line x1="${xs[0]}" y1="${sbY}" x2="${xs[xs.length-1]}" y2="${sbY}" stroke-width="1.6"/>`;
+    u.cs.forEach((c,k)=>{const cx=xs[k];
+      g+=`<line x1="${cx}" y1="${sbY}" x2="${cx}" y2="${brY}"/>`+brk(cx,brY,false)+`<line x1="${cx}" y1="${brY+60}" x2="${cx}" y2="${endY}"/><polygon points="${cx-4},${endY-6} ${cx+4},${endY-6} ${cx},${endY+2}" fill="#111"/>`+poles(cx,brY+64,nCond(c.po));
+      if(c.cal)g+=T(cx+10,brY+24,c.cu+c.cal,'font-size="10.5" font-weight="700" stroke="none"');
+    });
+  });
+  const all=units.flatMap(u=>u.cs);
+  const rows=[['Circuito',c=>c.n,1],['Protección',prot,0],['Conductor Cu (mm²)',cond,0]];
+  if(all.some(c=>c.l))rows.push(['Longitud (m)',c=>c.l?fmt(c.l):'',0]);
+  if(all.some(c=>c.p))rows.push(['Potencia (W)',c=>c.p||'',0]);
+  const rh=26,tw=xEnd+COL/2-24;
+  g+=`<g stroke-width="0.8">`;
+  rows.forEach((r,ri)=>{const y=tY+ri*rh;g+=`<rect x="24" y="${y}" width="${tw}" height="${rh}" fill="${ri%2?'#fff':'#f5f5f3'}"/>`+T(30,y+17,r[0],'font-size="10" font-weight="700" stroke="none" fill="#111"');
+    cols.forEach(({u,xs})=>u.cs.forEach((c,k)=>{const v=String(r[1](c));const cut=v.lastIndexOf(' ',13);const parts=r[2]&&v.length>13?[v.slice(0,cut>0?cut:13),v.slice(cut>0?cut+1:13)]:[v];
+      const fs=r[0]==='Protección'&&v.length>14?8.5:9.5;
+      g+=parts.length>1?T(xs[k],y+11,parts[0],'text-anchor="middle" font-size="9.5" stroke="none" fill="#111" font-weight="700"')+T(xs[k],y+22,parts[1],'text-anchor="middle" font-size="9.5" stroke="none" fill="#111" font-weight="700"'):T(xs[k],y+17,v,`text-anchor="middle" font-size="${r[2]?10:fs}" stroke="none" fill="#111"${r[2]?' font-weight="700"':''}`)}));
+  });
+  g+=`</g>`;
+  const notes=['Tensión '+S.red+'. Secciones según REBT (ITC-BT-19, ITC-BT-25) para conductor de cobre bajo tubo empotrado.','Cada circuito lleva conductor de protección (T) de la misma sección que las fases.'];
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Arial,Helvetica,sans-serif"><rect width="${W}" height="${H}" fill="#fff"/>
+  <rect x="20" y="20" width="${W-40}" height="${H-40}" fill="none" stroke="#111" stroke-width="1.4"/>
+  ${T(36,46,'ESQUEMA UNIFILAR','font-size="17" font-weight="700" fill="#111"')}${T(36,62,S.obra,'font-size="11" fill="#c8102e" font-weight="700"')}
+  <g stroke="#111" fill="none" stroke-width="1.3" font-family="Arial,Helvetica,sans-serif">${g}</g>
+  ${notes.map((t,i)=>T(36,700+i*14,t,'font-size="9" fill="#444"')).join('')}
+  ${cajetin(n,N)}</svg>`;
+}
+
+return {sheetsPlan,sheetSVG};
+})();
+
+/* ---------- Cuadro CHINT (frente + pedido, A4 vertical) ---------- */
+const CHINT=(()=>{
+let D;
+/* ---------- Catálogo CHINT (módulos DIN de 18 mm) ----------
+   1P = 1 mód (18 mm) · 1P+N y 2P = 2 (36 mm) · 3P = 3 (54 mm) · 3P+N y 4P = 4 (72 mm) */
+const MM=18;
+const polN={'1P':1,'1P+N':2,'2P':2,'3P':3,'3P+N':4,'4P':4};
+function modsPIA(po){return {'1P':1,'1P+N':2,'2P':2,'3P':3,'3P+N':4,'4P':4}[po]||2}
+function aparatos(){
+  const L=[]; // filas lógicas: [{tipo,mods,...}]
+  const cab=[];
+  cab.push({t:'iga',mods:D.iga.po==='4P'?4:2,serie:'NB1-63',txt:(D.iga.cal?D.iga.cu+D.iga.cal:'C—'),po:D.iga.po==='4P'?'3P+N':D.iga.po,etq:'IGA GENERAL',ref:`Interruptor automático NB1-63 ${D.iga.po} curva ${D.iga.cu}${D.iga.cal?' '+D.iga.cal+' A':' (calibre a definir)'} 6 kA · ${D.iga.po==='4P'?4:2} mód. (${(D.iga.po==='4P'?4:2)*MM} mm)`});
+  if(D.perm)cab.push({t:'povh',mods:1,serie:'POVH',txt:'U>',etq:'',ref:`Relé de sobretensión permanente POVH-${D.iga.po==='4P'?3:1} (acoplable al NB1-63) · 1 mód. (18 mm)`});
+  cab.push({t:'spd',mods:D.iga.po==='4P'?4:2,serie:'NXU-II',txt:'T2',etq:'SOBRETENSIONES',ref:`Protector de sobretensiones transitorias NXU-II ${D.iga.po==='4P'?'3P+N':'1P+N'} tipo 2 (In/Imax según proyecto) · ${D.iga.po==='4P'?4:2} mód. (${(D.iga.po==='4P'?4:2)*MM} mm)`});
+  L.push({nom:'Cabecera',items:cab});
+  let nd=0;D.difs.forEach(d=>{
+    const cs=D.circ.filter(c=>c.d===d.id);if(!cs.length&&d.none)return;
+    const it=[];
+    if(!d.none)it.push({t:'dif',cal:d.cal,sens:d.sens,mods:d.po==='4P'?4:2,serie:'NXL-63',txt:d.cal+'A '+d.sens+'mA',etq:'DIF. ID'+(++nd),ref:`Interruptor diferencial NXL-63 ${d.po} ${d.cal} A ${d.sens} mA tipo ${d.tipo||'AC'} · ${d.po==='4P'?4:2} mód. (${(d.po==='4P'?4:2)*MM} mm)`});
+    cs.forEach(c=>it.push({t:'pia',mods:modsPIA(c.po),serie:'NXB-63',po:c.po,txt:c.cal?c.cu+c.cal:'C—',etq:c.n.toUpperCase(),ref:`Interruptor automático NXB-63 ${c.po} curva ${c.cu}${c.cal?' '+c.cal+' A':' (calibre a definir)'} 6 kA · ${modsPIA(c.po)} mód. (${modsPIA(c.po)*MM} mm)`}));
+    L.push({nom:d.none?'Sin diferencial':'ID',items:it});
+  });
+  return L;
+}
+/* Reparte grupos en filas de N módulos con reserva mínima; junta grupos pequeños */
+function filas(N,resPct){
+  const grupos=aparatos();const util=Math.floor(N*(1-resPct/100));const F=[];
+  grupos.forEach(g=>{
+    const m=g.items.reduce((a,b)=>a+b.mods,0);
+    if(m>N){ // partir grupo largo
+      let cur=[],cm=0;g.items.forEach(it=>{if(cm+it.mods>N){F.push({items:cur,m:cm});cur=[];cm=0}cur.push(it);cm+=it.mods});if(cur.length)F.push({items:cur,m:cm});return}
+    const last=F[F.length-1];
+    if(last&&last.junta&&last.m+1+m<=util){last.items.push({t:'sep',mods:1},...g.items);last.m+=1+m;return}
+    F.push({items:[...g.items],m,junta:g.nom!=='Cabecera'&&m<=util/2});
+  });
+  return F;
+}
+
+/* ---------- Dibujo de aparatos (versión elegida: bloque único y denominación a todo el ancho) ---------- */
+const MW=17.5; // px por módulo de 18 mm
+function defs(){return `<defs>
+<linearGradient id="gBody" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d9dbdc"/><stop offset=".12" stop-color="#f7f7f6"/><stop offset=".88" stop-color="#f2f2f1"/><stop offset="1" stop-color="#cfd1d2"/></linearGradient>
+<linearGradient id="gBlue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f8fe0"/><stop offset=".45" stop-color="#1f62c4"/><stop offset="1" stop-color="#174d9e"/></linearGradient>
+<linearGradient id="gOr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffa24a"/><stop offset="1" stop-color="#e86a10"/></linearGradient>
+<linearGradient id="gBlank" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c9c4b8"/><stop offset=".5" stop-color="#bdb7aa"/><stop offset="1" stop-color="#b1ab9e"/></linearGradient>
+<filter id="sh" x="-10%" y="-10%" width="130%" height="130%"><feDropShadow dx="1.2" dy="1.6" stdDeviation="1.2" flood-opacity=".35"/></filter>
+</defs>`}
+function cuerpo(x,y,w,h){return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2.5" fill="url(#gBody)" stroke="#a9adb0" stroke-width=".6" filter="url(#sh)"/>`}
+function placa(x,y,w,serie,txt){ // denominación a todo el ancho del bloque
+  const big=w>=30;
+  return `<rect x="${x+1.6}" y="${y+4}" width="${w-3.2}" height="${big?8:7}" rx="1.2" fill="#1c5fbf"/><text x="${x+3}" y="${y+(big?10.4:9.8)}" font-size="${big?6:4.1}" font-weight="700" fill="#fff" font-family="Arial">CHINT</text>
+  <text x="${x+w/2}" y="${y+(big?19:17.5)}" text-anchor="middle" font-size="${big?5.2:4}" fill="#222" font-family="Arial">${esc(serie)}</text><text x="${x+w/2}" y="${y+(big?29:25)}" text-anchor="middle" font-size="${big?(String(txt).length>5?(w<40?6.4:7.5):9):5.4}" font-weight="700" fill="#111" font-family="Arial">${esc(txt)}</text>`;
+}
+function palanca(x,y,w){
+  return `<rect x="${x+2}" y="${y+40}" width="${w-4}" height="7" rx="1.5" fill="#174d9e"/><rect x="${x+3}" y="${y+33}" width="${w-6}" height="14" rx="2" fill="url(#gBlue)"/><rect x="${x+4}" y="${y+34}" width="${w-8}" height="3" rx="1" fill="#8fbaf0" opacity=".7"/>`;
+}
+function bloque(x,y,w,H){return `<rect x="${x+.3}" y="${y-.5}" width="${w-.6}" height="${H+1}" rx="3" fill="none" stroke="#4a4f53" stroke-width="1.1"/>`}
+function aparatoSVG(it,x,y,H){
+  const w=it.mods*MW;let s='';
+  if(it.t==='sep'||it.t==='blank'){
+    for(let k=0;k<it.mods;k++){const xx=x+k*MW;s+=`<rect x="${xx+.5}" y="${y+16}" width="${MW-1}" height="${H-32}" rx="1.5" fill="url(#gBlank)" stroke="#9a9488" stroke-width=".5"/><line x1="${xx+3}" y1="${y+20}" x2="${xx+3}" y2="${y+H-20}" stroke="#d8d3c8" stroke-width=".8"/>`}
+    return s;
+  }
+  if(it.t==='pia'||it.t==='iga'){
+    s+=cuerpo(x+.4,y,w-.8,H)+`<rect x="${x+1}" y="${y+H-16}" width="${w-2}" height="14" fill="#e6e7e7"/>`;
+    for(let k=0;k<it.mods;k++){const xx=x+k*MW;const neutro=it.po&&/\+N$/.test(it.po)&&k===it.mods-1;
+      s+=`<circle cx="${xx+MW/2}" cy="${y+H-6}" r="2" fill="#8c9092"/>`;
+      if(neutro)s+=`<rect x="${xx+MW/2-4}" y="${y+H-30}" width="8" height="8" fill="#fff" stroke="#222" stroke-width=".7"/><text x="${xx+MW/2}" y="${y+H-23.6}" text-anchor="middle" font-size="6.5" font-weight="700" fill="#222">N</text>`;
+      s+=palanca(xx,y,MW);}
+    s+=placa(x,y,w,it.serie+(it.mods>2?' '+it.po:''),it.txt);
+    if(it.mods>1)s+=`<rect x="${x+3}" y="${y+33}" width="${w-6}" height="3.4" rx="1" fill="#123f84"/>`;
+    return s+bloque(x,y,w,H);
+  }
+  s+=cuerpo(x+.4,y,w-.8,H);
+  s+=`<rect x="${x+1}" y="${y+H-16}" width="${w-2}" height="14" fill="#e6e7e7"/>`+`<circle cx="${x+w/2}" cy="${y+H-6}" r="2.2" fill="#8c9092"/>`;
+  if(it.t==='spd'){
+    for(let k=0;k<it.mods;k++){const xx=x+k*MW;s+=`<rect x="${xx+2}" y="${y+16}" width="${MW-4}" height="${H-36}" rx="1.5" fill="#f3f3f2" stroke="#b9bcbe" stroke-width=".5"/><rect x="${xx+5}" y="${y+H-36}" width="${MW-10}" height="5" fill="#2fb34a"/>`}
+    s+=placa(x,y,w,it.serie,'Up 1,5kV');
+  } else if(it.t==='povh'){
+    s+=`<text x="${x+3}" y="${y+12}" font-size="4.6" fill="#222" font-family="Arial">POVH</text><rect x="${x+5}" y="${y+18}" width="7" height="4" fill="#c21d1d"/><text x="${x+3}" y="${y+30}" font-size="5" fill="#222" font-family="Arial">U&gt;</text>`+palanca(x,y,w);
+  } else {
+    s+=placa(x,y,w,it.serie,it.txt);
+    s+=`<rect x="${x+w-12}" y="${y+H-30}" width="9" height="7" rx="1.2" fill="url(#gOr)" stroke="#b55410" stroke-width=".4"/><text x="${x+w-10.2}" y="${y+H-24.8}" font-size="5" font-weight="700" fill="#fff" font-family="Arial">T</text>`;
+    s+=palanca(x,y,w);
+  }
+  s+=bloque(x,y,w,H);
+  return s;
+}
+
+function etiqueta(txt,cx,y,mods){
+  const max=mods*3.6|0;const w=txt.split(/\s+/);const L=[];let cur='';
+  w.forEach(p=>{if(!cur)cur=p;else if((cur+' '+p).length<=max)cur+=' '+p;else{L.push(cur);cur=p}});if(cur)L.push(cur);
+  const lines=L.slice(0,2).map(l=>l.length>max+1?l.slice(0,max)+'.':l);
+  return `<rect x="${cx-mods*MW/2+1}" y="${y-6}" width="${mods*MW-2}" height="${lines.length*7+3}" fill="#fff" stroke="#bbb" stroke-width=".4"/>`+lines.map((l,i)=>`<text x="${cx}" y="${y+i*7}" text-anchor="middle" font-size="5.6" font-weight="700" fill="#222" font-family="Arial">${esc(l)}</text>`).join('');
+}
+/* ---------- Hoja 1: frente del cuadro ---------- */
+const PW=794,PH=1123; // A4 vertical a 96 ppp
+function cajetin(n,N,titulo){
+  const x=34,y=PH-34-96,w=PW-68,h=96;
+  return `<g stroke="#111" fill="none" stroke-width="1"><rect x="${x}" y="${y}" width="${w}" height="${h}"/><line x1="${x+170}" y1="${y}" x2="${x+170}" y2="${y+h}"/><line x1="${x+390}" y1="${y}" x2="${x+390}" y2="${y+h}"/><line x1="${x+390}" y1="${y+h/2}" x2="${x+w}" y2="${y+h/2}"/></g>
+  <image href="${LOGO}" x="${x+8}" y="${y+5}" width="154" height="66" preserveAspectRatio="xMidYMid meet"/>
+  <text x="${x+85}" y="${y+87}" text-anchor="middle" font-size="9.5" font-weight="700">${esc(EMP.nombre)}</text>
+  <g font-size="9.5">${lineasEmp().map((t,i)=>`<text x="${x+178}" y="${y+16+i*13}">${esc(t)}</text>`).join('')}<text x="${x+178}" y="${y+87}" font-style="italic" fill="#555">Instalaciones eléctricas</text></g>
+  <text x="${x+398}" y="${y+13}" font-size="8" fill="#666">OBRA</text><text x="${x+398}" y="${y+29}" font-size="12" font-weight="700">${esc(D.obra)}</text><text x="${x+398}" y="${y+42}" font-size="9">${esc(titulo)}</text>
+  <text x="${x+398}" y="${y+61}" font-size="8" fill="#666">FECHA</text><text x="${x+398}" y="${y+77}" font-size="10.5">${esc(D.fecha)}</text><text x="${x+398}" y="${y+90}" font-size="9">Rev. ${esc(D.rev)}</text>
+  <text x="${x+500}" y="${y+61}" font-size="8" fill="#666">HOJA</text><text x="${x+500}" y="${y+80}" font-size="14" font-weight="700">${n} / ${N}</text>`;
+}
+function hojaFrente(F,N,n,NT,base){
+  const RH=112,H=84;const cabW=N*MW+56;const cabH=F.length*RH+50;
+  const sc=Math.min((PW-80)/cabW,(PH-270)/cabH,1.6);
+  const ox=(PW-cabW*sc)/2,oy=96;
+  let s=`<g transform="translate(${ox},${oy}) scale(${sc})">`;
+  s+=`<rect x="0" y="0" width="${cabW}" height="${cabH}" rx="8" fill="#f3f3f1" stroke="#9fa3a6" stroke-width="2"/><rect x="10" y="10" width="${cabW-20}" height="${cabH-20}" rx="5" fill="#e8e8e5" stroke="#c3c5c6"/>`;
+  F.forEach((f,i)=>{
+    const ry=25+i*RH,x0=28;
+    s+=`<rect x="18" y="${ry-6}" width="${cabW-36}" height="${RH-10}" rx="4" fill="#fbfbfa" stroke="#cfd1d2"/>`;
+    s+=`<rect x="${x0-4}" y="${ry+H/2-8}" width="${N*MW+8}" height="16" fill="#9aa0a4"/><rect x="${x0-4}" y="${ry+H/2-8}" width="${N*MW+8}" height="3" fill="#c4c9cc"/>`;
+    let x=x0;
+    f.items.forEach(it=>{s+=aparatoSVG(it,x,ry,H);if(it.etq)s+=etiqueta(it.etq,x+it.mods*MW/2,ry+H+11,it.mods);x+=it.mods*MW});
+    const libre=N-f.m;if(libre>0)s+=aparatoSVG({t:'blank',mods:libre},x,ry,H);
+    s+=`<text x="${cabW-24}" y="${ry+3}" text-anchor="end" font-size="7" fill="#555">${f.m} mód. · ${f.m*MM} mm de ${N*MM} mm</text>`;
+    s+=`<line x1="22" y1="${ry+H+3}" x2="${cabW-22}" y2="${ry+H+3}" stroke="#d6d7d6"/>`;
+  });
+  s+=`</g>`;
+  const tot=F.length*N,ocup=F.reduce((a,f)=>a+f.m,0);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PW} ${PH}" font-family="Arial,Helvetica,sans-serif">${defs()}<rect width="${PW}" height="${PH}" fill="#fff"/>
+  <rect x="20" y="20" width="${PW-40}" height="${PH-40}" fill="none" stroke="#111" stroke-width="1.3"/>
+  <text x="36" y="48" font-size="17" font-weight="700">FRENTE DEL CUADRO · APARAMENTA CHINT</text>
+  <text x="36" y="66" font-size="11" fill="#c8102e" font-weight="700">${esc(D.obra)}</text>
+  <text x="36" y="82" font-size="10" fill="#444">Filas ${base+1} a ${base+F.length} · ${N} módulos de 18 mm (${N*MM} mm por fila) · ocupados ${ocup} · libres ${tot-ocup} (${Math.round((tot-ocup)/tot*100)} %)</text>
+  ${s}
+  <text x="36" y="${PH-150}" font-size="9" fill="#444">Representación orientativa del montaje. Huecos libres con tapa cubre-huecos. Cada aparato con su etiqueta de circuito.</text>
+  ${cajetin(n,NT,'Frente del cuadro')}</svg>`;
+}
+
+/* ---------- Hoja 2: pedido de material ---------- */
+function hojaPedido(F,N,n,NT){
+  const m=new Map();
+  F.forEach(f=>f.items.forEach(it=>{if(!it.ref)return;m.set(it.ref,(m.get(it.ref)||0)+1)}));
+  const tot=F.length*N,ocup=F.reduce((a,f)=>a+f.m,0);
+  const filasPed=[...m.entries()].sort((a,b)=>a[0].localeCompare(b[0],'es'));
+  filasPed.push([`Envolvente para aparamenta modular ${F.length} filas × ${N} módulos (${N*MM} mm de carril por fila), con puerta`,1]);
+  if(tot-ocup>0)filasPed.push([`Tapa cubre-huecos (por módulo)`,tot-ocup]);
+  filasPed.push([`Peine de conexión 1P+N / 3P+N (por fila de diferencial)`,F.length-1]);
+  filasPed.push([`Juego de etiquetas de identificación de circuitos`,1]);
+  const x=36,y0=110,rh=22;
+  let s=`<rect x="${x}" y="${y0}" width="${PW-72}" height="${rh}" fill="#17181a"/><text x="${x+8}" y="${y0+15}" font-size="10.5" font-weight="700" fill="#fff">Nº</text><text x="${x+40}" y="${y0+15}" font-size="10.5" font-weight="700" fill="#fff">Descripción (CHINT)</text><text x="${PW-44}" y="${y0+15}" font-size="10.5" font-weight="700" fill="#fff" text-anchor="end">Cant.</text>`;
+  filasPed.forEach(([d,q],i)=>{const y=y0+rh*(i+1);s+=`<rect x="${x}" y="${y}" width="${PW-72}" height="${rh}" fill="${i%2?'#fff':'#f5f5f3'}" stroke="#ddd" stroke-width=".6"/><text x="${x+8}" y="${y+15}" font-size="10">${i+1}</text><text x="${x+40}" y="${y+15}" font-size="10">${esc(d)}</text><text x="${PW-44}" y="${y+15}" font-size="10.5" font-weight="700" text-anchor="end">${q}</text>`});
+  const yN=y0+rh*(filasPed.length+2);
+  const notas=['Pedido sin precios. Referencias por serie, polos, calibre y curva; confirmar el código de artículo con el distribuidor CHINT.','Aparamenta: magnetotérmicos NXB-63 (6 kA), diferenciales NXL-63, IGA NB1-63 y protector de sobretensiones NXU-II.',...(D.notas||[])];
+  s+=notas.map((t,i)=>`<text x="${x}" y="${yN+i*15}" font-size="9.5" fill="#444">• ${esc(t)}</text>`).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PW} ${PH}" font-family="Arial,Helvetica,sans-serif"><rect width="${PW}" height="${PH}" fill="#fff"/>
+  <rect x="20" y="20" width="${PW-40}" height="${PH-40}" fill="none" stroke="#111" stroke-width="1.3"/>
+  <text x="36" y="48" font-size="17" font-weight="700">PEDIDO DE MATERIAL · CHINT</text>
+  <text x="36" y="66" font-size="11" fill="#c8102e" font-weight="700">${esc(D.obra)}</text>
+  <text x="36" y="82" font-size="10" fill="#444">Según esquema unifilar · ${D.circ.length} circuitos · ${D.difs.filter(d=>!d.none).length} diferenciales</text>
+  ${s}${cajetin(n,NT,'Pedido de material')}</svg>`;
+}
+
+return {paginas(s,N,R){D=s;const F=filas(N,R);const P=[];for(let i=0;i<F.length;i+=4)P.push(F.slice(i,i+4));const NT=P.length+1;return [...P.map((p,i)=>hojaFrente(p,N,i+1,NT,i*4)),hojaPedido(F,N,NT,NT)]}};
+})();
+
+/* ---------- Pintar ---------- */
+function renderUni(){
+  const P=UNI.sheetsPlan();
+  $('#sheetsUni').innerHTML=S.circ.length?P.map((u,i)=>`<div class="page h">${UNI.sheetSVG(u,i+1,P.length)}</div>`).join(''):'<p class="vacio">Aún no hay circuitos. Lee la foto o añádelos en «Circuitos».</p>';
+  $('#nomUni').textContent='A4 apaisado · «'+nombreArch('Unifilar')+'.pdf»';
+}
+function svgsChint(){return CHINT.paginas(S,+$('#mpf').value,+$('#res').value)}
+function renderChint(){$('#sheetsChint').innerHTML=S.circ.length?svgsChint().map(s=>`<div class="page v">${s}</div>`).join(''):'<p class="vacio">Aún no hay circuitos.</p>'}
+function renderAll(){$('#hobra').textContent=S.obra||'Sin obra';renderGroups();const v=$('.view.on').id;if(v==='v-uni')renderUni();if(v==='v-chint')renderChint()}
+$('#mpf').onchange=$('#res').onchange=renderChint;
+$$('nav button').forEach(b=>b.onclick=()=>{$$('nav button').forEach(x=>x.classList.toggle('on',x===b));$$('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+b.dataset.v));if(b.dataset.v==='uni')renderUni();if(b.dataset.v==='chint')renderChint();if(b.dataset.v==='datos')renderDatos();window.scrollTo(0,0)});
+const ir=v=>$(`nav button[data-v="${v}"]`).click();
+
+function renderDatos(){
+  const m={f_obra:'obra',f_fecha:'fecha',f_rev:'rev',f_red:'red',f_tipo:'tipoInst',f_sob:'sob'};
+  for(const[k,v]of Object.entries(m)){const el=$('#'+k);el.value=S[v]??'';el.oninput=el.onchange=()=>{S[v]=el.value;save();$('#hobra').textContent=S.obra||'Sin obra'}}
+  const ig={f_igacal:'cal',f_igacu:'cu',f_igapo:'po',f_igapdc:'pdc'};
+  for(const[k,v]of Object.entries(ig)){const el=$('#'+k);el.value=S.iga[v]??'';el.oninput=el.onchange=()=>{S.iga[v]=el.value;save()}}
+  $('#f_perm').value=S.perm?'1':'';$('#f_perm').onchange=e=>{S.perm=!!e.target.value;save()};
+  $('#f_comp').value=(S.comprobar||[]).join('\n');$('#f_comp').oninput=e=>{S.comprobar=e.target.value.split('\n').map(x=>x.trim()).filter(Boolean);save()};
+  $('#emp').innerHTML=`<b>${esc(EMP.nombre)}</b>${EMP.nif?' · CIF '+esc(EMP.nif):''}<br>${esc([EMP.dir,[EMP.cp,EMP.loc].filter(Boolean).join(' ')].filter(Boolean).join(' · '))}${EMP.prov?' ('+esc(EMP.prov)+')':''}<br>${esc([EMP.tel,EMP.email,EMP.web].filter(Boolean).join(' · '))}${HOST?'<br>Sale de Ajustes › Empresa.':''}`;
+}
+
+/* ---------- Fotos ---------- */
+function reducir(file,max=1600){return new Promise((ok,ko)=>{const u=URL.createObjectURL(file);const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL('image/jpeg',.86))};im.onerror=()=>ko(new Error('No se pudo abrir la imagen'));im.src=u})}
+async function añadirFotos(files){
+  for(const f of files){try{const d=await reducir(f);const nombre='Foto cuadro '+(FOTOS.length+1)+'.jpg';FOTOS.push({nombre,dataUrl:d});enviar({tipo:'cf-foto',nombre:nombreArch('Foto cuadro')+' '+FOTOS.length+'.jpg',dataUrl:d})}catch(e){toast(e.message)}}
+  pintarFotos();
+}
+function pintarFotos(){$('#fotos').innerHTML=FOTOS.map((f,i)=>`<figure><img src="${f.dataUrl}" alt="${esc(f.nombre)}"><button data-q="${i}" title="Quitar de la lectura">✕</button></figure>`).join('')||'<p class="hint" style="margin:0">Sin fotos todavía.</p>'}
+$('#fotos').onclick=e=>{const b=e.target.closest('[data-q]');if(b){FOTOS.splice(+b.dataset.q,1);pintarFotos()}};
+$('#bCamara').onclick=()=>$('#fCamara').click();$('#bGaleria').onclick=()=>$('#fGaleria').click();
+$('#fCamara').onchange=e=>{añadirFotos([...e.target.files]);e.target.value=''};$('#fGaleria').onchange=e=>{añadirFotos([...e.target.files]);e.target.value=''};
+
+/* ---------- Lectura con Claude ---------- */
+const PROMPT=`Eres un instalador electricista en España. Lee el cuadro eléctrico de las fotos y devuelve SOLO un JSON válido, sin texto alrededor, con esta forma:
+{"suministro":"trifasico"|"monofasico","tipoInstalacion":"vivienda"|"general",
+ "iga":{"calibre":40|null,"curva":"C"|null,"polos":"2P"|"4P","modelo":"texto"|null},
+ "sobretensiones":{"transitorias":true|false,"permanentes":true|false,"texto":"p.ej. Transitorias · In 5 kA · Up 1,5 kV"},
+ "sinDiferencial":[{"nombre":"CLINICA","calibre":25|null,"curva":"C"|null,"polos":"1P+N"|"2P"|"3P"|"3P+N"|"4P"}],
+ "diferenciales":[{"calibre":40|null,"sensibilidad":30|300|null,"polos":"2P"|"4P","tipo":"AC"|"A"|null,"modelo":"texto"|null,
+   "circuitos":[{"nombre":"ALUMBRADO","calibre":10|null,"curva":"C"|null,"polos":"1P+N"}]}],
+ "comprobar":["frases cortas con lo que no se lee con claridad o es dudoso"]}
+Reglas: recorre el cuadro por filas y de izquierda a derecha; cada PIA pertenece al diferencial que tiene a su izquierda en el mismo carril. Los PIA que cuelgan directamente del IGA van en "sinDiferencial". Usa la etiqueta escrita bajo cada aparato como nombre, en mayúsculas tal cual. Si un dato no se lee con claridad, pon null y añádelo a "comprobar"; nunca lo inventes. Si hay aparatos que no sabes identificar, menciónalos en "comprobar". Un PIA de 1P+N ocupa 2 módulos, uno de 3P 3 módulos y uno de 3P+N o 4P 4 módulos.`;
+function aDatos(j){
+  const n=v=>v==null||v===''?'':v;
+  const s=vacio();s.obra=S.obra;s.fecha=S.fecha||hoy();s.rev=S.rev||'0';
+  s.red=j.suministro==='monofasico'?'F+N 230 V · 50 Hz':'3×400/230 V + N · 50 Hz';
+  s.tipoInst=j.tipoInstalacion==='general'?'general':'vivienda';
+  s.iga={cal:n(j.iga?.calibre),cu:j.iga?.curva||'C',po:j.iga?.polos==='2P'?'2P':(j.suministro==='monofasico'?'2P':'4P'),pdc:''};
+  const so=j.sobretensiones||{};s.sob=so.texto||(so.transitorias?'Transitorias':'Protector de sobretensiones');s.perm=!!so.permanentes;
+  let i=0;const pc=(c,d)=>({id:'c'+(++i),n:String(c.nombre||'Circuito '+(i)).trim(),cal:n(c.calibre),cu:c.curva||'C',po:['1P','1P+N','2P','3P','3P+N','4P'].includes(c.polos)?c.polos:'1P+N',d,l:'',p:''});
+  if((j.sinDiferencial||[]).length){s.difs.push({id:'SD',none:true});(j.sinDiferencial||[]).forEach(c=>s.circ.push(pc(c,'SD')))}
+  (j.diferenciales||[]).forEach((d,k)=>{const id='D'+(k+1);s.difs.push({id,cal:+d.calibre||40,sens:+d.sensibilidad||30,po:d.polos==='4P'?'4P':'2P',tipo:d.tipo||''});(d.circuitos||[]).forEach(c=>s.circ.push(pc(c,id)))});
+  s.comprobar=(j.comprobar||[]).map(String);
+  return s;
+}
+async function leer(){
+  if(!FOTOS.length){toast('Añade antes una foto del cuadro');return}
+  if(!CLAVE&&$('#clave').value.trim()){CLAVE=$('#clave').value.trim();if(HOST)enviar({tipo:'cf-clave',clave:CLAVE});else try{localStorage.setItem('cdf:clave',CLAVE)}catch(_){}}
+  if(!CLAVE){$('#claveCaja').hidden=false;$('#clave').focus();toast('Pega la clave de la API de Claude');return}
+  const b=$('#bLeer');b.disabled=true;b.innerHTML='<span class="giro"></span> Leyendo…';$('#estadoLeer').textContent='Puede tardar hasta un minuto.';
+  try{
+    const content=[...FOTOS.map(f=>({type:'image',source:{type:'base64',media_type:'image/jpeg',data:f.dataUrl.split(',')[1]}})),{type:'text',text:PROMPT}];
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':CLAVE,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:MODELO,max_tokens:4000,messages:[{role:'user',content}]})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(r.status===401?'La clave de la API no es válida':(j.error?.message||'Error '+r.status));
+    const txt=(j.content||[]).map(c=>c.text||'').join('');
+    const m=txt.match(/\{[\s\S]*\}/);if(!m)throw new Error('Claude no devolvió datos del cuadro');
+    const datos=aDatos(JSON.parse(m[0]));
+    if(S.circ.length&&!confirm('Ya hay un cuadro. ¿Sustituirlo por lo leído en la foto?'))return;
+    S=datos;S0=clone(datos);save();renderDatos();renderAll();resumenLeido();ir('circ');
+  }catch(e){toast(navigator.onLine?e.message:'Sin conexión: la lectura necesita internet');$('#estadoLeer').textContent=''}
+  finally{b.disabled=false;b.textContent='Leer cuadro de la foto';if($('#estadoLeer').textContent.startsWith('Puede'))$('#estadoLeer').textContent=''}
+}
+function resumenLeido(){
+  const nd=S.difs.filter(d=>!d.none).length;
+  $('#resumenLeido').hidden=!S.circ.length;
+  $('#resumenLeido').innerHTML=`<h3>Leído: ${nd} diferencial${nd==1?'':'es'} y ${S.circ.length} circuitos</h3>${S.comprobar.length?'<p class="hint" style="margin:0">Hay '+S.comprobar.length+' cosas para comprobar en obra (pestaña Datos).</p>':''}`;
+}
+$('#bLeer').onclick=leer;
+$('#bClave').onclick=()=>{$('#claveCaja').hidden=!$('#claveCaja').hidden;$('#clave').value=CLAVE};
+$('#clave').onchange=e=>{CLAVE=e.target.value.trim();if(HOST)enviar({tipo:'cf-clave',clave:CLAVE});else try{localStorage.setItem('cdf:clave',CLAVE)}catch(_){}toast('Clave guardada en este dispositivo')};
+
+/* ---------- PDF (pdf-lib, páginas rasterizadas a buena resolución) ---------- */
+function svgAImagen(svg,w,h,k=2.6){return new Promise((ok,ko)=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=Math.round(w*k);c.height=Math.round(h*k);const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',.92))};im.onerror=()=>ko(new Error('No se pudo preparar la hoja'));im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})}
+async function hacerPdf(svgs,apaisado){
+  const {PDFDocument}=window.PDFLib;const pdf=await PDFDocument.create();
+  const [pw,ph]=apaisado?[841.89,595.28]:[595.28,841.89];const [vw,vh]=apaisado?[1123,794]:[794,1123];
+  for(const s of svgs){const jpg=await pdf.embedJpg(await svgAImagen(s,vw,vh));const p=pdf.addPage([pw,ph]);p.drawImage(jpg,{x:0,y:0,width:pw,height:ph})}
+  pdf.setTitle(apaisado?nombreArch('Unifilar'):nombreArch('Cuadro CHINT'));pdf.setAuthor(EMP.nombre);
+  return pdf.saveAsBase64({dataUri:false});
+}
+async function guardarPdf(tipo){
+  if(!S.circ.length){toast('No hay circuitos');return}
+  const btn=tipo==='unifilar'?$('#pdfUni'):$('#pdfChint');const t0=btn.textContent;btn.disabled=true;btn.innerHTML='<span class="giro"></span> Preparando PDF…';
+  try{
+    const svgs=tipo==='unifilar'?(()=>{const P=UNI.sheetsPlan();return P.map((u,i)=>UNI.sheetSVG(u,i+1,P.length))})():svgsChint();
+    const b64=await hacerPdf(svgs,tipo==='unifilar');
+    const nombre=(tipo==='unifilar'?nombreArch('Unifilar'):nombreArch('Cuadro CHINT'))+'.pdf';
+    if(HOST){enviar({tipo:'cf-pdf',clase:tipo,nombre,base64:b64});toast('PDF guardado en el aviso')}
+    else{const a=document.createElement('a');a.href='data:application/pdf;base64,'+b64;a.download=nombre;document.body.append(a);a.click();a.remove()}
+  }catch(e){toast(e.message)}
+  finally{btn.disabled=false;btn.textContent=t0}
+}
+$('#pdfUni').onclick=()=>guardarPdf('unifilar');$('#pdfChint').onclick=()=>guardarPdf('chint');
+$('#addSD').onclick=()=>{if(S.difs.some(d=>d.none)){toast('Ya hay un grupo sin diferencial');return}S.difs.unshift({id:'SD',none:true});save();renderAll()};
+
+/* ---------- Arranque ---------- */
+function cargar(d){
+  if(d.datos&&typeof d.datos==='object')S=Object.assign(vacio(),d.datos);
+  S0=d.leido||null;
+  if(!S.obra&&d.obra)S.obra=d.obra;
+  if(d.empresa)for(const[k,v]of Object.entries(d.empresa))if(v)EMP[k]=v;
+  if(d.logo)LOGO=d.logo;
+  if(d.clave)CLAVE=d.clave;if(d.modelo)MODELO=d.modelo;
+  renderDatos();renderAll();pintarFotos();resumenLeido();
+  if(S.circ.length)ir('circ');
+}
+if(HOST){
+  // el botón de volver lo pone la ficha (barra de arriba)
+  window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==parent)return;const m=e.data||{};if(m.tipo==='cf-cargar')cargar(m)});
+  enviar({tipo:'cf-listo'});
+}else{
+  try{const g=JSON.parse(localStorage.getItem(KEY)||'null');CLAVE=localStorage.getItem('cdf:clave')||''; if(g)cargar({datos:g.S,leido:g.S0});else cargar({})}catch(e){cargar({})}
+}
+}
+</script>
+</body>
+</html>

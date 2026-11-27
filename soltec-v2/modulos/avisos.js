@@ -19,6 +19,8 @@ import { bloqueUbicacion, bloquePlano, bloqueFotos } from './ubicacion.js';
 import { bloqueCertificados } from './certificados.js';
 import { bloqueCuadros } from './cuadros.js';
 import { bloqueAutorizacion } from './autorizacion.js';
+import { bloqueCuadroFoto } from './cuadroFoto.js';
+import { resumenCuadroFoto } from '../core/cuadroFoto.js';
 import { bloquePartes } from './partes.js';
 import { calcularRecordatorios, tarjetasRecordatorios } from './recordatorios.js';
 import { IGAS, potenciaDeIga, potenciasNormalizadas, problemaPotencia } from '../core/potencias.js';
@@ -416,7 +418,7 @@ export async function vistaFicha(app, id) {
     if ((a.archivos || []).some((x) => x.tipo === 'memoria')) set.add('memoria');
     if (a.autorizacion?.datos) set.add('autorizacion');
     if (a.condiciones?.ref || (a.condiciones?.pdfs || []).length) set.add('condiciones');
-    if (resumenCuadro(a.cuadro).hay) set.add('cuadros');
+    if (resumenCuadro(a.cuadro).hay || resumenCuadroFoto(a.cuadroFoto).hay) set.add('cuadros');
     return set;
   })();
   const avisoOcultos = h('div', { class: 'aviso info', id: 'apartados-ocultos', hidden: true });
@@ -572,6 +574,9 @@ export async function vistaFicha(app, id) {
   };
 
   const seguimiento = registro ? await bloqueSeguimiento(app, registro.id) : null;
+  const cuadroFotoEl = bloqueCuadroFoto(app, draft, alCambiar, () => guardar());
+  // Desde la pestaña «Cuadros»: se abre directamente la herramienta de este aviso
+  if (registro && /[?&]cuadro=1/.test(location.hash)) setTimeout(() => { try { history.replaceState(null, '', location.pathname + location.search + location.hash.replace(/[?&]cuadro=1/, '')); } catch { /* sin historial */ } const s = cuadroFotoEl.closest('details'); if (s) { s.hidden = false; s.open = true; } cuadroFotoEl.abrir(); }, 0);
   const comunicaciones = registro ? await bloqueComunicaciones(app, registro.id) : null;
   const partes = registro ? await bloquePartes(app, registro.id) : null;
   const titulo = registro ? `Aviso ${draft.numero}` : id === 'duplicar' ? 'Nuevo aviso (mismo cliente)' : 'Nuevo aviso';
@@ -625,7 +630,7 @@ export async function vistaFicha(app, id) {
         h('button', { class: 'btn', type: 'button', id: 'btn-subir-boletin', onclick: () => subirBoletin.click() }, 'Subir boletín (PDF)'), subirBoletin,
         h('button', { class: 'btn', type: 'button', id: 'btn-subir-condiciones', onclick: () => subirPdf.click() }, 'Subir condiciones (PDF)')),
       listaArchivos(app, { ...draft, archivos: (draft.archivos || []).filter((x) => x.tipo !== 'boletin') })),
-    seccionBloqueable('cuadros', 'Cuadros eléctricos', bloqueCuadros(app, draft, alCambiar, () => guardar())),
+    seccionBloqueable('cuadros', 'Cuadros eléctricos', cuadroFotoEl, h('hr', { style: 'margin:16px 0;border:0;border-top:1px solid var(--linea)' }), bloqueCuadros(app, draft, alCambiar, () => guardar())),
     seccion('Certificados', false, certificados),
     seccion('Obra, fecha y observaciones', false, h('div', { class: 'grid2' }, ...CAMPOS_OBRA.map(campo),
       campo(['presupuesto.numero', 'Nº de presupuesto (si corresponde)', 'text']))),
